@@ -131,7 +131,73 @@ test.describe('electric workbench e2e', () => {
     await expectHealthyRuntime(runtimeProblems)
   })
 
-  test('keeps the main workbench panels reachable on each compatibility viewport', async ({ page }) => {
+  test('loads a training challenge and updates the score after repair', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    await page.locator('.challenge-card').filter({ hasText: '照明支路排障' }).locator('.challenge-action').click()
+
+    await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('未通电')
+    await expect(page.locator('.training-card')).toContainText('灯泡回线已接回负极')
+    await expect(page.locator('.training-card')).toContainText('仍处于断开状态')
+
+    const lampReturn = page.locator('.wire-toggle').filter({ hasText: '灯泡回负极' })
+    await lampReturn.locator('.toggle-button').click()
+
+    await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
+    await expect(page.locator('.training-card')).toContainText('100%')
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
+  test('answers knowledge questions across school and professional tracks', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    await expect(page.locator('.knowledge-board')).toContainText('高中基础')
+    await expect(page.locator('.knowledge-board')).toContainText('欧姆定律与电功率')
+
+    const ohmQuestion = page.locator('.knowledge-question').filter({ hasText: '欧姆定律计算' })
+    await ohmQuestion.locator('.choice-button').filter({ hasText: '0.5A' }).click()
+    await expect(ohmQuestion).toContainText('回答正确')
+    await expect(page.locator('.mobile-status-strip')).toContainText('33%')
+
+    await page.locator('.knowledge-track-tab').filter({ hasText: '大学电路' }).click()
+    await expect(page.locator('.knowledge-board')).toContainText('节点法与线性电路')
+    await expect(page.locator('.simulation-check-list')).toContainText('KCL 电流守恒')
+    const kclQuestion = page.locator('.knowledge-question').filter({ hasText: 'KCL 节点电流' })
+    await kclQuestion.locator('.choice-button').filter({ hasText: '1.0A' }).click()
+    await expect(kclQuestion).toContainText('回答正确')
+
+    await page.locator('.knowledge-track-tab').filter({ hasText: '电工实操' }).click()
+    await expect(page.locator('.knowledge-board')).toContainText('低压控制与安全排障')
+    await expect(page.locator('.simulation-check-list')).toContainText('低压训练电源')
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
+  test('switches commercial domains and exposes auth and billing hooks', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    await expect(page.locator('.commercial-dashboard')).toContainText('工程工控')
+    await expect(page.locator('.palette-panel')).toContainText('PLC 控制器')
+    await expect(page.locator('.commerce-panel')).toContainText('/api/auth/sign-in')
+    await expect(page.locator('.commerce-panel')).toContainText('/api/billing/checkout')
+    await expect(page.locator('.commerce-panel')).toContainText('/api/billing/portal')
+    await expect(page.locator('.commerce-panel')).toContainText('/api/billing/webhook')
+
+    await page.locator('.domain-tab').filter({ hasText: '装修工控' }).click()
+    await expect(page.locator('.palette-panel')).toContainText('装修工控元件库')
+    await expect(page.locator('.palette-item').filter({ hasText: '智能开关面板' })).toHaveCount(1)
+
+    await page.locator('.commerce-panel').locator('.small-action').filter({ hasText: '模拟登录' }).click()
+    await expect(page.locator('.commerce-panel')).toContainText('专业版演示账号')
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
+  test('keeps the main workbench panels reachable on each compatibility viewport', async ({ page }, testInfo) => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
@@ -142,6 +208,13 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.palette-item').filter({ hasText: '温湿度传感器' })).toHaveCount(1)
     await expectNoIconText(page)
     await expectDevicesInsideBoard(page)
+
+    if (testInfo.project.name.includes('mobile')) {
+      await expect(page.locator('.mobile-status-strip')).toBeVisible()
+      await expect(page.locator('.mobile-bottom-nav')).toBeVisible()
+      await page.locator('.mobile-nav-button').filter({ hasText: '题库' }).click()
+      await expect(page.locator('.mobile-nav-button').filter({ hasText: '题库' })).toHaveClass(/is-active/)
+    }
 
     await expectHealthyRuntime(runtimeProblems)
   })

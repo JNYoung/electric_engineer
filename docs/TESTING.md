@@ -9,6 +9,12 @@ This project keeps electrical physics and rendered compatibility checks separate
 - `npm run test:compat` verifies the production H5 build and WeChat mini program build.
 - `npm test` runs typecheck, physics tests, e2e tests, and compatibility builds.
 
+If Playwright's bundled Chromium is not installed but system Chrome exists, local runs can use:
+
+```bash
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npm run test:e2e
+```
+
 ## Covered Behavior
 
 - 12V parallel loads receive the expected terminal voltage, current, power, and total current.
@@ -16,4 +22,9 @@ This project keeps electrical physics and rendered compatibility checks separate
 - Disconnecting one return wire only disables that branch while the other parallel branch stays active.
 - Direct source positive-to-negative bridging is reported as a protected short circuit.
 - Weak-current additions such as stepper motors and DIP switches auto-connect, show schematic icons with no letter-only placeholders, and produce active simulated effects.
+- Training scenarios generate preset circuits, score challenge rules, surface safety diagnostics, and update the score after a fault is repaired.
+- Knowledge verification covers high-school, university, and professional electrician tracks, grades answers, and maps the active simulation to level-specific knowledge checks.
+- Commercial catalogs split engineering-control and renovation-control domains, keep category counts aligned, gate premium components by plan tier, and expose auth/billing API contract placeholders.
+- The H5 e2e flow switches between engineering industrial control and renovation control tabs, confirms domain-specific components, and exercises the mock sign-in/payment entry points.
+- The H5 e2e flow answers knowledge questions across tracks, verifies simulation knowledge checks, and confirms the mobile status strip plus bottom navigation on the mobile viewport profile.
 - H5 compatibility is checked on desktop and mobile viewport profiles; mini program compatibility is checked by `build:weapp`.

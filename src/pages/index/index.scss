@@ -19,7 +19,11 @@ $ink: #1f2937;
 }
 
 .topbar,
+.commercial-dashboard,
+.learning-dashboard,
+.knowledge-board,
 .workspace,
+.mobile-status-strip,
 .effects-bar {
   max-width: 1440px;
   margin: 0 auto;
@@ -44,7 +48,13 @@ $ink: #1f2937;
 .canvas-header,
 .metric-row,
 .wire-toggle,
-.effect-pill {
+.effect-pill,
+.knowledge-head,
+.question-head,
+.simulation-check,
+.mobile-status-strip,
+.mobile-bottom-nav,
+.mobile-nav-button {
   display: flex;
   align-items: center;
 }
@@ -94,6 +104,601 @@ $ink: #1f2937;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.commercial-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 460px;
+  gap: 14px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 14px;
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.commercial-title {
+  display: block;
+  margin-top: 4px;
+  font-size: 19px;
+  line-height: 25px;
+  font-weight: 900;
+}
+
+.commercial-desc,
+.commercial-plan,
+.commerce-status,
+.plan-target,
+.plan-feature,
+.api-row {
+  display: block;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.commercial-desc {
+  margin-top: 5px;
+}
+
+.commercial-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.domain-switcher,
+.commercial-metrics,
+.category-filter,
+.catalog-title-row,
+.catalog-tags,
+.commerce-actions-row,
+.plan-head {
+  display: flex;
+  align-items: center;
+}
+
+.domain-switcher {
+  gap: 8px;
+}
+
+.domain-tab,
+.category-filter-button {
+  width: auto;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid $line;
+  background: #ffffff;
+  color: $text;
+  font-size: 13px;
+  line-height: 30px;
+  font-weight: 800;
+}
+
+.domain-tab::after,
+.category-filter-button::after {
+  border: none;
+}
+
+.domain-tab.is-active,
+.category-filter-button.is-active {
+  border-color: #bdebdc;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.commercial-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.commercial-metrics > view,
+.commercial-metrics > div {
+  padding: 9px;
+  border-radius: 8px;
+  border: 1px solid #edf1f6;
+  background: #f8fbff;
+}
+
+.learning-dashboard {
+  margin-top: 16px;
+  padding: 14px;
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.training-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 8px;
+  background: #132238;
+  color: #ffffff;
+}
+
+.training-kicker,
+.section-meta,
+.lesson-time,
+.lesson-summary,
+.challenge-objective,
+.challenge-scenario,
+.rule-detail,
+.diagnostic-detail,
+.diagnostic-action {
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.training-kicker,
+.lesson-time {
+  color: #b9c6d8;
+  font-weight: 800;
+}
+
+.training-title {
+  display: block;
+  margin-top: 4px;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 900;
+}
+
+.training-copy {
+  display: block;
+  margin-top: 4px;
+  color: #d8e2f0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.score-meter,
+.mini-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.score-meter {
+  min-height: 82px;
+}
+
+.score-meter.score-passed,
+.mini-score.score-passed {
+  background: #0f9f9a;
+}
+
+.score-meter.score-needs-work,
+.mini-score.score-needs-work {
+  background: #2563eb;
+}
+
+.score-meter.score-ready,
+.mini-score.score-ready {
+  background: #6b7280;
+}
+
+.score-value {
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 900;
+}
+
+.score-label {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
+.learning-grid {
+  display: grid;
+  grid-template-columns: 0.95fr 1.25fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.section-head,
+.lesson-card-head,
+.challenge-card-head,
+.training-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.section-head {
+  min-height: 28px;
+}
+
+.section-title {
+  display: block;
+  font-size: 15px;
+  line-height: 21px;
+  font-weight: 900;
+}
+
+.section-meta {
+  color: $muted;
+}
+
+.lesson-list,
+.challenge-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.lesson-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.challenge-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lesson-card,
+.challenge-card {
+  min-width: 0;
+  min-height: 154px;
+  padding: 11px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #f8fbff;
+  box-sizing: border-box;
+}
+
+.lesson-card.is-active,
+.challenge-card.is-active {
+  border-color: #9fc3ff;
+  background: #eef6ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.lesson-stage,
+.challenge-level {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: $blue;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.lesson-title,
+.challenge-title {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.lesson-summary,
+.challenge-objective {
+  margin-top: 5px;
+  color: $muted;
+}
+
+.lesson-tags,
+.challenge-focus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.lesson-tags text,
+.lesson-tags span,
+.challenge-focus text,
+.challenge-focus span {
+  min-height: 22px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: #ffffff;
+  border: 1px solid #edf1f6;
+  color: #344054;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 800;
+}
+
+.challenge-action {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.knowledge-board {
+  margin-top: 16px;
+  padding: 14px;
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.knowledge-head {
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.knowledge-title {
+  display: block;
+  margin-top: 4px;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 900;
+}
+
+.knowledge-copy,
+.question-prompt,
+.answer-feedback,
+.simulation-hint,
+.check-detail {
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.knowledge-copy {
+  margin-top: 4px;
+  color: #d8e2f0;
+}
+
+.knowledge-score {
+  width: 84px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.knowledge-score text:first-child,
+.knowledge-score span:first-child {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.knowledge-track-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.knowledge-track-tab,
+.choice-button {
+  width: auto;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid $line;
+  background: #ffffff;
+  color: $text;
+  font-size: 13px;
+  line-height: 32px;
+  font-weight: 800;
+}
+
+.knowledge-track-tab::after,
+.choice-button::after,
+.mobile-nav-button::after {
+  border: none;
+}
+
+.knowledge-track-tab.is-active {
+  border-color: #bdebdc;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.knowledge-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.knowledge-column {
+  min-width: 0;
+}
+
+.knowledge-ideas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.knowledge-ideas text,
+.knowledge-ideas span {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid #edf1f6;
+  border-radius: 7px;
+  background: #f8fbff;
+  color: #344054;
+  font-size: 12px;
+  line-height: 22px;
+  font-weight: 800;
+}
+
+.knowledge-question-list,
+.simulation-check-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.knowledge-question,
+.simulation-knowledge,
+.lab-focus {
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #f8fbff;
+  box-sizing: border-box;
+}
+
+.knowledge-question {
+  padding: 12px;
+}
+
+.simulation-knowledge {
+  padding: 12px;
+}
+
+.question-head {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.question-title,
+.check-title {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.formula-chip {
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.question-prompt {
+  margin-top: 7px;
+  color: #344054;
+}
+
+.choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.choice-button.is-selected {
+  border-color: #9fc3ff;
+  background: #eef6ff;
+}
+
+.choice-button.is-correct {
+  border-color: #9fe6d9;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.choice-button.is-wrong {
+  border-color: #ffc2c2;
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.answer-feedback {
+  margin-top: 9px;
+  padding: 8px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: $muted;
+}
+
+.answer-feedback.is-correct {
+  color: #087c67;
+}
+
+.answer-feedback.is-wrong {
+  color: #b42318;
+}
+
+.simulation-hint {
+  margin-top: 7px;
+  color: $muted;
+}
+
+.simulation-check {
+  gap: 9px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.simulation-check.is-passed {
+  border-color: #bdebdc;
+  background: #f0fdf9;
+}
+
+.check-dot {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: #e5eaf1;
+  color: $muted;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.simulation-check.is-passed .check-dot {
+  background: #0f9f9a;
+  color: #ffffff;
+}
+
+.check-detail {
+  margin-top: 2px;
+  color: $muted;
+}
+
+.lab-focus {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.mobile-status-strip,
+.mobile-bottom-nav {
+  display: none;
 }
 
 .tool-button,
@@ -206,6 +811,12 @@ $ink: #1f2937;
   margin-top: 14px;
 }
 
+.category-filter {
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
 .palette-group {
   padding-bottom: 8px;
 }
@@ -230,6 +841,61 @@ $ink: #1f2937;
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid #edf1f6;
+}
+
+.catalog-entry.is-locked {
+  opacity: 0.76;
+}
+
+.catalog-title-row {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.catalog-tags {
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.catalog-tags text,
+.catalog-tags span {
+  min-height: 20px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: #ffffff;
+  border: 1px solid #edf1f6;
+  color: #344054;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
+.tier-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 7px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.tier-free {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.tier-pro {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.tier-team {
+  background: #fff7ed;
+  color: #9a4b00;
 }
 
 .palette-icon {
@@ -275,6 +941,10 @@ $ink: #1f2937;
 
 .palette-push-button,
 .palette-dip-switch,
+.palette-emergency-stop,
+.palette-limit-switch,
+.palette-smart-switch-panel,
+.palette-scene-panel,
 .palette-potentiometer {
   background: #ecfdf7;
   color: $teal;
@@ -283,21 +953,26 @@ $ink: #1f2937;
 .palette-led,
 .palette-rgb-led,
 .palette-display,
-.palette-seven-segment {
+.palette-seven-segment,
+.palette-stack-light,
+.palette-floor-heating-thermostat {
   background: #fff7df;
   color: #b46900;
 }
 
 .palette-buzzer,
 .palette-relay,
-.palette-solenoid {
+.palette-solenoid,
+.palette-contactor-coil,
+.palette-solenoid-valve {
   background: #fff0f0;
   color: $red;
 }
 
 .palette-dc-motor,
 .palette-stepper-motor,
-.palette-servo-motor {
+.palette-servo-motor,
+.palette-curtain-motor {
   background: #e8fbff;
   color: #087b8c;
 }
@@ -305,13 +980,18 @@ $ink: #1f2937;
 .palette-resistor,
 .palette-diode,
 .palette-capacitor,
-.palette-fuse {
+.palette-fuse,
+.palette-thermal-overload {
   background: #eef2f7;
   color: #334155;
 }
 
 .palette-transistor-driver,
-.palette-microcontroller {
+.palette-microcontroller,
+.palette-plc-controller,
+.palette-vfd-drive,
+.palette-smart-gateway,
+.palette-access-control {
   background: #eef2ff;
   color: #4f46e5;
 }
@@ -321,7 +1001,10 @@ $ink: #1f2937;
 .palette-pir-sensor,
 .palette-ultrasonic-sensor,
 .palette-hall-sensor,
-.palette-humidity-sensor {
+.palette-humidity-sensor,
+.palette-proximity-sensor,
+.palette-pressure-transmitter,
+.palette-leak-detector {
   background: #ecfdf5;
   color: #0f766e;
 }
@@ -1514,6 +2197,447 @@ $ink: #1f2937;
 .visual-extension-load .part-c { left: 19px; }
 .visual-extension-load .part-d { left: 25px; }
 
+.visual-plc-controller .part-a,
+.visual-plc-controller .part-b,
+.visual-plc-controller .part-c,
+.visual-plc-controller .part-d,
+.visual-vfd-drive .part-a,
+.visual-vfd-drive .part-b,
+.visual-vfd-drive .part-c,
+.visual-vfd-drive .part-d,
+.visual-smart-gateway .part-a,
+.visual-smart-gateway .part-b,
+.visual-smart-gateway .part-c,
+.visual-smart-gateway .part-d,
+.visual-access-control .part-a,
+.visual-access-control .part-b,
+.visual-access-control .part-c,
+.visual-smart-switch-panel .part-a,
+.visual-smart-switch-panel .part-b,
+.visual-smart-switch-panel .part-c,
+.visual-scene-panel .part-a,
+.visual-scene-panel .part-b,
+.visual-scene-panel .part-c,
+.visual-dimmer-module .part-a,
+.visual-dimmer-module .part-b,
+.visual-dimmer-module .part-c,
+.visual-floor-heating-thermostat .part-a,
+.visual-floor-heating-thermostat .part-b,
+.visual-floor-heating-thermostat .part-c {
+  display: block;
+}
+
+.visual-plc-controller .part-a,
+.visual-vfd-drive .part-a,
+.visual-smart-gateway .part-a,
+.visual-access-control .part-a,
+.visual-smart-switch-panel .part-a,
+.visual-scene-panel .part-a,
+.visual-dimmer-module .part-a,
+.visual-floor-heating-thermostat .part-a {
+  left: 7px;
+  top: 8px;
+  width: 26px;
+  height: 24px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-plc-controller .part-b,
+.visual-plc-controller .part-c,
+.visual-plc-controller .part-d,
+.visual-vfd-drive .part-b,
+.visual-vfd-drive .part-c,
+.visual-vfd-drive .part-d {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-plc-controller .part-b { left: 13px; top: 15px; }
+.visual-plc-controller .part-c { left: 20px; top: 15px; }
+.visual-plc-controller .part-d { left: 27px; top: 15px; }
+
+.visual-vfd-drive .part-b {
+  left: 12px;
+  top: 15px;
+  width: 16px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.visual-vfd-drive .part-c {
+  left: 12px;
+  top: 22px;
+}
+
+.visual-vfd-drive .part-d {
+  left: 22px;
+  top: 22px;
+}
+
+.visual-smart-gateway .part-b,
+.visual-smart-gateway .part-c {
+  left: 12px;
+  top: 15px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+  transform: rotate(-45deg);
+}
+
+.visual-smart-gateway .part-c {
+  left: 16px;
+  top: 19px;
+  width: 8px;
+  height: 8px;
+}
+
+.visual-smart-gateway .part-d {
+  left: 19px;
+  top: 25px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-access-control .part-b {
+  left: 14px;
+  top: 18px;
+  width: 12px;
+  height: 9px;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+}
+
+.visual-access-control .part-c {
+  left: 17px;
+  top: 13px;
+  width: 6px;
+  height: 7px;
+  border: 2px solid currentColor;
+  border-bottom: none;
+  border-radius: 999px 999px 0 0;
+}
+
+.visual-smart-switch-panel .part-b,
+.visual-smart-switch-panel .part-c,
+.visual-scene-panel .part-b,
+.visual-scene-panel .part-c,
+.visual-dimmer-module .part-b,
+.visual-dimmer-module .part-c,
+.visual-floor-heating-thermostat .part-b,
+.visual-floor-heating-thermostat .part-c {
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-smart-switch-panel .part-b { left: 13px; top: 16px; width: 6px; height: 6px; }
+.visual-smart-switch-panel .part-c { left: 22px; top: 16px; width: 6px; height: 6px; }
+.visual-scene-panel .part-b { left: 13px; top: 15px; width: 5px; height: 5px; }
+.visual-scene-panel .part-c { left: 22px; top: 23px; width: 5px; height: 5px; }
+.visual-dimmer-module .part-b {
+  left: 12px;
+  top: 21px;
+  width: 16px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.visual-dimmer-module .part-c {
+  left: 20px;
+  top: 17px;
+  width: 4px;
+  height: 11px;
+  border-radius: 999px;
+}
+
+.visual-floor-heating-thermostat .part-b {
+  left: 13px;
+  top: 16px;
+  width: 14px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.visual-floor-heating-thermostat .part-c {
+  left: 13px;
+  top: 23px;
+  width: 10px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.visual-contactor-coil .part-a,
+.visual-contactor-coil .part-b,
+.visual-contactor-coil .part-c,
+.visual-contactor-coil .part-d,
+.visual-contactor-coil .part-e,
+.visual-thermal-overload .part-a,
+.visual-thermal-overload .part-b,
+.visual-thermal-overload .part-c,
+.visual-emergency-stop .part-a,
+.visual-emergency-stop .part-b,
+.visual-limit-switch .part-a,
+.visual-limit-switch .part-b,
+.visual-limit-switch .part-c,
+.visual-proximity-sensor .part-a,
+.visual-proximity-sensor .part-b,
+.visual-proximity-sensor .part-c,
+.visual-stack-light .part-a,
+.visual-stack-light .part-b,
+.visual-stack-light .part-c,
+.visual-stack-light .part-d,
+.visual-solenoid-valve .part-a,
+.visual-solenoid-valve .part-b,
+.visual-solenoid-valve .part-c,
+.visual-pressure-transmitter .part-a,
+.visual-pressure-transmitter .part-b,
+.visual-pressure-transmitter .part-c,
+.visual-curtain-motor .part-a,
+.visual-curtain-motor .part-b,
+.visual-curtain-motor .part-c,
+.visual-leak-detector .part-a,
+.visual-leak-detector .part-b,
+.visual-leak-detector .part-c {
+  display: block;
+}
+
+.visual-contactor-coil .part-a,
+.visual-solenoid-valve .part-a {
+  left: 9px;
+  top: 10px;
+  width: 22px;
+  height: 18px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-contactor-coil .part-b,
+.visual-contactor-coil .part-c,
+.visual-contactor-coil .part-d {
+  top: 14px;
+  width: 3px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-contactor-coil .part-b { left: 15px; }
+.visual-contactor-coil .part-c { left: 20px; }
+.visual-contactor-coil .part-d { left: 25px; }
+.visual-contactor-coil .part-e {
+  left: 4px;
+  top: 31px;
+  width: 32px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-thermal-overload .part-a {
+  left: 8px;
+  top: 10px;
+  width: 24px;
+  height: 20px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-thermal-overload .part-b,
+.visual-thermal-overload .part-c {
+  left: 13px;
+  top: 16px;
+  width: 14px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-thermal-overload .part-c {
+  top: 22px;
+  transform: rotate(-16deg);
+}
+
+.visual-emergency-stop .part-a {
+  left: 8px;
+  top: 8px;
+  width: 24px;
+  height: 24px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.visual-emergency-stop .part-b {
+  left: 18px;
+  top: 13px;
+  width: 4px;
+  height: 14px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-limit-switch .part-a {
+  left: 8px;
+  top: 18px;
+  width: 22px;
+  height: 12px;
+  border: 3px solid currentColor;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.visual-limit-switch .part-b {
+  left: 20px;
+  top: 9px;
+  width: 16px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(28deg);
+}
+
+.visual-limit-switch .part-c {
+  left: 30px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-proximity-sensor .part-a,
+.visual-pressure-transmitter .part-a {
+  left: 8px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.visual-proximity-sensor .part-b,
+.visual-proximity-sensor .part-c {
+  right: 4px;
+  width: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-proximity-sensor .part-b { top: 15px; }
+.visual-proximity-sensor .part-c { top: 23px; }
+
+.visual-pressure-transmitter .part-b {
+  left: 14px;
+  top: 18px;
+  width: 12px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-pressure-transmitter .part-c {
+  left: 18px;
+  top: 4px;
+  width: 4px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-stack-light .part-a,
+.visual-stack-light .part-b,
+.visual-stack-light .part-c {
+  left: 13px;
+  width: 14px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+}
+
+.visual-stack-light .part-a { top: 6px; background: #fee2e2; }
+.visual-stack-light .part-b { top: 16px; background: #fef3c7; }
+.visual-stack-light .part-c { top: 26px; background: #dcfce7; }
+.visual-stack-light .part-d {
+  left: 19px;
+  top: 33px;
+  width: 3px;
+  height: 5px;
+  background: currentColor;
+}
+
+.visual-solenoid-valve .part-b {
+  left: 15px;
+  top: 15px;
+  width: 10px;
+  height: 8px;
+  border: 2px solid currentColor;
+}
+
+.visual-solenoid-valve .part-c {
+  right: 1px;
+  top: 18px;
+  width: 10px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-curtain-motor .part-a {
+  left: 7px;
+  top: 14px;
+  width: 26px;
+  height: 16px;
+  border: 3px solid currentColor;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.visual-curtain-motor .part-b,
+.visual-curtain-motor .part-c {
+  top: 8px;
+  width: 3px;
+  height: 24px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-curtain-motor .part-b { left: 13px; }
+.visual-curtain-motor .part-c { right: 13px; }
+
+.visual-leak-detector .part-a {
+  left: 13px;
+  top: 6px;
+  width: 14px;
+  height: 22px;
+  border-radius: 12px 12px 12px 2px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.visual-leak-detector .part-b,
+.visual-leak-detector .part-c {
+  left: 7px;
+  width: 26px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-leak-detector .part-b { top: 30px; }
+.visual-leak-detector .part-c { top: 35px; opacity: 0.5; }
+
 .device-lamp.is-active .component-visual,
 .device-led.is-active .component-visual,
 .device-rgb-led.is-active .component-visual,
@@ -1892,6 +3016,219 @@ $ink: #1f2937;
   color: #b4232a;
 }
 
+.training-card,
+.safety-card,
+.commerce-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.training-card-title {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.mini-score {
+  width: 54px;
+  min-height: 42px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.challenge-scenario {
+  margin-top: 8px;
+  color: $muted;
+}
+
+.rule-list {
+  margin-top: 10px;
+}
+
+.rule-row {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.rule-row:last-child {
+  border-bottom: none;
+}
+
+.rule-status {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff7ed;
+  color: #9a4b00;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.rule-row.is-passed .rule-status {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.rule-label {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
+.rule-detail {
+  color: $muted;
+}
+
+.coach-note {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #edf1f6;
+}
+
+.diagnostic {
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 8px;
+  border: 1px solid #edf1f6;
+  background: #ffffff;
+}
+
+.diagnostic-title {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.diagnostic-detail {
+  margin-top: 4px;
+  color: $muted;
+}
+
+.diagnostic-action {
+  margin-top: 5px;
+  font-weight: 800;
+}
+
+.diagnostic-ok {
+  border-color: #beeade;
+  background: #f0fbf7;
+  color: #087c67;
+}
+
+.diagnostic-info {
+  border-color: #cfe0f5;
+  background: #f5f9ff;
+  color: #2563eb;
+}
+
+.diagnostic-warning {
+  border-color: #fde3bd;
+  background: #fff7ed;
+  color: #9a4b00;
+}
+
+.diagnostic-danger {
+  border-color: #ffd0d2;
+  background: #fff0f0;
+  color: #b4232a;
+}
+
+.commerce-user {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.commerce-actions-row {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.commerce-status {
+  min-width: 0;
+}
+
+.plan-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.plan-card {
+  padding: 10px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.plan-card.is-active {
+  border-color: #9fc3ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.plan-head {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan-name {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.plan-price {
+  color: $blue;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.plan-target,
+.plan-feature {
+  margin-top: 4px;
+}
+
+.plan-action {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.plan-action.is-owned {
+  border-color: #bdebdc;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.api-contract {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #edf1f6;
+}
+
+.api-row {
+  word-break: break-all;
+}
+
 .effects-bar {
   display: flex;
   flex-wrap: wrap;
@@ -1922,7 +3259,169 @@ $ink: #1f2937;
   font-size: 13px;
 }
 
+.mobile-nav-button {
+  min-height: 48px;
+  margin: 0;
+  padding: 4px 0 3px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: $muted;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 800;
+}
+
+.mobile-nav-button.is-active {
+  color: $blue;
+}
+
+.mobile-nav-icon {
+  position: relative;
+  width: 22px;
+  height: 20px;
+  color: currentColor;
+}
+
+.icon-part {
+  position: absolute;
+  display: block;
+  background: currentColor;
+}
+
+.mobile-nav-button .part-a {
+  left: 4px;
+  top: 4px;
+  width: 14px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.mobile-nav-button .part-b {
+  left: 8px;
+  top: 8px;
+  width: 6px;
+  height: 2px;
+}
+
+.mobile-nav-button .part-c {
+  left: 8px;
+  top: 12px;
+  width: 6px;
+  height: 2px;
+}
+
+.nav-simulate .part-a {
+  left: 3px;
+  top: 9px;
+  width: 16px;
+  height: 2px;
+  border: 0;
+  border-radius: 999px;
+}
+
+.nav-simulate .part-b {
+  left: 4px;
+  top: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.nav-simulate .part-c {
+  left: 13px;
+  top: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.nav-bank .part-a {
+  left: 3px;
+  top: 3px;
+  width: 16px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.nav-bank .part-b {
+  left: 7px;
+  top: 8px;
+  width: 8px;
+  height: 2px;
+}
+
+.nav-bank .part-c {
+  left: 7px;
+  top: 12px;
+  width: 5px;
+  height: 2px;
+}
+
+.nav-library .part-a {
+  left: 4px;
+  top: 4px;
+  width: 14px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  background: transparent;
+}
+
+.nav-library .part-b,
+.nav-library .part-c {
+  top: 7px;
+  width: 2px;
+  height: 8px;
+}
+
+.nav-library .part-b { left: 9px; }
+.nav-library .part-c { left: 14px; }
+
+.nav-account .part-a {
+  left: 8px;
+  top: 3px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.nav-account .part-b {
+  left: 5px;
+  top: 13px;
+  width: 12px;
+  height: 5px;
+  border-radius: 8px 8px 2px 2px;
+}
+
+.nav-account .part-c {
+  display: none;
+}
+
 @media (max-width: 1100px) {
+  .commercial-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .learning-grid,
+  .knowledge-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-list,
+  .challenge-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -1941,16 +3440,217 @@ $ink: #1f2937;
 
 @media (max-width: 760px) {
   .app-shell {
-    padding: 10px;
+    padding: 10px 10px 78px;
+    background: #f4f7fb;
   }
 
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .brand-block {
+    min-width: 0;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+
+  .brand-title {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .brand-subtitle {
+    font-size: 11px;
+    line-height: 16px;
   }
 
   .toolbar {
-    justify-content: flex-start;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 7px;
+  }
+
+  .tool-button {
+    width: 100%;
+    min-width: 0;
+    padding: 0 8px;
+  }
+
+  .toolbar .voltage-control {
+    grid-column: span 2;
+    justify-content: space-between;
+  }
+
+  .mobile-status-strip {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px solid $line;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(8px);
+  }
+
+  .mobile-status-strip > view,
+  .mobile-status-strip > div {
+    min-width: 0;
+    padding: 6px;
+    border-radius: 7px;
+    background: #f8fbff;
+  }
+
+  .mobile-status-label,
+  .mobile-status-value {
+    display: block;
+    text-align: center;
+  }
+
+  .mobile-status-label {
+    color: $muted;
+    font-size: 10px;
+    line-height: 14px;
+    font-weight: 800;
+  }
+
+  .mobile-status-value {
+    color: $text;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 900;
+  }
+
+  .mobile-status-value.is-safe {
+    color: #087c67;
+  }
+
+  .mobile-status-value.is-warning {
+    color: #b45309;
+  }
+
+  .training-summary,
+  .knowledge-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 78px;
+  }
+
+  .commercial-dashboard,
+  .learning-dashboard,
+  .knowledge-board,
+  .workspace,
+  .effects-bar {
+    margin-top: 10px;
+  }
+
+  .commercial-dashboard,
+  .learning-dashboard,
+  .knowledge-board {
+    padding: 10px;
+  }
+
+  .commercial-title,
+  .training-title,
+  .knowledge-title {
+    font-size: 17px;
+    line-height: 23px;
+  }
+
+  .commercial-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lesson-list,
+  .challenge-list {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-list,
+  .challenge-list,
+  .knowledge-track-tabs,
+  .choice-list,
+  .effects-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .lesson-list::-webkit-scrollbar,
+  .challenge-list::-webkit-scrollbar,
+  .knowledge-track-tabs::-webkit-scrollbar,
+  .choice-list::-webkit-scrollbar,
+  .effects-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .lesson-card,
+  .challenge-card {
+    width: 238px;
+    min-width: 238px;
+  }
+
+  .knowledge-question {
+    padding: 10px;
+  }
+
+  .knowledge-track-tab,
+  .choice-button {
+    flex: 0 0 auto;
+  }
+
+  .domain-switcher,
+  .category-filter {
+    align-items: stretch;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .domain-tab,
+  .category-filter-button {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .workspace {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .canvas-panel {
+    order: 1;
+  }
+
+  .inspector-panel {
+    order: 2;
+  }
+
+  .palette-panel {
+    order: 3;
+  }
+
+  .palette-panel,
+  .canvas-panel,
+  .inspector-panel {
+    border-radius: 8px;
+  }
+
+  .palette-scroll {
+    max-height: 360px;
   }
 
   .canvas-panel {
@@ -1964,5 +3664,26 @@ $ink: #1f2937;
 
   .connection-strip {
     grid-template-columns: 1fr;
+  }
+
+  .effect-pill {
+    min-width: 170px;
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-height: 56px;
+    border: 1px solid rgba(203, 213, 225, 0.9);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
   }
 }
