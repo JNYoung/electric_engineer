@@ -52,6 +52,7 @@ $ink: #1f2937;
 .effect-pill,
 .knowledge-head,
 .assessment-head,
+.assessment-panel-head,
 .question-head,
 .simulation-check,
 .assessment-tab-list,
@@ -806,7 +807,7 @@ $ink: #1f2937;
 
 .assessment-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -852,6 +853,32 @@ $ink: #1f2937;
   margin-top: 10px;
 }
 
+.assessment-panel-head {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.assessment-panel-head .note-title {
+  margin-bottom: 0;
+}
+
+.readiness-badge {
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #fff7ed;
+  color: #9a4b00;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.readiness-badge.is-ready {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
 .competency-tags,
 .weak-track-list {
   display: flex;
@@ -885,6 +912,16 @@ $ink: #1f2937;
   color: #344054;
   font-size: 12px;
   line-height: 18px;
+}
+
+.assessment-requirement.is-passed {
+  border-color: #bdebdc;
+  background: #f0fdf9;
+}
+
+.assessment-requirement.is-passed .check-dot {
+  background: #0f9f9a;
+  color: #ffffff;
 }
 
 .assessment-meta {

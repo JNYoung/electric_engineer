@@ -42,6 +42,7 @@ import {
 import {
   ASSESSMENT_BLUEPRINTS,
   buildAssessmentSession,
+  evaluateAssessmentSimulationReadiness,
   getAssessmentBlueprint,
   scoreAssessmentSession
 } from '@/core/assessment'
@@ -66,7 +67,8 @@ import type {
 import type {
   AssessmentBlueprintId,
   AssessmentScore,
-  AssessmentSession
+  AssessmentSession,
+  AssessmentSimulationReadiness
 } from '@/core/assessment'
 import type { MaterialFamily } from '@/core/materials'
 import type {
@@ -680,11 +682,13 @@ function KnowledgeValidationBoard({
 function AssessmentBoard({
   activeBlueprintId,
   answers,
+  readiness,
   onSelectBlueprint,
   onAnswer
 }: {
   activeBlueprintId: AssessmentBlueprintId
   answers: Record<string, string>
+  readiness: AssessmentSimulationReadiness
   onSelectBlueprint: (blueprintId: AssessmentBlueprintId) => void
   onAnswer: (questionId: string, answerId: string) => void
 }) {
@@ -736,6 +740,10 @@ function AssessmentBoard({
           <Text className='metric-label'>得分</Text>
           <Text className='metric-value'>{score.earnedPoints}/{score.totalPoints}</Text>
         </View>
+        <View>
+          <Text className='metric-label'>仿真</Text>
+          <Text className='metric-value'>{readiness.percent}%</Text>
+        </View>
       </View>
 
       <View className='assessment-grid'>
@@ -757,7 +765,12 @@ function AssessmentBoard({
         </View>
 
         <View className='assessment-column assessment-side'>
-          <AssessmentRequirements blueprintId={activeBlueprintId} session={session} score={score} />
+          <AssessmentRequirements
+            blueprintId={activeBlueprintId}
+            readiness={readiness}
+            session={session}
+            score={score}
+          />
         </View>
       </View>
     </View>
@@ -821,10 +834,12 @@ function AssessmentQuestionRow({
 
 function AssessmentRequirements({
   blueprintId,
+  readiness,
   session,
   score
 }: {
   blueprintId: AssessmentBlueprintId
+  readiness: AssessmentSimulationReadiness
   session: AssessmentSession
   score: AssessmentScore
 }) {
@@ -842,12 +857,20 @@ function AssessmentRequirements({
       </View>
 
       <View className='assessment-panel'>
-        <Text className='note-title'>仿真验证条件</Text>
+        <View className='assessment-panel-head'>
+          <Text className='note-title'>仿真准备度</Text>
+          <Text className={`readiness-badge ${readiness.passed ? 'is-ready' : 'needs-work'}`}>
+            {readiness.passedChecks}/{readiness.totalChecks}
+          </Text>
+        </View>
         <View className='requirement-list'>
-          {blueprint.simulationRequirements.map((item) => (
-            <View key={item} className='assessment-requirement'>
-              <Text className='check-dot'>·</Text>
-              <Text>{item}</Text>
+          {readiness.checks.map((check) => (
+            <View key={check.id} className={`assessment-requirement ${check.passed ? 'is-passed' : ''}`}>
+              <Text className='check-dot'>{check.passed ? '✓' : '·'}</Text>
+              <View>
+                <Text className='check-title'>{check.label}</Text>
+                <Text className='check-detail'>{check.detail}</Text>
+              </View>
             </View>
           ))}
         </View>
@@ -870,6 +893,9 @@ function AssessmentRequirements({
           </View>
         )}
         <View className='remediation-list'>
+          {readiness.nextActions.slice(0, 2).map((item) => (
+            <Text key={item} className='assessment-remediation'>{item}</Text>
+          ))}
           {score.remediation.map((item) => (
             <Text key={item} className='assessment-remediation'>{item}</Text>
           ))}
@@ -1218,6 +1244,10 @@ export default function Index() {
     () => buildKnowledgeSimulationChecks(activeKnowledgeTrackId, model, simulation),
     [activeKnowledgeTrackId, model, simulation]
   )
+  const assessmentReadiness = useMemo(
+    () => evaluateAssessmentSimulationReadiness(activeAssessmentId, model, simulation),
+    [activeAssessmentId, model, simulation]
+  )
   const catalogEntries = useMemo(
     () =>
       activeCategoryId === 'all'
@@ -1407,6 +1437,7 @@ export default function Index() {
       <AssessmentBoard
         activeBlueprintId={activeAssessmentId}
         answers={assessmentAnswers}
+        readiness={assessmentReadiness}
         onSelectBlueprint={changeAssessment}
         onAnswer={answerAssessmentQuestion}
       />

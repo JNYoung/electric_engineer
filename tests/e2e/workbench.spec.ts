@@ -185,10 +185,18 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.material-spec-panel')).toContainText('素材规格速查')
     await expect(page.locator('.material-spec-panel')).toContainText('照明灯')
     await expect(page.locator('.material-spec-panel')).toContainText('PLC 控制器')
+    await expect(page.locator('.assessment-board')).toContainText('仿真准备度')
+    await expect(page.locator('.assessment-board')).toContainText('3/3')
+
+    await page.locator('.toolbar .tool-button.primary').click()
+    await expect(page.locator('.assessment-board')).toContainText('当前没有形成可测工作电流')
+    await expect(page.locator('.assessment-board')).toContainText('闭合主开关')
+    await page.locator('.toolbar .tool-button.primary').click()
 
     await page.locator('.assessment-tab').filter({ hasText: '电工取证' }).click()
     await expect(page.locator('.assessment-board')).toContainText('电工实操取证模拟')
     await expect(page.locator('.assessment-metrics')).toContainText('85%')
+    await expect(page.locator('.assessment-board')).toContainText('4/4')
     await expect(page.locator('.assessment-board')).toContainText('安全隔离')
     await expect(page.locator('.assessment-board')).toContainText('低压训练电源')
 
