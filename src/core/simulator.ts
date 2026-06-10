@@ -230,9 +230,7 @@ export function simulateCircuit(model: CircuitModel): SimulationResult {
     nodeSet.add(load.b)
   })
 
-  const shortCircuit = loads.some((load) => load.a === load.b)
-    ? false
-    : sourceState.issues.some((issue) => issue.message.includes('短接'))
+  const shortCircuit = sourceState.issues.some((issue) => issue.message.includes('短接'))
 
   const unknownNodes = [...nodeSet].filter((node) => !fixedVoltages.has(node))
   const unknownIndex = new Map(unknownNodes.map((node, index) => [node, index]))
