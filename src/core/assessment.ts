@@ -3,7 +3,13 @@ import {
   evaluateKnowledgeAnswer,
   getQuestionsForTrack
 } from './knowledge'
+import {
+  getDeviceDefinition,
+  isConductiveControlKind,
+  isLoadKind
+} from './registry'
 import type { KnowledgeQuestion, KnowledgeTrackId } from './knowledge'
+import type { CircuitDevice, CircuitModel, SimulationResult } from './types'
 
 export type AssessmentLevel = '高中测验' | '大学期中' | '电工取证'
 export type AssessmentBlueprintId =
@@ -54,6 +60,24 @@ export interface AssessmentScore {
   passed: boolean
   weakTracks: KnowledgeTrackId[]
   remediation: string[]
+}
+
+export interface AssessmentSimulationCheck {
+  id: string
+  label: string
+  detail: string
+  passed: boolean
+  action: string
+}
+
+export interface AssessmentSimulationReadiness {
+  blueprintId: AssessmentBlueprintId
+  percent: number
+  passed: boolean
+  passedChecks: number
+  totalChecks: number
+  checks: AssessmentSimulationCheck[]
+  nextActions: string[]
 }
 
 export const ASSESSMENT_BLUEPRINTS: AssessmentBlueprint[] = [
@@ -182,4 +206,194 @@ export function getBlueprintsForTrack(trackId: KnowledgeTrackId) {
   return ASSESSMENT_BLUEPRINTS.filter((blueprint) =>
     blueprint.trackWeights.some((weight) => weight.trackId === trackId)
   )
+}
+
+export function evaluateAssessmentSimulationReadiness(
+  blueprintId: AssessmentBlueprintId,
+  model: CircuitModel,
+  simulation: SimulationResult
+): AssessmentSimulationReadiness {
+  const checks =
+    blueprintId === 'university-circuit-midterm'
+      ? buildUniversitySimulationChecks(model, simulation)
+      : blueprintId === 'electrician-practice-cert'
+        ? buildElectricianSimulationChecks(model, simulation)
+        : buildHighSchoolSimulationChecks(model, simulation)
+  const passedChecks = checks.filter((check) => check.passed).length
+  const percent = checks.length === 0 ? 0 : Math.round((passedChecks / checks.length) * 100)
+
+  return {
+    blueprintId,
+    percent,
+    passed: passedChecks === checks.length,
+    passedChecks,
+    totalChecks: checks.length,
+    checks,
+    nextActions: checks.filter((check) => !check.passed).map((check) => check.action)
+  }
+}
+
+function buildHighSchoolSimulationChecks(
+  model: CircuitModel,
+  simulation: SimulationResult
+): AssessmentSimulationCheck[] {
+  const loads = getLoadDevices(model)
+  const measurableLoads = getMeasurableLoadCount(loads, simulation)
+
+  return [
+    {
+      id: 'hs-closed-loop',
+      label: '闭合回路',
+      detail: simulation.closedCircuit ? '当前电路已形成工作电流。' : '当前没有形成可测工作电流。',
+      passed: simulation.closedCircuit && !simulation.shortCircuit,
+      action: '闭合主开关，并确认正极、负载、回线到负极都已接通。'
+    },
+    {
+      id: 'hs-parallel-samples',
+      label: '并联样本',
+      detail: `当前可比较 ${loads.length} 个负载支路。`,
+      passed: loads.length >= 2,
+      action: '至少保留两个负载支路，例如照明灯和排风扇，用于比较并联端电压。'
+    },
+    {
+      id: 'hs-measurement',
+      label: '测量读数',
+      detail: `已有 ${measurableLoads} 个负载可读取端电压和电流。`,
+      passed: measurableLoads >= 1 && simulation.totalCurrent > 0,
+      action: '让至少一个负载通电，再在属性面板读取端电压、电流和功率。'
+    }
+  ]
+}
+
+function buildUniversitySimulationChecks(
+  model: CircuitModel,
+  simulation: SimulationResult
+): AssessmentSimulationCheck[] {
+  const loads = getLoadDevices(model)
+  const workingEffects = getWorkingLoadEffects(loads, simulation)
+  const currentSum = workingEffects.reduce((total, effect) => total + effect.current, 0)
+  const currentTolerance = Math.max(0.02, simulation.totalCurrent * 0.03)
+  const kclPassed =
+    simulation.closedCircuit &&
+    workingEffects.length >= 2 &&
+    Math.abs(currentSum - simulation.totalCurrent) <= currentTolerance
+  const parallelVoltagePassed =
+    workingEffects.length >= 2 &&
+    workingEffects.every(
+      (effect) => Math.abs(effect.voltage - simulation.supplyVoltage) <= Math.max(0.3, simulation.supplyVoltage * 0.05)
+    )
+
+  return [
+    {
+      id: 'uni-kcl',
+      label: 'KCL 电流守恒',
+      detail: `支路电流合计 ${formatAmp(currentSum)}A，总电流 ${formatAmp(simulation.totalCurrent)}A。`,
+      passed: kclPassed,
+      action: '接通两个以上并联负载，并比较各支路电流之和与总电流。'
+    },
+    {
+      id: 'uni-parallel-voltage',
+      label: '并联端电压',
+      detail: `当前电源 ${formatVolt(simulation.supplyVoltage)}V，工作负载 ${workingEffects.length} 个。`,
+      passed: parallelVoltagePassed,
+      action: '保持两个工作负载并联在同一电源节点上，使端电压接近电源电压。'
+    },
+    {
+      id: 'uni-no-short',
+      label: '无短路保护',
+      detail: simulation.shortCircuit ? '仿真器检测到正负极短接。' : '当前未触发短路保护。',
+      passed: !simulation.shortCircuit,
+      action: '断开正负极直连导线，避免绕过负载形成短路。'
+    }
+  ]
+}
+
+function buildElectricianSimulationChecks(
+  model: CircuitModel,
+  simulation: SimulationResult
+): AssessmentSimulationCheck[] {
+  const loads = getLoadDevices(model)
+  const protectionDevices = getProtectionDevices(model)
+  const mismatchedLoads = getRatedVoltageMismatches(loads, simulation)
+  const hasDangerIssue = simulation.shortCircuit || simulation.issues.some((issue) => issue.severity === 'error')
+
+  return [
+    {
+      id: 'pro-low-voltage',
+      label: '低压训练电源',
+      detail: `当前电源 ${formatVolt(simulation.supplyVoltage)}V。`,
+      passed: simulation.hasSource && simulation.supplyVoltage > 0 && simulation.supplyVoltage <= 36,
+      action: '把训练电源调到 36V 以内，优先使用 12V 或 24V 低压回路。'
+    },
+    {
+      id: 'pro-protection-chain',
+      label: '开关/保护链',
+      detail: `当前检测到 ${protectionDevices.length} 个开关或保护器件。`,
+      passed: protectionDevices.length > 0,
+      action: '加入主开关、保险丝、急停或热继保护触点，形成可隔离的安全链。'
+    },
+    {
+      id: 'pro-no-danger',
+      label: '无危险短路',
+      detail: hasDangerIssue ? '当前存在短路或严重仿真错误。' : '当前没有严重短路风险。',
+      passed: !hasDangerIssue,
+      action: '先断开电源并排查正负极短接，再恢复训练。'
+    },
+    {
+      id: 'pro-rated-match',
+      label: '额定电压匹配',
+      detail:
+        mismatchedLoads.length === 0
+          ? '负载额定电压与当前电源匹配。'
+          : `${mismatchedLoads.map((device) => device.label).join('、')} 存在过压风险。`,
+      passed: loads.length > 0 && mismatchedLoads.length === 0,
+      action: '降低电源电压，或改用额定电压匹配的负载/控制模块。'
+    }
+  ]
+}
+
+function getLoadDevices(model: CircuitModel) {
+  return model.devices.filter((device) => device.enabled !== false && isLoadKind(device.kind))
+}
+
+function getWorkingLoadEffects(loads: CircuitDevice[], simulation: SimulationResult) {
+  return loads
+    .map((device) => simulation.effects[device.id])
+    .filter((effect): effect is NonNullable<typeof effect> => Boolean(effect?.active && effect.current > 0))
+}
+
+function getMeasurableLoadCount(loads: CircuitDevice[], simulation: SimulationResult) {
+  return loads.filter((device) => {
+    const effect = simulation.effects[device.id]
+    return Boolean(effect && (effect.voltage > 0.2 || effect.current > 0.001))
+  }).length
+}
+
+function getProtectionDevices(model: CircuitModel) {
+  return model.devices.filter((device) => {
+    if (device.enabled === false) return false
+    return (
+      isConductiveControlKind(device.kind) ||
+      device.kind === 'fuse' ||
+      device.kind === 'emergency-stop' ||
+      device.kind === 'thermal-overload'
+    )
+  })
+}
+
+function getRatedVoltageMismatches(loads: CircuitDevice[], simulation: SimulationResult) {
+  if (simulation.supplyVoltage <= 0) return []
+
+  return loads.filter((device) => {
+    const ratedVoltage = device.ratedVoltage ?? getDeviceDefinition(device.kind).defaultRatedVoltage
+    return ratedVoltage !== undefined && ratedVoltage < simulation.supplyVoltage * 0.9
+  })
+}
+
+function formatAmp(value: number) {
+  return Number.isFinite(value) ? value.toFixed(2) : '0.00'
+}
+
+function formatVolt(value: number) {
+  return Number.isFinite(value) ? value.toFixed(1) : '0.0'
 }
