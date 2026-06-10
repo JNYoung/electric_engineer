@@ -176,6 +176,33 @@ test.describe('electric workbench e2e', () => {
     await expectHealthyRuntime(runtimeProblems)
   })
 
+  test('runs professional assessment sessions and exposes material specs', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    await expect(page.locator('.assessment-board')).toContainText('专业考试模拟')
+    await expect(page.locator('.assessment-board')).toContainText('高中电学基础测验')
+    await expect(page.locator('.material-spec-panel')).toContainText('素材规格速查')
+    await expect(page.locator('.material-spec-panel')).toContainText('照明灯')
+    await expect(page.locator('.material-spec-panel')).toContainText('PLC 控制器')
+
+    await page.locator('.assessment-tab').filter({ hasText: '电工取证' }).click()
+    await expect(page.locator('.assessment-board')).toContainText('电工实操取证模拟')
+    await expect(page.locator('.assessment-metrics')).toContainText('85%')
+    await expect(page.locator('.assessment-board')).toContainText('安全隔离')
+    await expect(page.locator('.assessment-board')).toContainText('低压训练电源')
+
+    const lockoutQuestion = page.locator('.assessment-question').filter({ hasText: '排障流程' })
+    await lockoutQuestion.locator('.choice-button').filter({ hasText: '先断电并确认无危险' }).click()
+    await expect(lockoutQuestion).toContainText('计分通过')
+    await expect(page.locator('.assessment-metrics')).toContainText('25/110')
+
+    await page.locator('.domain-tab').filter({ hasText: '装修工控' }).click()
+    await expect(page.locator('.material-spec-panel')).toContainText('智能网关')
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
   test('switches commercial domains and exposes auth and billing hooks', async ({ page }) => {
     const runtimeProblems = watchRuntimeHealth(page)
 

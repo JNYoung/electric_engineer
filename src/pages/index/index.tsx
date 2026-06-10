@@ -39,6 +39,18 @@ import {
   getKnowledgeTrack,
   getQuestionsForTrack
 } from '@/core/knowledge'
+import {
+  ASSESSMENT_BLUEPRINTS,
+  buildAssessmentSession,
+  getAssessmentBlueprint,
+  scoreAssessmentSession
+} from '@/core/assessment'
+import {
+  MATERIAL_LIBRARY,
+  getMaterialCoverageSummary,
+  getMaterialSpec,
+  getMaterialSpecsByFamily
+} from '@/core/materials'
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire } from '@/core/types'
 import type {
   ChallengeEvaluation,
@@ -51,6 +63,12 @@ import type {
   KnowledgeTrackId,
   KnowledgeTrackProgress
 } from '@/core/knowledge'
+import type {
+  AssessmentBlueprintId,
+  AssessmentScore,
+  AssessmentSession
+} from '@/core/assessment'
+import type { MaterialFamily } from '@/core/materials'
 import type {
   AuthSession,
   BillingPlan,
@@ -172,6 +190,10 @@ function tierLabel(tier: SubscriptionTier) {
   if (tier === 'team') return '团队'
   if (tier === 'pro') return '专业'
   return '免费'
+}
+
+function domainMaterialFamily(domain: WorkbenchDomain): MaterialFamily {
+  return domain === 'engineering-control' ? '工程工控' : '装修工控'
 }
 
 function DomainSwitcher({
@@ -655,6 +677,298 @@ function KnowledgeValidationBoard({
   )
 }
 
+function AssessmentBoard({
+  activeBlueprintId,
+  answers,
+  onSelectBlueprint,
+  onAnswer
+}: {
+  activeBlueprintId: AssessmentBlueprintId
+  answers: Record<string, string>
+  onSelectBlueprint: (blueprintId: AssessmentBlueprintId) => void
+  onAnswer: (questionId: string, answerId: string) => void
+}) {
+  const blueprint = getAssessmentBlueprint(activeBlueprintId)
+  const session = buildAssessmentSession(activeBlueprintId)
+  const score = scoreAssessmentSession(session, answers)
+  const scoreClass = score.passed ? 'passed' : score.answered > 0 ? 'needs-work' : 'ready'
+
+  return (
+    <View className='assessment-board'>
+      <View className='assessment-head'>
+        <View>
+          <Text className='training-kicker'>专业考试模拟</Text>
+          <Text className='assessment-title'>{blueprint.title}</Text>
+          <Text className='assessment-copy'>{blueprint.description}</Text>
+        </View>
+        <View className={`assessment-score score-${scoreClass}`}>
+          <Text>{score.percent}%</Text>
+          <Text>{score.correct}/{score.total}</Text>
+        </View>
+      </View>
+
+      <View className='assessment-tab-list'>
+        {ASSESSMENT_BLUEPRINTS.map((item) => (
+          <Button
+            key={item.id}
+            className={`assessment-tab ${item.id === activeBlueprintId ? 'is-active' : ''}`}
+            onClick={() => onSelectBlueprint(item.id)}
+          >
+            {item.level}
+          </Button>
+        ))}
+      </View>
+
+      <View className='assessment-metrics'>
+        <View>
+          <Text className='metric-label'>限时</Text>
+          <Text className='metric-value'>{session.timeLimitMinutes} 分钟</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>通过线</Text>
+          <Text className='metric-value'>{session.passingPercent}%</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>题目</Text>
+          <Text className='metric-value'>{score.answered}/{score.total}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>得分</Text>
+          <Text className='metric-value'>{score.earnedPoints}/{score.totalPoints}</Text>
+        </View>
+      </View>
+
+      <View className='assessment-grid'>
+        <View className='assessment-column'>
+          <View className='section-head'>
+            <Text className='section-title'>组卷题目</Text>
+            <Text className='section-meta'>{session.title}</Text>
+          </View>
+          <View className='assessment-question-list'>
+            {session.items.map((item) => (
+              <AssessmentQuestionRow
+                key={`${session.blueprintId}-${item.question.id}`}
+                item={item}
+                selectedAnswerId={answers[item.question.id]}
+                onAnswer={onAnswer}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View className='assessment-column assessment-side'>
+          <AssessmentRequirements blueprintId={activeBlueprintId} session={session} score={score} />
+        </View>
+      </View>
+    </View>
+  )
+}
+
+function AssessmentQuestionRow({
+  item,
+  selectedAnswerId,
+  onAnswer
+}: {
+  item: AssessmentSession['items'][number]
+  selectedAnswerId?: string
+  onAnswer: (questionId: string, answerId: string) => void
+}) {
+  const result = selectedAnswerId
+    ? evaluateKnowledgeAnswer(item.question.id, selectedAnswerId)
+    : undefined
+
+  return (
+    <View className='assessment-question'>
+      <View className='question-head'>
+        <Text className='question-title'>
+          {item.order}. {item.question.title}
+        </Text>
+        <Text className='formula-chip'>{item.points}分</Text>
+      </View>
+      <Text className='question-prompt'>{item.question.prompt}</Text>
+      <View className='choice-list'>
+        {item.question.choices.map((choice) => {
+          const selected = selectedAnswerId === choice.id
+          const correct = choice.id === item.question.answerId
+          const className = [
+            'choice-button',
+            selected ? 'is-selected' : '',
+            selected && correct ? 'is-correct' : '',
+            selected && !correct ? 'is-wrong' : ''
+          ]
+            .filter(Boolean)
+            .join(' ')
+
+          return (
+            <Button
+              key={choice.id}
+              className={className}
+              onClick={() => onAnswer(item.question.id, choice.id)}
+            >
+              {choice.label}
+            </Button>
+          )
+        })}
+      </View>
+      {result && (
+        <Text className={`answer-feedback ${result.correct ? 'is-correct' : 'is-wrong'}`}>
+          {result.correct ? '计分通过' : '本题失分'}：{result.explanation}
+        </Text>
+      )}
+    </View>
+  )
+}
+
+function AssessmentRequirements({
+  blueprintId,
+  session,
+  score
+}: {
+  blueprintId: AssessmentBlueprintId
+  session: AssessmentSession
+  score: AssessmentScore
+}) {
+  const blueprint = getAssessmentBlueprint(blueprintId)
+
+  return (
+    <>
+      <View className='assessment-panel'>
+        <Text className='note-title'>能力要求</Text>
+        <View className='competency-tags'>
+          {blueprint.competencies.map((item) => (
+            <Text key={item}>{item}</Text>
+          ))}
+        </View>
+      </View>
+
+      <View className='assessment-panel'>
+        <Text className='note-title'>仿真验证条件</Text>
+        <View className='requirement-list'>
+          {blueprint.simulationRequirements.map((item) => (
+            <View key={item} className='assessment-requirement'>
+              <Text className='check-dot'>·</Text>
+              <Text>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View className='assessment-panel'>
+        <Text className='note-title'>考试结果</Text>
+        <Text className='assessment-meta'>
+          {score.passed
+            ? `已达到 ${session.passingPercent}% 通过线`
+            : score.answered === session.items.length
+              ? `未达通过线，差 ${Math.max(0, session.passingPercent - score.percent)} 分`
+              : `还剩 ${session.items.length - score.answered} 题未答`}
+        </Text>
+        {score.weakTracks.length > 0 && (
+          <View className='weak-track-list'>
+            {score.weakTracks.map((trackId) => (
+              <Text key={trackId}>{getKnowledgeTrack(trackId).level}</Text>
+            ))}
+          </View>
+        )}
+        <View className='remediation-list'>
+          {score.remediation.map((item) => (
+            <Text key={item} className='assessment-remediation'>{item}</Text>
+          ))}
+        </View>
+      </View>
+    </>
+  )
+}
+
+function MaterialSpecPanel({
+  selectedKind,
+  activeDomain
+}: {
+  selectedKind?: DeviceKind
+  activeDomain: WorkbenchDomain
+}) {
+  const summary = getMaterialCoverageSummary()
+  const activeFamily = domainMaterialFamily(activeDomain)
+  const selectedSpec = selectedKind ? getMaterialSpec(selectedKind) : undefined
+  const familySpecs = getMaterialSpecsByFamily(activeFamily)
+  const fallbackSpec = familySpecs[0] ?? MATERIAL_LIBRARY[0]
+  const primarySpec = selectedSpec ?? fallbackSpec
+  const referenceSpecs = familySpecs
+    .filter((item) => item.kind !== primarySpec.kind)
+    .slice(0, 4)
+
+  return (
+    <View className='material-spec-panel'>
+      <View className='section-head'>
+        <Text className='section-title'>素材规格速查</Text>
+        <Text className='section-meta'>{summary.total} 项</Text>
+      </View>
+      <View className='material-summary-grid'>
+        <View>
+          <Text className='metric-label'>高中</Text>
+          <Text className='metric-value'>{summary.highSchool}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>大学</Text>
+          <Text className='metric-value'>{summary.university}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>电工</Text>
+          <Text className='metric-value'>{summary.electrician}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>{activeFamily}</Text>
+          <Text className='metric-value'>{familySpecs.length}</Text>
+        </View>
+      </View>
+
+      <View className='material-spec-card'>
+        <View className='material-card-head'>
+          <Text className='material-name'>{primarySpec.displayName}</Text>
+          <Text className='material-family'>{primarySpec.family}</Text>
+        </View>
+        <View className='spec-pair'>
+          <Text>额定/供电</Text>
+          <Text>{primarySpec.nominalVoltage}</Text>
+        </View>
+        <View className='spec-pair'>
+          <Text>电流范围</Text>
+          <Text>{primarySpec.currentRange}</Text>
+        </View>
+        <Text className='material-detail'>{primarySpec.simulationUse}</Text>
+        <MaterialChipRow title='关键参数' items={primarySpec.keyParameters} />
+        <MaterialChipRow title='考试标签' items={primarySpec.examTags} />
+        <View className='spec-list'>
+          {primarySpec.safetyNotes.slice(0, 2).map((item) => (
+            <Text key={item}>{item}</Text>
+          ))}
+        </View>
+      </View>
+
+      <View className='material-mini-list'>
+        {referenceSpecs.map((item) => (
+          <View key={item.kind} className='material-mini-row'>
+            <Text>{item.displayName}</Text>
+            <Text>{item.examTags.slice(0, 2).join(' / ')}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
+function MaterialChipRow({ title, items }: { title: string; items: string[] }) {
+  return (
+    <View className='material-chip-block'>
+      <Text className='material-chip-title'>{title}</Text>
+      <View className='material-chip-row'>
+        {items.map((item) => (
+          <Text key={item}>{item}</Text>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 function TrainingScoreCard({
   challenge,
   evaluation
@@ -889,6 +1203,8 @@ export default function Index() {
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionTier>('pro')
   const [activeKnowledgeTrackId, setActiveKnowledgeTrackId] = useState<KnowledgeTrackId>('high-school')
   const [knowledgeAnswers, setKnowledgeAnswers] = useState<Record<string, string>>({})
+  const [activeAssessmentId, setActiveAssessmentId] = useState<AssessmentBlueprintId>('high-school-foundation-check')
+  const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, string>>({})
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTabId>('learn')
   const simulation = useMemo(() => simulateCircuit(model), [model])
   const activeLesson = getLessonById(activeLessonId)
@@ -1004,6 +1320,24 @@ export default function Index() {
     setActiveMobileTab('bank')
   }
 
+  function answerAssessmentQuestion(questionId: string, answerId: string) {
+    setAssessmentAnswers((current) => ({
+      ...current,
+      [questionId]: answerId
+    }))
+    setKnowledgeAnswers((current) => ({
+      ...current,
+      [questionId]: answerId
+    }))
+    setActiveMobileTab('bank')
+  }
+
+  function changeAssessment(blueprintId: AssessmentBlueprintId) {
+    setActiveAssessmentId(blueprintId)
+    setAssessmentAnswers({})
+    setActiveMobileTab('bank')
+  }
+
   const voltage = model.devices.find((device) => device.id === 'p1')?.sourceVoltage ?? 12
   const stateLabel = simulation.shortCircuit
     ? '短路保护'
@@ -1070,6 +1404,13 @@ export default function Index() {
         onAnswer={answerKnowledgeQuestion}
       />
 
+      <AssessmentBoard
+        activeBlueprintId={activeAssessmentId}
+        answers={assessmentAnswers}
+        onSelectBlueprint={changeAssessment}
+        onAnswer={answerAssessmentQuestion}
+      />
+
       <View className='workspace'>
         <View className='palette-panel'>
           <Text className='panel-title'>{activeDomainProfile.label}元件库</Text>
@@ -1105,6 +1446,7 @@ export default function Index() {
               元件目录、套餐门槛和行业分类已拆到商业配置层，后续可直接接入账号、支付和项目模板服务。
             </Text>
           </View>
+          <MaterialSpecPanel selectedKind={selectedDevice?.kind} activeDomain={activeDomain} />
         </View>
 
         <View className='canvas-panel'>

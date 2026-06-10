@@ -22,6 +22,7 @@ $ink: #1f2937;
 .commercial-dashboard,
 .learning-dashboard,
 .knowledge-board,
+.assessment-board,
 .workspace,
 .mobile-status-strip,
 .effects-bar {
@@ -50,8 +51,16 @@ $ink: #1f2937;
 .wire-toggle,
 .effect-pill,
 .knowledge-head,
+.assessment-head,
 .question-head,
 .simulation-check,
+.assessment-tab-list,
+.assessment-metrics,
+.assessment-requirement,
+.material-summary-grid,
+.material-card-head,
+.material-chip-row,
+.material-mini-row,
 .mobile-status-strip,
 .mobile-bottom-nav,
 .mobile-nav-button {
@@ -132,7 +141,12 @@ $ink: #1f2937;
 .commerce-status,
 .plan-target,
 .plan-feature,
-.api-row {
+.api-row,
+.assessment-copy,
+.assessment-meta,
+.assessment-remediation,
+.material-detail,
+.material-chip-title {
   display: block;
   color: $muted;
   font-size: 12px;
@@ -694,6 +708,332 @@ $ink: #1f2937;
   margin-top: 10px;
   padding: 10px;
   background: #ffffff;
+}
+
+.assessment-board {
+  margin-top: 16px;
+  padding: 14px;
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.assessment-head {
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 8px;
+  background: #162133;
+  color: #ffffff;
+}
+
+.assessment-title {
+  display: block;
+  margin-top: 4px;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 900;
+}
+
+.assessment-copy {
+  margin-top: 4px;
+  color: #d8e2f0;
+}
+
+.assessment-score {
+  width: 84px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.assessment-score.score-passed {
+  background: #0f9f9a;
+}
+
+.assessment-score.score-needs-work {
+  background: #2563eb;
+}
+
+.assessment-score.score-ready {
+  background: #6b7280;
+}
+
+.assessment-score text:first-child,
+.assessment-score span:first-child {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.assessment-tab-list {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.assessment-tab {
+  width: auto;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid $line;
+  background: #ffffff;
+  color: $text;
+  font-size: 13px;
+  line-height: 32px;
+  font-weight: 800;
+}
+
+.assessment-tab::after {
+  border: none;
+}
+
+.assessment-tab.is-active {
+  border-color: #ffdca8;
+  background: #fff7ed;
+  color: #9a4b00;
+}
+
+.assessment-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.assessment-metrics > view,
+.assessment-metrics > div {
+  padding: 9px;
+  border-radius: 8px;
+  border: 1px solid #edf1f6;
+  background: #f8fbff;
+}
+
+.assessment-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.assessment-column {
+  min-width: 0;
+}
+
+.assessment-question-list,
+.requirement-list,
+.remediation-list,
+.material-mini-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.assessment-question,
+.assessment-panel {
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #f8fbff;
+  box-sizing: border-box;
+}
+
+.assessment-panel + .assessment-panel {
+  margin-top: 10px;
+}
+
+.competency-tags,
+.weak-track-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.competency-tags text,
+.competency-tags span,
+.weak-track-list text,
+.weak-track-list span {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid #edf1f6;
+  background: #ffffff;
+  color: #344054;
+  font-size: 12px;
+  line-height: 22px;
+  font-weight: 800;
+}
+
+.assessment-requirement {
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.assessment-meta {
+  color: $muted;
+}
+
+.assessment-remediation {
+  padding: 8px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #344054;
+}
+
+.material-spec-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #f8fbff;
+  box-sizing: border-box;
+}
+
+.material-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.material-summary-grid > view,
+.material-summary-grid > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.material-spec-card {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.material-card-head {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.material-name {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.material-family {
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.spec-pair {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+  color: #344054;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.spec-pair text:first-child,
+.spec-pair span:first-child {
+  color: $muted;
+  font-weight: 800;
+}
+
+.material-detail {
+  margin-top: 8px;
+  color: $muted;
+}
+
+.material-chip-block {
+  margin-top: 9px;
+}
+
+.material-chip-title {
+  margin-bottom: 5px;
+  color: $muted;
+  font-weight: 800;
+}
+
+.material-chip-row {
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.material-chip-row text,
+.material-chip-row span,
+.spec-list text,
+.spec-list span {
+  min-height: 22px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: #f8fbff;
+  border: 1px solid #edf1f6;
+  color: #344054;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 800;
+}
+
+.spec-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.material-mini-row {
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.material-mini-row text:first-child,
+.material-mini-row span:first-child {
+  color: $text;
+  font-weight: 900;
+}
+
+.material-mini-row text:last-child,
+.material-mini-row span:last-child {
+  color: $muted;
+  text-align: right;
 }
 
 .mobile-status-strip,
@@ -3413,7 +3753,8 @@ $ink: #1f2937;
   }
 
   .learning-grid,
-  .knowledge-grid {
+  .knowledge-grid,
+  .assessment-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3543,7 +3884,8 @@ $ink: #1f2937;
   }
 
   .training-summary,
-  .knowledge-head {
+  .knowledge-head,
+  .assessment-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 78px;
   }
@@ -3551,6 +3893,7 @@ $ink: #1f2937;
   .commercial-dashboard,
   .learning-dashboard,
   .knowledge-board,
+  .assessment-board,
   .workspace,
   .effects-bar {
     margin-top: 10px;
@@ -3558,19 +3901,22 @@ $ink: #1f2937;
 
   .commercial-dashboard,
   .learning-dashboard,
-  .knowledge-board {
+  .knowledge-board,
+  .assessment-board {
     padding: 10px;
   }
 
   .commercial-title,
   .training-title,
-  .knowledge-title {
+  .knowledge-title,
+  .assessment-title {
     font-size: 17px;
     line-height: 23px;
   }
 
-  .commercial-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .commercial-metrics,
+  .assessment-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .lesson-list,
@@ -3581,6 +3927,7 @@ $ink: #1f2937;
   .lesson-list,
   .challenge-list,
   .knowledge-track-tabs,
+  .assessment-tab-list,
   .choice-list,
   .effects-bar {
     display: flex;
@@ -3593,6 +3940,7 @@ $ink: #1f2937;
   .lesson-list::-webkit-scrollbar,
   .challenge-list::-webkit-scrollbar,
   .knowledge-track-tabs::-webkit-scrollbar,
+  .assessment-tab-list::-webkit-scrollbar,
   .choice-list::-webkit-scrollbar,
   .effects-bar::-webkit-scrollbar {
     display: none;
@@ -3609,6 +3957,7 @@ $ink: #1f2937;
   }
 
   .knowledge-track-tab,
+  .assessment-tab,
   .choice-button {
     flex: 0 0 auto;
   }
