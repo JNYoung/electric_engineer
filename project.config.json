@@ -1,0 +1,14 @@
+{
+  "miniprogramRoot": "dist/weapp/",
+  "projectname": "diangong-dashi",
+  "description": "电工大师电路模拟平台",
+  "appid": "touristappid",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "compileType": "miniprogram"
+}

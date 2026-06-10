@@ -1,0 +1,1968 @@
+/*postcss-pxtransform disable*/
+
+$text: #172033;
+$muted: #657186;
+$line: #dbe3ef;
+$surface: #ffffff;
+$blue: #2563eb;
+$teal: #0f9f9a;
+$amber: #f59e0b;
+$red: #e5484d;
+$ink: #1f2937;
+
+.app-shell {
+  min-height: 100vh;
+  background: #eef3f9;
+  color: $text;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.topbar,
+.workspace,
+.effects-bar {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.topbar {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.brand-block,
+.toolbar,
+.inspector-head,
+.canvas-header,
+.metric-row,
+.wire-toggle,
+.effect-pill {
+  display: flex;
+  align-items: center;
+}
+
+.brand-block {
+  gap: 12px;
+  min-width: 220px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #132238;
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.brand-title {
+  display: block;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.brand-subtitle,
+.panel-subtitle,
+.palette-desc,
+.device-meta,
+.inspector-type,
+.metric-label,
+.wire-value,
+.note-copy,
+.wire-detail {
+  display: block;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.toolbar {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tool-button,
+.step-button,
+.small-action,
+.inline-switch,
+.toggle-button,
+.full-button {
+  width: auto;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid $line;
+  background: #ffffff;
+  color: $text;
+  font-size: 13px;
+  line-height: 32px;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.tool-button::after,
+.step-button::after,
+.small-action::after,
+.inline-switch::after,
+.toggle-button::after,
+.full-button::after {
+  border: none;
+}
+
+.tool-button.primary,
+.full-button {
+  background: $blue;
+  border-color: $blue;
+  color: #ffffff;
+}
+
+.tool-button {
+  min-width: 84px;
+}
+
+.tool-button.primary {
+  min-width: 108px;
+}
+
+.voltage-control {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #f8fbff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.voltage-control.wide {
+  justify-content: space-between;
+}
+
+.step-button {
+  width: 28px;
+  min-height: 26px;
+  padding: 0;
+  line-height: 24px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 260px minmax(680px, 1fr) 300px;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.palette-panel,
+.canvas-panel,
+.inspector-panel {
+  min-height: 650px;
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.palette-panel,
+.inspector-panel {
+  padding: 16px;
+}
+
+.canvas-panel {
+  padding: 14px;
+  overflow: hidden;
+}
+
+.panel-title {
+  display: block;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 800;
+}
+
+.palette-scroll {
+  height: 540px;
+  margin-top: 14px;
+}
+
+.palette-group {
+  padding-bottom: 8px;
+}
+
+.palette-group-title {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px 0 6px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 900;
+}
+
+.palette-item {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.palette-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #e9f2ff;
+  color: $blue;
+}
+
+.palette-power-positive {
+  background: #fff0f0;
+  color: $red;
+}
+
+.palette-power-negative {
+  background: #eef2f7;
+  color: $ink;
+}
+
+.palette-switch {
+  background: #ecfdf7;
+  color: $teal;
+}
+
+.palette-lamp {
+  background: #fff7df;
+  color: #b46900;
+}
+
+.palette-fan {
+  background: #e8fbff;
+  color: #087b8c;
+}
+
+.palette-extension-load {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.palette-push-button,
+.palette-dip-switch,
+.palette-potentiometer {
+  background: #ecfdf7;
+  color: $teal;
+}
+
+.palette-led,
+.palette-rgb-led,
+.palette-display,
+.palette-seven-segment {
+  background: #fff7df;
+  color: #b46900;
+}
+
+.palette-buzzer,
+.palette-relay,
+.palette-solenoid {
+  background: #fff0f0;
+  color: $red;
+}
+
+.palette-dc-motor,
+.palette-stepper-motor,
+.palette-servo-motor {
+  background: #e8fbff;
+  color: #087b8c;
+}
+
+.palette-resistor,
+.palette-diode,
+.palette-capacitor,
+.palette-fuse {
+  background: #eef2f7;
+  color: #334155;
+}
+
+.palette-transistor-driver,
+.palette-microcontroller {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.palette-photoresistor,
+.palette-thermistor,
+.palette-pir-sensor,
+.palette-ultrasonic-sensor,
+.palette-hall-sensor,
+.palette-humidity-sensor {
+  background: #ecfdf5;
+  color: #0f766e;
+}
+
+.palette-name {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 800;
+}
+
+.small-action {
+  min-width: 48px;
+  padding: 0 8px;
+}
+
+.interface-note,
+.summary-card,
+.inspector-card {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.extension-title {
+  margin-top: 12px;
+}
+
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #ffffff;
+  border: 1px solid #e3e9f2;
+  color: #344054;
+  font-size: 12px;
+  line-height: 22px;
+  font-weight: 800;
+}
+
+.note-title,
+.summary-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
+.canvas-header {
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+}
+
+.run-state {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a4b00;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.run-state.is-running {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.circuit-board {
+  position: relative;
+  height: 500px;
+  margin-top: 12px;
+  border: 1px solid #cfd8e6;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f9fbfe;
+}
+
+.grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(#e3e9f2 1px, transparent 1px),
+    linear-gradient(90deg, #e3e9f2 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.wire-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.wire-segment {
+  position: absolute;
+  border-radius: 999px;
+  background: #a8b2c0;
+  opacity: 0.95;
+}
+
+.wire-segment.is-energized {
+  background: $red;
+  box-shadow: 0 0 0 2px rgba(229, 72, 77, 0.15), 0 0 14px rgba(229, 72, 77, 0.4);
+}
+
+.wire-segment.is-return {
+  background: #2c3443;
+}
+
+.wire-segment.is-disconnected {
+  background: repeating-linear-gradient(
+    90deg,
+    #c3ccd8,
+    #c3ccd8 8px,
+    transparent 8px,
+    transparent 14px
+  );
+  opacity: 0.55;
+}
+
+.device-node {
+  position: absolute;
+  z-index: 2;
+  width: 136px;
+  min-height: 74px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #cdd7e5;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(41, 55, 78, 0.08);
+  box-sizing: border-box;
+}
+
+.device-node.is-selected {
+  border-color: $blue;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14), 0 10px 24px rgba(41, 55, 78, 0.12);
+}
+
+.device-symbol {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #eef3f9;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.component-visual {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  color: currentColor;
+  transform-origin: center;
+}
+
+.component-visual.is-compact {
+  transform: scale(0.72);
+}
+
+.visual-part {
+  position: absolute;
+  display: none;
+  box-sizing: border-box;
+}
+
+.visual-power-positive .part-a,
+.visual-power-positive .part-b,
+.visual-power-positive .part-c,
+.visual-power-positive .part-d {
+  display: block;
+  background: currentColor;
+}
+
+.visual-power-positive .part-a {
+  left: 10px;
+  top: 11px;
+  width: 5px;
+  height: 18px;
+  border-radius: 3px;
+}
+
+.visual-power-positive .part-b {
+  left: 24px;
+  top: 7px;
+  width: 6px;
+  height: 26px;
+  border-radius: 4px;
+}
+
+.visual-power-positive .part-c {
+  left: 29px;
+  top: 19px;
+  width: 5px;
+  height: 2px;
+}
+
+.visual-power-positive .part-d {
+  right: 4px;
+  top: 18px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.visual-power-negative .part-a,
+.visual-power-negative .part-b,
+.visual-power-negative .part-c,
+.visual-power-negative .part-d {
+  display: block;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-power-negative .part-a {
+  left: 19px;
+  top: 7px;
+  width: 3px;
+  height: 13px;
+}
+
+.visual-power-negative .part-b {
+  left: 10px;
+  top: 20px;
+  width: 20px;
+  height: 3px;
+}
+
+.visual-power-negative .part-c {
+  left: 14px;
+  top: 26px;
+  width: 12px;
+  height: 3px;
+}
+
+.visual-power-negative .part-d {
+  left: 17px;
+  top: 32px;
+  width: 6px;
+  height: 3px;
+}
+
+.visual-switch .part-a,
+.visual-switch .part-b,
+.visual-switch .part-c,
+.visual-switch .part-d,
+.visual-switch .part-e,
+.visual-push-button .part-a,
+.visual-push-button .part-b,
+.visual-push-button .part-c,
+.visual-push-button .part-d,
+.visual-push-button .part-e {
+  display: block;
+}
+
+.visual-switch .part-a,
+.visual-switch .part-b,
+.visual-push-button .part-a,
+.visual-push-button .part-b {
+  top: 20px;
+  width: 11px;
+  height: 3px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-switch .part-a,
+.visual-push-button .part-a {
+  left: 4px;
+}
+
+.visual-switch .part-b,
+.visual-push-button .part-b {
+  right: 4px;
+}
+
+.visual-switch .part-c {
+  left: 15px;
+  top: 13px;
+  width: 18px;
+  height: 3px;
+  background: currentColor;
+  border-radius: 999px;
+  transform: rotate(-25deg);
+  transform-origin: left center;
+}
+
+.visual-switch .part-d,
+.visual-switch .part-e,
+.visual-push-button .part-d,
+.visual-push-button .part-e {
+  top: 17px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.visual-switch .part-d,
+.visual-push-button .part-d {
+  left: 12px;
+}
+
+.visual-switch .part-e,
+.visual-push-button .part-e {
+  right: 12px;
+}
+
+.visual-push-button .part-c {
+  left: 14px;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border: 3px solid currentColor;
+  border-radius: 7px 7px 2px 2px;
+}
+
+.visual-dip-switch .part-a,
+.visual-dip-switch .part-b,
+.visual-dip-switch .part-c,
+.visual-dip-switch .part-d,
+.visual-dip-switch .part-e {
+  display: block;
+}
+
+.visual-dip-switch .part-a {
+  left: 7px;
+  top: 8px;
+  width: 26px;
+  height: 24px;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.visual-dip-switch .part-b,
+.visual-dip-switch .part-c,
+.visual-dip-switch .part-d,
+.visual-dip-switch .part-e {
+  top: 13px;
+  width: 4px;
+  height: 14px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-dip-switch .part-b { left: 12px; }
+.visual-dip-switch .part-c { left: 17px; height: 9px; top: 18px; }
+.visual-dip-switch .part-d { left: 22px; }
+.visual-dip-switch .part-e { left: 27px; height: 9px; top: 18px; }
+
+.visual-lamp .part-a,
+.visual-lamp .part-b,
+.visual-lamp .part-c,
+.visual-led .part-a,
+.visual-led .part-b,
+.visual-led .part-c,
+.visual-led .part-d,
+.visual-led .part-e,
+.visual-rgb-led .part-a,
+.visual-rgb-led .part-b,
+.visual-rgb-led .part-c,
+.visual-rgb-led .part-d {
+  display: block;
+}
+
+.visual-lamp .part-a {
+  left: 9px;
+  top: 7px;
+  width: 22px;
+  height: 22px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #fff8df;
+}
+
+.visual-lamp .part-b {
+  left: 15px;
+  top: 28px;
+  width: 10px;
+  height: 5px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.visual-lamp .part-c {
+  left: 14px;
+  top: 18px;
+  width: 12px;
+  height: 5px;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.visual-led .part-a {
+  left: 9px;
+  top: 14px;
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 13px solid currentColor;
+}
+
+.visual-led .part-b {
+  left: 24px;
+  top: 12px;
+  width: 3px;
+  height: 16px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-led .part-c,
+.visual-led .part-d {
+  width: 8px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 999px;
+  transform: rotate(-35deg);
+}
+
+.visual-led .part-c { right: 7px; top: 8px; }
+.visual-led .part-d { right: 3px; top: 14px; }
+
+.visual-rgb-led .part-a,
+.visual-rgb-led .part-b,
+.visual-rgb-led .part-c {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+}
+
+.visual-rgb-led .part-a { left: 7px; top: 8px; background: #ffe4e6; }
+.visual-rgb-led .part-b { left: 20px; top: 8px; background: #dcfce7; }
+.visual-rgb-led .part-c { left: 13px; top: 21px; background: #dbeafe; }
+.visual-rgb-led .part-d {
+  left: 19px;
+  top: 18px;
+  width: 3px;
+  height: 16px;
+  background: currentColor;
+}
+
+.visual-resistor .part-a,
+.visual-resistor .part-b,
+.visual-resistor .part-c,
+.visual-resistor .part-d,
+.visual-resistor .part-e,
+.visual-potentiometer .part-a,
+.visual-potentiometer .part-b,
+.visual-potentiometer .part-c,
+.visual-potentiometer .part-d,
+.visual-diode .part-a,
+.visual-diode .part-b,
+.visual-diode .part-c,
+.visual-capacitor .part-a,
+.visual-capacitor .part-b,
+.visual-capacitor .part-c,
+.visual-fuse .part-a,
+.visual-fuse .part-b,
+.visual-fuse .part-c {
+  display: block;
+}
+
+.visual-resistor .part-a,
+.visual-potentiometer .part-a {
+  left: 8px;
+  top: 15px;
+  width: 24px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.visual-resistor .part-b,
+.visual-potentiometer .part-b {
+  left: 2px;
+  top: 19px;
+  width: 8px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-resistor .part-c,
+.visual-potentiometer .part-c {
+  right: 2px;
+  top: 19px;
+  width: 8px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-resistor .part-d,
+.visual-resistor .part-e {
+  top: 16px;
+  width: 3px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f59e0b;
+}
+
+.visual-resistor .part-d { left: 16px; }
+.visual-resistor .part-e { left: 23px; background: #2563eb; }
+
+.visual-potentiometer .part-d {
+  left: 21px;
+  top: 6px;
+  width: 3px;
+  height: 22px;
+  background: currentColor;
+  border-radius: 999px;
+  transform: rotate(42deg);
+  transform-origin: center;
+}
+
+.visual-diode .part-a {
+  left: 8px;
+  top: 14px;
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 14px solid currentColor;
+}
+
+.visual-diode .part-b {
+  left: 24px;
+  top: 12px;
+  width: 3px;
+  height: 16px;
+  background: currentColor;
+}
+
+.visual-diode .part-c {
+  left: 3px;
+  top: 19px;
+  width: 34px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-capacitor .part-a,
+.visual-capacitor .part-b {
+  top: 10px;
+  width: 4px;
+  height: 20px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-capacitor .part-a { left: 16px; }
+.visual-capacitor .part-b { right: 16px; }
+.visual-capacitor .part-c {
+  left: 4px;
+  top: 19px;
+  width: 32px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-fuse .part-a {
+  left: 7px;
+  top: 14px;
+  width: 26px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.visual-fuse .part-b,
+.visual-fuse .part-c {
+  top: 19px;
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-fuse .part-b { left: 2px; }
+.visual-fuse .part-c { right: 2px; }
+
+.visual-fan .part-a,
+.visual-fan .part-b,
+.visual-fan .part-c,
+.visual-fan .part-d,
+.visual-dc-motor .part-a,
+.visual-dc-motor .part-b,
+.visual-dc-motor .part-c,
+.visual-stepper-motor .part-a,
+.visual-stepper-motor .part-b,
+.visual-stepper-motor .part-c,
+.visual-stepper-motor .part-d,
+.visual-servo-motor .part-a,
+.visual-servo-motor .part-b,
+.visual-servo-motor .part-c {
+  display: block;
+}
+
+.visual-fan .part-a,
+.visual-dc-motor .part-a,
+.visual-stepper-motor .part-a {
+  left: 7px;
+  top: 7px;
+  width: 26px;
+  height: 26px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+}
+
+.visual-fan .part-b,
+.visual-fan .part-c,
+.visual-fan .part-d {
+  left: 18px;
+  top: 8px;
+  width: 4px;
+  height: 14px;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: 2px 12px;
+}
+
+.visual-fan .part-c { transform: rotate(120deg); }
+.visual-fan .part-d { transform: rotate(240deg); }
+
+.visual-dc-motor .part-b {
+  right: 2px;
+  top: 18px;
+  width: 10px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-dc-motor .part-c {
+  left: 17px;
+  top: 17px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-stepper-motor .part-b,
+.visual-stepper-motor .part-c,
+.visual-stepper-motor .part-d {
+  left: 18px;
+  top: 2px;
+  width: 4px;
+  height: 36px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-stepper-motor .part-c { transform: rotate(60deg); }
+.visual-stepper-motor .part-d { transform: rotate(120deg); }
+
+.visual-servo-motor .part-a {
+  left: 7px;
+  top: 13px;
+  width: 24px;
+  height: 18px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-servo-motor .part-b {
+  left: 16px;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-servo-motor .part-c {
+  left: 20px;
+  top: 5px;
+  width: 15px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: left center;
+  transform: rotate(-20deg);
+}
+
+.visual-buzzer .part-a,
+.visual-buzzer .part-b,
+.visual-buzzer .part-c,
+.visual-buzzer .part-d,
+.visual-relay .part-a,
+.visual-relay .part-b,
+.visual-relay .part-c,
+.visual-relay .part-d,
+.visual-relay .part-e,
+.visual-solenoid .part-a,
+.visual-solenoid .part-b,
+.visual-solenoid .part-c,
+.visual-solenoid .part-d,
+.visual-solenoid .part-e,
+.visual-solenoid .part-f {
+  display: block;
+}
+
+.visual-buzzer .part-a {
+  left: 7px;
+  top: 16px;
+  width: 8px;
+  height: 9px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.visual-buzzer .part-b {
+  left: 14px;
+  top: 12px;
+  width: 0;
+  height: 0;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-left: 12px solid currentColor;
+}
+
+.visual-buzzer .part-c,
+.visual-buzzer .part-d {
+  border: 2px solid currentColor;
+  border-left: none;
+  border-radius: 0 999px 999px 0;
+}
+
+.visual-buzzer .part-c {
+  left: 27px;
+  top: 13px;
+  width: 7px;
+  height: 14px;
+}
+
+.visual-buzzer .part-d {
+  left: 30px;
+  top: 9px;
+  width: 9px;
+  height: 22px;
+}
+
+.visual-relay .part-a {
+  left: 5px;
+  top: 13px;
+  width: 15px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-radius: 8px;
+}
+
+.visual-relay .part-b,
+.visual-relay .part-c {
+  left: 8px;
+  width: 9px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-relay .part-b { top: 17px; }
+.visual-relay .part-c { top: 22px; }
+
+.visual-relay .part-d {
+  left: 24px;
+  top: 22px;
+  width: 10px;
+  height: 3px;
+  background: currentColor;
+  border-radius: 999px;
+  transform: rotate(-26deg);
+}
+
+.visual-relay .part-e {
+  right: 5px;
+  top: 15px;
+  width: 6px;
+  height: 6px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.visual-solenoid .part-a,
+.visual-solenoid .part-b,
+.visual-solenoid .part-c,
+.visual-solenoid .part-d {
+  top: 14px;
+  width: 8px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+}
+
+.visual-solenoid .part-a { left: 6px; }
+.visual-solenoid .part-b { left: 13px; }
+.visual-solenoid .part-c { left: 20px; }
+.visual-solenoid .part-d { left: 27px; }
+.visual-solenoid .part-e {
+  left: 4px;
+  top: 19px;
+  width: 32px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-solenoid .part-f {
+  right: 1px;
+  top: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.visual-transistor-driver .part-a,
+.visual-transistor-driver .part-b,
+.visual-transistor-driver .part-c,
+.visual-transistor-driver .part-d,
+.visual-transistor-driver .part-e,
+.visual-microcontroller .part-a,
+.visual-microcontroller .part-b,
+.visual-microcontroller .part-c,
+.visual-microcontroller .part-d,
+.visual-microcontroller .part-e,
+.visual-microcontroller .part-f {
+  display: block;
+}
+
+.visual-transistor-driver .part-a {
+  left: 11px;
+  top: 9px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.visual-transistor-driver .part-b,
+.visual-transistor-driver .part-c,
+.visual-transistor-driver .part-d {
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-transistor-driver .part-b {
+  left: 2px;
+  top: 19px;
+  width: 12px;
+  height: 2px;
+}
+
+.visual-transistor-driver .part-c {
+  left: 23px;
+  top: 10px;
+  width: 14px;
+  height: 2px;
+  transform: rotate(-35deg);
+}
+
+.visual-transistor-driver .part-d {
+  left: 23px;
+  top: 27px;
+  width: 14px;
+  height: 2px;
+  transform: rotate(35deg);
+}
+
+.visual-transistor-driver .part-e {
+  left: 17px;
+  top: 12px;
+  width: 3px;
+  height: 16px;
+  background: currentColor;
+}
+
+.visual-microcontroller .part-a {
+  left: 9px;
+  top: 9px;
+  width: 22px;
+  height: 22px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-microcontroller .part-b,
+.visual-microcontroller .part-c,
+.visual-microcontroller .part-d,
+.visual-microcontroller .part-e {
+  width: 2px;
+  height: 5px;
+  background: currentColor;
+}
+
+.visual-microcontroller .part-b { left: 13px; top: 3px; }
+.visual-microcontroller .part-c { left: 24px; top: 3px; }
+.visual-microcontroller .part-d { left: 13px; bottom: 3px; }
+.visual-microcontroller .part-e { left: 24px; bottom: 3px; }
+.visual-microcontroller .part-f {
+  left: 17px;
+  top: 17px;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.visual-display .part-a,
+.visual-display .part-b,
+.visual-display .part-c,
+.visual-seven-segment .part-a,
+.visual-seven-segment .part-b,
+.visual-seven-segment .part-c,
+.visual-seven-segment .part-d,
+.visual-seven-segment .part-e,
+.visual-seven-segment .part-f,
+.visual-seven-segment .part-g {
+  display: block;
+}
+
+.visual-display .part-a {
+  left: 6px;
+  top: 10px;
+  width: 28px;
+  height: 20px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-display .part-b,
+.visual-display .part-c {
+  left: 11px;
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-display .part-b { top: 16px; }
+.visual-display .part-c { top: 23px; }
+
+.visual-seven-segment .visual-part {
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-seven-segment .part-a,
+.visual-seven-segment .part-d,
+.visual-seven-segment .part-g {
+  left: 12px;
+  width: 16px;
+  height: 4px;
+}
+
+.visual-seven-segment .part-a { top: 7px; }
+.visual-seven-segment .part-g { top: 18px; }
+.visual-seven-segment .part-d { top: 29px; }
+.visual-seven-segment .part-b,
+.visual-seven-segment .part-c,
+.visual-seven-segment .part-e,
+.visual-seven-segment .part-f {
+  width: 4px;
+  height: 11px;
+}
+
+.visual-seven-segment .part-b { right: 9px; top: 10px; }
+.visual-seven-segment .part-c { right: 9px; top: 21px; }
+.visual-seven-segment .part-e { left: 9px; top: 21px; }
+.visual-seven-segment .part-f { left: 9px; top: 10px; }
+
+.visual-photoresistor .part-a,
+.visual-photoresistor .part-b,
+.visual-photoresistor .part-c,
+.visual-photoresistor .part-d,
+.visual-thermistor .part-a,
+.visual-thermistor .part-b,
+.visual-thermistor .part-c,
+.visual-pir-sensor .part-a,
+.visual-pir-sensor .part-b,
+.visual-pir-sensor .part-c,
+.visual-ultrasonic-sensor .part-a,
+.visual-ultrasonic-sensor .part-b,
+.visual-ultrasonic-sensor .part-c,
+.visual-hall-sensor .part-a,
+.visual-hall-sensor .part-b,
+.visual-hall-sensor .part-c,
+.visual-humidity-sensor .part-a,
+.visual-humidity-sensor .part-b,
+.visual-extension-load .part-a,
+.visual-extension-load .part-b,
+.visual-extension-load .part-c,
+.visual-extension-load .part-d {
+  display: block;
+}
+
+.visual-photoresistor .part-a {
+  left: 10px;
+  top: 16px;
+  width: 20px;
+  height: 9px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+}
+
+.visual-photoresistor .part-b,
+.visual-photoresistor .part-c {
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 999px;
+  transform: rotate(-35deg);
+}
+
+.visual-photoresistor .part-b { right: 5px; top: 7px; }
+.visual-photoresistor .part-c { right: 10px; top: 13px; }
+.visual-photoresistor .part-d {
+  left: 4px;
+  top: 20px;
+  width: 32px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-thermistor .part-a {
+  left: 16px;
+  top: 7px;
+  width: 8px;
+  height: 22px;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+}
+
+.visual-thermistor .part-b {
+  left: 13px;
+  top: 23px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-thermistor .part-c {
+  left: 8px;
+  top: 19px;
+  width: 24px;
+  height: 2px;
+  background: currentColor;
+}
+
+.visual-pir-sensor .part-a {
+  left: 9px;
+  top: 10px;
+  width: 22px;
+  height: 22px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.visual-pir-sensor .part-b,
+.visual-pir-sensor .part-c {
+  left: 15px;
+  top: 16px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.visual-pir-sensor .part-c {
+  left: 20px;
+  opacity: 0.45;
+}
+
+.visual-ultrasonic-sensor .part-a,
+.visual-ultrasonic-sensor .part-b {
+  top: 13px;
+  width: 12px;
+  height: 12px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.visual-ultrasonic-sensor .part-a { left: 7px; }
+.visual-ultrasonic-sensor .part-b { right: 7px; }
+.visual-ultrasonic-sensor .part-c {
+  left: 13px;
+  top: 27px;
+  width: 14px;
+  height: 3px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-hall-sensor .part-a {
+  left: 6px;
+  top: 11px;
+  width: 12px;
+  height: 18px;
+  border: 3px solid currentColor;
+  border-right: none;
+  border-radius: 7px 0 0 7px;
+}
+
+.visual-hall-sensor .part-b {
+  right: 6px;
+  top: 11px;
+  width: 12px;
+  height: 18px;
+  border: 3px solid currentColor;
+  border-left: none;
+  border-radius: 0 7px 7px 0;
+}
+
+.visual-hall-sensor .part-c {
+  left: 18px;
+  top: 19px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-humidity-sensor .part-a {
+  left: 13px;
+  top: 6px;
+  width: 14px;
+  height: 22px;
+  border-radius: 12px 12px 12px 2px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.visual-humidity-sensor .part-b {
+  left: 10px;
+  top: 29px;
+  width: 20px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-extension-load .part-a {
+  left: 8px;
+  top: 9px;
+  width: 24px;
+  height: 22px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-extension-load .part-b,
+.visual-extension-load .part-c,
+.visual-extension-load .part-d {
+  top: 17px;
+  width: 5px;
+  height: 7px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.visual-extension-load .part-b { left: 13px; }
+.visual-extension-load .part-c { left: 19px; }
+.visual-extension-load .part-d { left: 25px; }
+
+.device-lamp.is-active .component-visual,
+.device-led.is-active .component-visual,
+.device-rgb-led.is-active .component-visual,
+.device-display.is-active .component-visual,
+.device-seven-segment.is-active .component-visual {
+  filter: drop-shadow(0 0 9px rgba(245, 158, 11, 0.65));
+}
+
+.device-lamp.is-active .visual-lamp .part-a,
+.device-led.is-active .visual-led .part-a,
+.device-rgb-led.is-active .visual-rgb-led .part-a,
+.device-rgb-led.is-active .visual-rgb-led .part-b,
+.device-rgb-led.is-active .visual-rgb-led .part-c,
+.device-display.is-active .visual-display .part-a,
+.device-seven-segment.is-active .visual-seven-segment .visual-part {
+  background-color: #ffd34d;
+}
+
+.device-fan.is-active .component-visual,
+.device-dc-motor.is-active .component-visual {
+  animation: fan-spin 0.55s linear infinite;
+}
+
+.device-stepper-motor.is-active .component-visual {
+  animation: fan-spin 0.9s steps(8) infinite;
+}
+
+.device-servo-motor.is-active .visual-servo-motor .part-c {
+  animation: servo-sweep 1.3s ease-in-out infinite alternate;
+}
+
+.device-buzzer.is-active .visual-buzzer .part-c,
+.device-buzzer.is-active .visual-buzzer .part-d {
+  animation: pulse-ring 0.65s ease-out infinite alternate;
+}
+
+.device-solenoid.is-active .visual-solenoid .part-f,
+.device-relay.is-active .visual-relay .part-d {
+  animation: pull-in 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes servo-sweep {
+  to {
+    transform: rotate(28deg);
+  }
+}
+
+@keyframes pulse-ring {
+  to {
+    opacity: 0.35;
+    transform: translateX(2px);
+  }
+}
+
+@keyframes pull-in {
+  to {
+    transform: translateX(-4px);
+  }
+}
+
+.device-power-positive .device-symbol {
+  background: #fff0f0;
+  color: $red;
+}
+
+.device-power-negative .device-symbol {
+  background: #edf1f5;
+  color: #182131;
+}
+
+.device-switch .device-symbol {
+  background: #ecfdf7;
+  color: $teal;
+}
+
+.device-push-button .device-symbol,
+.device-dip-switch .device-symbol,
+.device-potentiometer .device-symbol {
+  background: #ecfdf7;
+  color: $teal;
+}
+
+.device-lamp .device-symbol,
+.device-led .device-symbol,
+.device-rgb-led .device-symbol,
+.device-display .device-symbol,
+.device-seven-segment .device-symbol {
+  background: #fff7df;
+  color: #b46900;
+}
+
+.device-fan .device-symbol,
+.device-dc-motor .device-symbol,
+.device-stepper-motor .device-symbol,
+.device-servo-motor .device-symbol {
+  background: #e8fbff;
+  color: #087b8c;
+}
+
+.device-buzzer .device-symbol,
+.device-relay .device-symbol,
+.device-solenoid .device-symbol {
+  background: #fff0f0;
+  color: $red;
+}
+
+.device-resistor .device-symbol,
+.device-diode .device-symbol,
+.device-capacitor .device-symbol,
+.device-fuse .device-symbol {
+  background: #eef2f7;
+  color: #334155;
+}
+
+.device-transistor-driver .device-symbol,
+.device-microcontroller .device-symbol,
+.device-extension-load .device-symbol {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.device-photoresistor .device-symbol,
+.device-thermistor .device-symbol,
+.device-pir-sensor .device-symbol,
+.device-ultrasonic-sensor .device-symbol,
+.device-hall-sensor .device-symbol,
+.device-humidity-sensor .device-symbol {
+  background: #ecfdf5;
+  color: #0f766e;
+}
+
+.device-title {
+  display: block;
+  color: $text;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
+.inline-switch {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 28px;
+  line-height: 26px;
+  background: #f8fbff;
+}
+
+.lamp-core {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid #a46b00;
+  background: #fff4c7;
+  box-sizing: border-box;
+}
+
+.device-lamp.is-active .lamp-core {
+  background: #ffd34d;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.95), 0 0 35px rgba(245, 158, 11, 0.35);
+}
+
+.fan-core {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border: 2px solid #087b8c;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.fan-core::after {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 13px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #087b8c;
+}
+
+.fan-blade {
+  position: absolute;
+  left: 15px;
+  top: 4px;
+  width: 4px;
+  height: 12px;
+  border-radius: 999px;
+  background: #087b8c;
+  transform-origin: 2px 13px;
+}
+
+.blade-b {
+  transform: rotate(120deg);
+}
+
+.blade-c {
+  transform: rotate(240deg);
+}
+
+.device-fan.is-active .fan-core {
+  animation: fan-spin 0.55s linear infinite;
+}
+
+@keyframes fan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.device-extension-load {
+  border-style: dashed;
+}
+
+.board-legend {
+  position: absolute;
+  z-index: 3;
+  right: 18px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid $line;
+  color: $muted;
+  font-size: 12px;
+  line-height: 22px;
+}
+
+.board-legend.positive {
+  top: 118px;
+  color: $red;
+}
+
+.board-legend.negative {
+  bottom: 98px;
+  color: $ink;
+}
+
+.connection-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.wire-toggle {
+  min-height: 48px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.wire-copy {
+  min-width: 0;
+}
+
+.wire-name {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
+.toggle-button {
+  flex: 0 0 auto;
+  min-width: 54px;
+  background: #f4f7fb;
+}
+
+.toggle-button.is-on {
+  border-color: #c9f1e8;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.inspector-panel {
+  overflow: hidden;
+}
+
+.inspector-head {
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.inspector-title {
+  display: block;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 800;
+}
+
+.metric-row {
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf1f6;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.metric-row:last-child {
+  border-bottom: none;
+}
+
+.control-stack {
+  margin-top: 10px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: $muted;
+  font-size: 12px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.metric-grid > view,
+.metric-grid > div {
+  padding: 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #edf1f6;
+}
+
+.metric-value {
+  display: block;
+  margin-top: 4px;
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 800;
+}
+
+.full-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.issue-list {
+  margin-top: 14px;
+}
+
+.issue {
+  padding: 9px 10px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 19px;
+  border: 1px solid transparent;
+}
+
+.issue-info {
+  background: #e8fbf5;
+  border-color: #beeade;
+  color: #087c67;
+}
+
+.issue-warning {
+  background: #fff7ed;
+  border-color: #fde3bd;
+  color: #9a4b00;
+}
+
+.issue-error {
+  background: #fff0f0;
+  border-color: #ffd0d2;
+  color: #b4232a;
+}
+
+.effects-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.effect-pill {
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.effect-pill.is-active {
+  border-color: #bdebdc;
+  background: #f0fbf7;
+}
+
+.effect-name {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.effect-value {
+  color: $muted;
+  font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .palette-panel,
+  .canvas-panel,
+  .inspector-panel {
+    min-height: auto;
+  }
+
+  .palette-scroll {
+    height: auto;
+    max-height: 320px;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    padding: 10px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .toolbar {
+    justify-content: flex-start;
+  }
+
+  .canvas-panel {
+    overflow-x: auto;
+  }
+
+  .circuit-board,
+  .connection-strip {
+    min-width: 720px;
+  }
+
+  .connection-strip {
+    grid-template-columns: 1fr;
+  }
+}
