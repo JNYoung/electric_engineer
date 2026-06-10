@@ -1,0 +1,148 @@
+import { expect, test, type Page } from '@playwright/test'
+
+const route = '/#/pages/index/index'
+
+function watchRuntimeHealth(page: Page) {
+  const problems: string[] = []
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      problems.push(`console error: ${message.text()}`)
+    }
+  })
+  page.on('pageerror', (error) => {
+    problems.push(`page error: ${error.message}`)
+  })
+
+  return problems
+}
+
+async function expectHealthyRuntime(problems: string[]) {
+  expect(problems).toEqual([])
+}
+
+async function expectNoIconText(page: Page) {
+  const iconsWithText = await page.locator('.component-visual').evaluateAll((nodes) =>
+    nodes
+      .map((node, index) => ({
+        index,
+        text: (node.textContent ?? '').trim()
+      }))
+      .filter((item) => item.text.length > 0)
+  )
+
+  expect(iconsWithText).toEqual([])
+}
+
+async function expectDevicesInsideBoard(page: Page) {
+  const clippedDevices = await page.locator('.circuit-board').evaluate((board) => {
+    const boardRect = board.getBoundingClientRect()
+    return Array.from(board.querySelectorAll('.device-node'))
+      .map((node) => {
+        const rect = node.getBoundingClientRect()
+        return {
+          label: (node.textContent ?? '').trim(),
+          left: rect.left - boardRect.left,
+          top: rect.top - boardRect.top,
+          right: rect.right - boardRect.left,
+          bottom: rect.bottom - boardRect.top,
+          boardWidth: boardRect.width,
+          boardHeight: boardRect.height
+        }
+      })
+      .filter(
+        (item) =>
+          item.left < -1 ||
+          item.top < -1 ||
+          item.right > item.boardWidth + 1 ||
+          item.bottom > item.boardHeight + 1
+      )
+  })
+
+  expect(clippedDevices).toEqual([])
+}
+
+async function addPaletteDevice(page: Page, name: string) {
+  const paletteItem = page.locator('.palette-item').filter({ hasText: name }).first()
+  await paletteItem.scrollIntoViewIfNeeded()
+  await paletteItem.locator('.small-action').click()
+}
+
+async function gotoWorkbench(page: Page) {
+  await page.goto(route)
+  await expect(page).toHaveTitle(/电工大师/)
+  await expect(page.locator('.app-shell')).toContainText('Web / 小程序电路模拟控制台')
+  await expect(page.locator('.run-state')).toContainText('回路接通')
+}
+
+test.describe('electric workbench e2e', () => {
+  test('loads the connected circuit and toggles the main switch', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
+    await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('转速 100%')
+    await expectNoIconText(page)
+    await expectDevicesInsideBoard(page)
+
+    await page.locator('.toolbar .tool-button.primary').click()
+    await expect(page.locator('.run-state')).toContainText('等待接通')
+    await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('未通电')
+    await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('未通电')
+
+    await page.locator('.toolbar .tool-button.primary').click()
+    await expect(page.locator('.run-state')).toContainText('回路接通')
+    await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
+  test('adds weak-current components as visual schematics and validates their effects', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    await addPaletteDevice(page, '步进电机')
+    await expect(page.locator('.device-stepper-motor')).toHaveCount(1)
+    await expect(page.locator('.effect-pill').filter({ hasText: '步进电机' })).toContainText('步进运行 100%')
+
+    await addPaletteDevice(page, '拨码开关')
+    await expect(page.locator('.device-dip-switch')).toHaveCount(1)
+    await expect(page.locator('.effect-pill').filter({ hasText: '拨码开关' })).toContainText('输入有效 100%')
+    await expect(page.locator('.effect-pill')).toHaveCount(4)
+    await expect(page.locator('.wire-toggle')).toHaveCount(9)
+    await expectNoIconText(page)
+    await expectDevicesInsideBoard(page)
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
+  test('disconnects one branch while other parallel loads keep running', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    const lampReturn = page.locator('.wire-toggle').filter({ hasText: '灯泡回负极' })
+    await lampReturn.locator('.toggle-button').click()
+
+    await expect(lampReturn).toContainText('已断开')
+    await expect(page.locator('.run-state')).toContainText('回路接通')
+    await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('未通电')
+    await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('转速 100%')
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
+  test('keeps the main workbench panels reachable on each compatibility viewport', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    await expect(page.locator('.palette-panel')).toBeVisible()
+    await expect(page.locator('.canvas-panel')).toBeVisible()
+    await expect(page.locator('.inspector-panel')).toBeVisible()
+    await expect(page.locator('.palette-item').filter({ hasText: '超声波测距' })).toHaveCount(1)
+    await expect(page.locator('.palette-item').filter({ hasText: '温湿度传感器' })).toHaveCount(1)
+    await expectNoIconText(page)
+    await expectDevicesInsideBoard(page)
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+})
