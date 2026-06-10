@@ -25,7 +25,7 @@ const config: UserConfigExport = {
     '@': path.resolve(__dirname, '..', 'src')
   },
   cache: {
-    enable: false
+    enable: true
   },
   defineConstants: {},
   copy: {

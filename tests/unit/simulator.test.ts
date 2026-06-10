@@ -56,6 +56,26 @@ describe('simulateCircuit electrical physics', () => {
     expect(result.totalCurrent).toBeCloseTo(12 / 24 + 12 / 18, 5)
   })
 
+  it('keeps wire path styling independent from electrical physics', () => {
+    const model = createInitialCircuit(12)
+    expect(model.wires.every((item) => item.pathMode === 'orthogonal')).toBe(true)
+
+    const smoothWireModel: CircuitModel = {
+      ...model,
+      wires: model.wires.map((item) =>
+        item.id === 'w-switch-lamp' ? { ...item, pathMode: 'smooth' } : item
+      )
+    }
+
+    const baseline = simulateCircuit(model)
+    const smoothWireResult = simulateCircuit(smoothWireModel)
+
+    expect(smoothWireResult.closedCircuit).toBe(baseline.closedCircuit)
+    expect(smoothWireResult.totalCurrent).toBeCloseTo(baseline.totalCurrent, 5)
+    expect(smoothWireResult.effects.l1.voltage).toBeCloseTo(baseline.effects.l1.voltage, 5)
+    expect(smoothWireResult.effects.f1.current).toBeCloseTo(baseline.effects.f1.current, 5)
+  })
+
   it('turns every load off when the main switch is open', () => {
     const model = patchDevice(createInitialCircuit(12), 's1', { isClosed: false })
     const result = simulateCircuit(model)

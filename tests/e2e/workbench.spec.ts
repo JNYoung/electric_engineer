@@ -52,14 +52,85 @@ async function expectDevicesInsideBoard(page: Page) {
       })
       .filter(
         (item) =>
-          item.left < -1 ||
-          item.top < -1 ||
-          item.right > item.boardWidth + 1 ||
-          item.bottom > item.boardHeight + 1
+          item.left < 0 ||
+          item.top < 0 ||
+          item.right > item.boardWidth ||
+          item.bottom > item.boardHeight
       )
   })
 
   expect(clippedDevices).toEqual([])
+}
+
+async function devicePosition(page: Page, selector: string) {
+  return page.locator(selector).evaluate((node) => {
+    const board = node.closest('.circuit-board')
+    if (!board) {
+      throw new Error('Device is not inside the circuit board')
+    }
+    const boardRect = board.getBoundingClientRect()
+    const rect = node.getBoundingClientRect()
+    return {
+      left: rect.left - boardRect.left,
+      top: rect.top - boardRect.top
+    }
+  })
+}
+
+async function dragDevice(page: Page, selector: string, deltaX: number, deltaY: number) {
+  const box = await page.locator(selector).boundingBox()
+  if (!box) {
+    throw new Error(`Cannot drag missing device: ${selector}`)
+  }
+
+  const startX = box.x + box.width / 2
+  const startY = box.y + box.height / 2
+  const endX = startX + deltaX
+  const endY = startY + deltaY
+  const supportsTouch = await page.evaluate(() => navigator.maxTouchPoints > 0)
+
+  if (supportsTouch) {
+    const touchPoint = (x: number, y: number) => ({
+      identifier: 1,
+      clientX: x,
+      clientY: y,
+      pageX: x,
+      pageY: y,
+      screenX: x,
+      screenY: y,
+      radiusX: 1,
+      radiusY: 1,
+      force: 0.5
+    })
+
+    await page.locator(selector).dispatchEvent('touchstart', {
+      bubbles: true,
+      cancelable: true,
+      touches: [touchPoint(startX, startY)],
+      targetTouches: [touchPoint(startX, startY)],
+      changedTouches: [touchPoint(startX, startY)]
+    })
+    await page.locator('.circuit-board').dispatchEvent('touchmove', {
+      bubbles: true,
+      cancelable: true,
+      touches: [touchPoint(endX, endY)],
+      targetTouches: [touchPoint(endX, endY)],
+      changedTouches: [touchPoint(endX, endY)]
+    })
+    await page.locator('.circuit-board').dispatchEvent('touchend', {
+      bubbles: true,
+      cancelable: true,
+      touches: [],
+      targetTouches: [],
+      changedTouches: [touchPoint(endX, endY)]
+    })
+    return
+  }
+
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(endX, endY, { steps: 8 })
+  await page.mouse.up()
 }
 
 async function addPaletteDevice(page: Page, name: string) {
@@ -69,8 +140,9 @@ async function addPaletteDevice(page: Page, name: string) {
 }
 
 async function gotoWorkbench(page: Page) {
-  await page.goto(route)
+  await page.goto(route, { waitUntil: 'domcontentloaded' })
   await expect(page).toHaveTitle(/电工大师/)
+  await expect(page.locator('.app-shell')).toBeVisible()
   await expect(page.locator('.app-shell')).toContainText('Web / 小程序电路模拟控制台')
   await expect(page.locator('.run-state')).toContainText('回路接通')
 }
@@ -93,6 +165,36 @@ test.describe('electric workbench e2e', () => {
     await page.locator('.toolbar .tool-button.primary').click()
     await expect(page.locator('.run-state')).toContainText('回路接通')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
+  test('drags board components and switches a wire between smooth and orthogonal paths', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    const before = await devicePosition(page, '.device-lamp')
+    await dragDevice(page, '.device-lamp', 92, 44)
+
+    await expect.poll(async () => (await devicePosition(page, '.device-lamp')).left).toBeGreaterThan(before.left + 60)
+    const after = await devicePosition(page, '.device-lamp')
+    expect(after.top).toBeGreaterThan(before.top + 24)
+    await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
+    await expectDevicesInsideBoard(page)
+
+    const lampFeed = page.locator('.wire-toggle').filter({ hasText: '开关到灯泡' })
+    await lampFeed.locator('.wire-copy').click()
+    const styleControl = page.locator('.inspector-card').filter({ hasText: '开关到灯泡' }).locator('.segmented-control')
+    await expect(styleControl).toBeVisible()
+
+    await styleControl.locator('.style-button').filter({ hasText: '平滑' }).click()
+    await expect(styleControl.locator('.style-button.is-active')).toContainText('平滑')
+    await expect.poll(async () => page.locator('.wire-segment.is-smooth.is-selected').count()).toBeGreaterThan(0)
+
+    await styleControl.locator('.style-button').filter({ hasText: '折线' }).click()
+    await expect(styleControl.locator('.style-button.is-active')).toContainText('折线')
+    await expect.poll(async () => page.locator('.wire-segment.is-smooth.is-selected').count()).toBe(0)
+    await expect.poll(async () => page.locator('.wire-segment.is-orthogonal.is-selected').count()).toBeGreaterThan(0)
 
     await expectHealthyRuntime(runtimeProblems)
   })

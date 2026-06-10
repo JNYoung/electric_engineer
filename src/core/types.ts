@@ -111,12 +111,15 @@ export interface Endpoint {
   terminalId: string
 }
 
+export type WirePathMode = 'orthogonal' | 'smooth'
+
 export interface Wire {
   id: string
   from: Endpoint
   to: Endpoint
   connected: boolean
   label: string
+  pathMode: WirePathMode
 }
 
 export interface CircuitModel {

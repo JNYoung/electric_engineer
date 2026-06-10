@@ -6,7 +6,7 @@ const baseURL = `http://${host}:${port}`
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 60_000,
+  timeout: 120_000,
   expect: {
     timeout: 10_000
   },
@@ -19,10 +19,10 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    command: `npm run dev:h5 -- --host ${host} --port ${port}`,
+    command: `npm run build:h5 && python3 -m http.server ${port} --bind ${host} --directory dist/h5`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
+    reuseExistingServer: false,
+    timeout: 300_000,
     stdout: 'pipe',
     stderr: 'pipe'
   },
