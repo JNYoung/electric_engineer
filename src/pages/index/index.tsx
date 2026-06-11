@@ -38,6 +38,7 @@ import {
 } from '@/core/training'
 import {
   KNOWLEDGE_TRACKS,
+  buildKnowledgeMeasurementWorksheet,
   buildKnowledgeReviewNotebook,
   buildKnowledgeSimulationChecks,
   buildKnowledgeTrackProgress,
@@ -72,6 +73,7 @@ import type {
 import type {
   KnowledgeReviewItem,
   KnowledgeReviewNotebook,
+  KnowledgeMeasurementWorksheet,
   KnowledgeSimulationCheck,
   KnowledgeTrackId,
   KnowledgeTrackProgress
@@ -222,6 +224,12 @@ function reviewStatusClass(status: KnowledgeReviewNotebook['status']) {
 
 function reviewReasonLabel(reason: KnowledgeReviewItem['reason']) {
   return reason === 'wrong' ? '错题' : '未答'
+}
+
+function measurementStatusClass(status: KnowledgeMeasurementWorksheet['status']) {
+  if (status === '风险') return 'danger'
+  if (status === '待接线') return 'warning'
+  return 'ready'
 }
 
 function certificationStatusClass(status: AssessmentCertificationReadiness['status']) {
@@ -711,12 +719,14 @@ function KnowledgeValidationBoard({
   activeTrackId,
   answers,
   simulationChecks,
+  measurement,
   onSelectTrack,
   onAnswer
 }: {
   activeTrackId: KnowledgeTrackId
   answers: Record<string, string>
   simulationChecks: KnowledgeSimulationCheck[]
+  measurement: KnowledgeMeasurementWorksheet
   onSelectTrack: (trackId: KnowledgeTrackId) => void
   onAnswer: (questionId: string, answerId: string) => void
 }) {
@@ -828,6 +838,7 @@ function KnowledgeValidationBoard({
               </View>
             ))}
           </View>
+          <KnowledgeMeasurementPanel measurement={measurement} />
           <ReviewNotebookPanel review={review} />
           <View className='lab-focus'>
             <Text className='note-title'>实训观察点</Text>
@@ -837,6 +848,54 @@ function KnowledgeValidationBoard({
           </View>
         </View>
       </View>
+    </View>
+  )
+}
+
+function KnowledgeMeasurementPanel({ measurement }: { measurement: KnowledgeMeasurementWorksheet }) {
+  const statusClass = measurementStatusClass(measurement.status)
+  const track = getKnowledgeTrack(measurement.trackId)
+
+  return (
+    <View className='measurement-panel'>
+      <View className='section-head'>
+        <Text className='section-title'>测量证据</Text>
+        <Text className={`measurement-status status-${statusClass}`}>{measurement.status}</Text>
+      </View>
+
+      <View className='measurement-metrics'>
+        <View>
+          <Text className='metric-label'>通过</Text>
+          <Text className='metric-value'>{measurement.passed}/{measurement.total}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>Track</Text>
+          <Text className='metric-value'>{track.level}</Text>
+        </View>
+      </View>
+
+      <View className='measurement-item-list'>
+        {measurement.items.map((item) => (
+          <View
+            key={item.id}
+            className={`measurement-item severity-${item.severity} ${item.passed ? 'is-passed' : ''}`}
+          >
+            <View className='measurement-item-head'>
+              <Text className='measurement-label'>{item.label}</Text>
+              <Text className='measurement-value'>{item.value}</Text>
+            </View>
+            <Text className='measurement-detail'>{item.detail}</Text>
+          </View>
+        ))}
+      </View>
+
+      {measurement.nextActions.length > 0 && (
+        <View className='measurement-next-list'>
+          {measurement.nextActions.map((action) => (
+            <Text key={action} className='measurement-detail'>{action}</Text>
+          ))}
+        </View>
+      )}
     </View>
   )
 }
@@ -1663,6 +1722,10 @@ export default function Index() {
     () => buildKnowledgeSimulationChecks(activeKnowledgeTrackId, model, simulation),
     [activeKnowledgeTrackId, model, simulation]
   )
+  const knowledgeMeasurement = useMemo(
+    () => buildKnowledgeMeasurementWorksheet(activeKnowledgeTrackId, model, simulation),
+    [activeKnowledgeTrackId, model, simulation]
+  )
   const assessmentReadiness = useMemo(
     () => evaluateAssessmentSimulationReadiness(activeAssessmentId, model, simulation),
     [activeAssessmentId, model, simulation]
@@ -1876,6 +1939,7 @@ export default function Index() {
           activeTrackId={activeKnowledgeTrackId}
           answers={knowledgeAnswers}
           simulationChecks={knowledgeSimulationChecks}
+          measurement={knowledgeMeasurement}
           onSelectTrack={changeKnowledgeTrack}
           onAnswer={answerKnowledgeQuestion}
         />
