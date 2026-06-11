@@ -1,9 +1,11 @@
 import { createBranchWires, createDevice, createInitialCircuit, wire } from './circuitFactory'
 import { getDeviceDefinition, isLoadKind } from './registry'
+import type { KnowledgeTrackId } from './knowledge'
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult } from './types'
 
 export type LessonStage = '入门' | '进阶' | '实训'
 export type ChallengeLevel = '基础' | '进阶' | '综合'
+export type FaultScenarioMode = '故障排障' | '知识验证' | '安全保护'
 
 export interface LearningLesson {
   id: string
@@ -18,7 +20,7 @@ export interface LearningLesson {
   challengeIds: string[]
 }
 
-interface ChallengeDeviceSetup {
+export interface ChallengeDeviceSetup {
   kind: DeviceKind
   label?: string
   ratedVoltage?: number
@@ -27,7 +29,7 @@ interface ChallengeDeviceSetup {
   y?: number
 }
 
-interface ChallengeSetup {
+export interface ChallengeSetup {
   voltage: number
   switchClosed?: boolean
   addDevices?: ChallengeDeviceSetup[]
@@ -101,6 +103,31 @@ export interface TrainingChallenge {
   setup: ChallengeSetup
   rules: ChallengeRule[]
   hints: string[]
+}
+
+export interface FaultScenario {
+  id: string
+  title: string
+  level: KnowledgeTrackId
+  mode: FaultScenarioMode
+  lessonId: string
+  challengeId?: string
+  estimatedMinutes: number
+  summary: string
+  setup: ChallengeSetup
+  symptoms: string[]
+  verificationSteps: string[]
+  repairActions: string[]
+  examTags: string[]
+}
+
+export interface FaultScenarioSummary {
+  total: number
+  highSchool: number
+  university: number
+  electrician: number
+  faultLike: number
+  verificationLike: number
 }
 
 export interface ChallengeRuleResult {
@@ -379,12 +406,128 @@ export const TRAINING_CHALLENGES: TrainingChallenge[] = [
   }
 ]
 
+export const FAULT_SCENARIOS: FaultScenario[] = [
+  {
+    id: 'lamp-return-open',
+    title: '照明回线开路',
+    level: 'high-school',
+    mode: '故障排障',
+    lessonId: 'dc-basics',
+    challengeId: 'lighting-fault',
+    estimatedMinutes: 6,
+    summary: '灯泡支路回线断开，排风支路仍可运行，适合训练并联支路开路定位。',
+    setup: {
+      voltage: 12,
+      switchClosed: true,
+      disconnectedWires: ['w-lamp-neg']
+    },
+    symptoms: ['照明灯不亮', '排风扇仍有转速', '导线列表出现断开回线'],
+    verificationSteps: ['选择照明灯查看端电压', '对比排风支路是否保持工作', '接回灯泡回负极后复测'],
+    repairActions: ['接入“灯泡回负极”导线', '确认主开关仍闭合', '复查是否出现短路告警'],
+    examTags: ['并联支路', '开路排障', '回线检查']
+  },
+  {
+    id: 'parallel-current-kcl',
+    title: '并联电流守恒验证',
+    level: 'university',
+    mode: '知识验证',
+    lessonId: 'dc-basics',
+    estimatedMinutes: 8,
+    summary: '默认灯泡和排风扇构成并联负载，可用于验证总电流与支路电流之和。',
+    setup: {
+      voltage: 12,
+      switchClosed: true
+    },
+    symptoms: ['两个负载端电压接近电源电压', '总电流等于各支路电流之和', '断开单支路不会让另一支路失电'],
+    verificationSteps: ['读取照明灯和排风扇电流', '把总电流与支路电流相加对比', '断开灯泡回线后复测排风电流'],
+    repairActions: ['保持并联支路独立回线', '恢复断开的回线后重新验证 KCL'],
+    examTags: ['KCL', '并联电压', '支路电流']
+  },
+  {
+    id: 'low-voltage-overload',
+    title: '低压模块过压样本',
+    level: 'electrician',
+    mode: '安全保护',
+    lessonId: 'sensor-interface',
+    challengeId: 'sensor-io',
+    estimatedMinutes: 9,
+    summary: '把 5V LED 模块接到 12V 训练电源，观察安全诊断如何提示额定电压风险。',
+    setup: {
+      voltage: 12,
+      switchClosed: true,
+      addDevices: [
+        { kind: 'led', label: '5V 状态 LED', ratedVoltage: 5, x: 462, y: 430 },
+        { kind: 'display', label: '5V 显示屏', ratedVoltage: 5, x: 462, y: 556 }
+      ]
+    },
+    symptoms: ['低压模块仍会点亮', '安全诊断提示可能过压', '额定电压与电源电压不匹配'],
+    verificationSteps: ['选择 LED 或显示屏查看端电压', '观察安全诊断中的过压条目', '把电源降到 5V 后复测'],
+    repairActions: ['将训练电源调到 5V', '或改用额定 12V 的执行/显示模块', '记录过压前后的诊断变化'],
+    examTags: ['额定电压', '过压诊断', '弱电模块']
+  },
+  {
+    id: 'source-short-protection',
+    title: '正负极短接保护',
+    level: 'electrician',
+    mode: '安全保护',
+    lessonId: 'control-actuator',
+    estimatedMinutes: 7,
+    summary: '正极直接接到负极，仿真进入短路保护状态，适合安全隔离和停电检查训练。',
+    setup: {
+      voltage: 12,
+      switchClosed: true,
+      shortSource: true
+    },
+    symptoms: ['仿真结果显示短路保护', '负载效果全部失效', '安全诊断出现危险级提示'],
+    verificationSteps: ['先断开主开关', '定位“训练短接线”', '确认移除短接后负载恢复'],
+    repairActions: ['断开或移除正负极短接线', '恢复电源前检查新增导线', '重新闭合主开关观察负载'],
+    examTags: ['短路保护', '安全隔离', '停电检查']
+  },
+  {
+    id: 'main-feed-open',
+    title: '主供电链开路',
+    level: 'electrician',
+    mode: '故障排障',
+    lessonId: 'control-actuator',
+    estimatedMinutes: 7,
+    summary: '主开关前级供电导线断开，所有负载同时失电，适合训练保护链和供电链检查。',
+    setup: {
+      voltage: 24,
+      switchClosed: true,
+      disconnectedWires: ['w-pos-switch']
+    },
+    symptoms: ['所有负载均未通电', '电源存在但没有形成工作电流', '断开的主供电导线会出现在导线列表'],
+    verificationSteps: ['检查正极到主开关导线状态', '确认负极回线没有短路', '接回主供电后观察所有支路'],
+    repairActions: ['接入“正极到主开关”导线', '确认主开关闭合', '重新读取总电流和负载状态'],
+    examTags: ['供电链', '保护链', '全回路失电']
+  }
+]
+
 export function getLessonById(lessonId: string) {
   return LEARNING_LESSONS.find((lesson) => lesson.id === lessonId) ?? LEARNING_LESSONS[0]
 }
 
 export function getChallengeById(challengeId: string) {
   return TRAINING_CHALLENGES.find((challenge) => challenge.id === challengeId) ?? TRAINING_CHALLENGES[0]
+}
+
+export function getFaultScenarioById(scenarioId: string) {
+  return FAULT_SCENARIOS.find((scenario) => scenario.id === scenarioId) ?? FAULT_SCENARIOS[0]
+}
+
+export function getFaultScenariosByLevel(level: KnowledgeTrackId) {
+  return FAULT_SCENARIOS.filter((scenario) => scenario.level === level)
+}
+
+export function getFaultScenarioSummary(): FaultScenarioSummary {
+  return {
+    total: FAULT_SCENARIOS.length,
+    highSchool: getFaultScenariosByLevel('high-school').length,
+    university: getFaultScenariosByLevel('university').length,
+    electrician: getFaultScenariosByLevel('electrician').length,
+    faultLike: FAULT_SCENARIOS.filter((scenario) => scenario.mode === '故障排障').length,
+    verificationLike: FAULT_SCENARIOS.filter((scenario) => scenario.mode !== '故障排障').length
+  }
 }
 
 function patchDevice(model: CircuitModel, deviceId: string, patch: Partial<CircuitDevice>): CircuitModel {
@@ -407,15 +550,14 @@ function countDevicesByKind(model: CircuitModel, kind: DeviceKind) {
   return model.devices.filter((device) => device.kind === kind).length
 }
 
-export function createTrainingCircuit(challengeId: string): CircuitModel {
-  const challenge = getChallengeById(challengeId)
-  let model = createInitialCircuit(challenge.setup.voltage)
+function createCircuitFromSetup(setup: ChallengeSetup): CircuitModel {
+  let model = createInitialCircuit(setup.voltage)
 
-  if (challenge.setup.switchClosed !== undefined) {
-    model = patchDevice(model, 's1', { isClosed: challenge.setup.switchClosed })
+  if (setup.switchClosed !== undefined) {
+    model = patchDevice(model, 's1', { isClosed: setup.switchClosed })
   }
 
-  challenge.setup.addDevices?.forEach((item, offset) => {
+  setup.addDevices?.forEach((item, offset) => {
     const index = offset + 1
     const sameKindIndex = countDevicesByKind(model, item.kind) + 1
     const nextDevice = {
@@ -433,11 +575,11 @@ export function createTrainingCircuit(challengeId: string): CircuitModel {
     }
   })
 
-  challenge.setup.disconnectedWires?.forEach((wireId) => {
+  setup.disconnectedWires?.forEach((wireId) => {
     model = patchWireConnected(model, wireId, false)
   })
 
-  if (challenge.setup.shortSource) {
+  if (setup.shortSource) {
     model = {
       ...model,
       wires: [...model.wires, wire('w-training-short', 'p1', 'out', 'n1', 'in', '训练短接线')]
@@ -445,6 +587,14 @@ export function createTrainingCircuit(challengeId: string): CircuitModel {
   }
 
   return model
+}
+
+export function createTrainingCircuit(challengeId: string): CircuitModel {
+  return createCircuitFromSetup(getChallengeById(challengeId).setup)
+}
+
+export function createFaultScenarioCircuit(scenarioId: string): CircuitModel {
+  return createCircuitFromSetup(getFaultScenarioById(scenarioId).setup)
 }
 
 function activeDeviceCount(model: CircuitModel, simulation: SimulationResult, kind: DeviceKind) {

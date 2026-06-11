@@ -249,6 +249,7 @@ $ink: #1f2937;
 .lesson-time,
 .lesson-summary,
 .challenge-objective,
+.scenario-symptom,
 .challenge-scenario,
 .rule-detail,
 .diagnostic-detail,
@@ -417,7 +418,8 @@ $ink: #1f2937;
 }
 
 .lesson-tags,
-.challenge-focus {
+.challenge-focus,
+.scenario-chip-row {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
@@ -427,7 +429,9 @@ $ink: #1f2937;
 .lesson-tags text,
 .lesson-tags span,
 .challenge-focus text,
-.challenge-focus span {
+.challenge-focus span,
+.scenario-chip-row text,
+.scenario-chip-row span {
   min-height: 22px;
   padding: 0 6px;
   border-radius: 7px;
@@ -440,6 +444,70 @@ $ink: #1f2937;
 }
 
 .challenge-action {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.fault-scenario-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.fault-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.fault-summary-grid > view,
+.fault-summary-grid > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.fault-scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.fault-scenario-card {
+  min-width: 0;
+  min-height: 202px;
+  padding: 11px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.scenario-mode {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #fff7ed;
+  color: #9a4b00;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.scenario-symptom {
+  margin-top: 7px;
+  color: $muted;
+}
+
+.scenario-action {
   width: 100%;
   margin-top: 10px;
 }
@@ -4125,7 +4193,8 @@ $ink: #1f2937;
   }
 
   .commercial-metrics,
-  .assessment-metrics {
+  .assessment-metrics,
+  .fault-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4136,6 +4205,7 @@ $ink: #1f2937;
 
   .lesson-list,
   .challenge-list,
+  .fault-scenario-grid,
   .knowledge-track-tabs,
   .assessment-tab-list,
   .choice-list,
@@ -4149,6 +4219,7 @@ $ink: #1f2937;
 
   .lesson-list::-webkit-scrollbar,
   .challenge-list::-webkit-scrollbar,
+  .fault-scenario-grid::-webkit-scrollbar,
   .knowledge-track-tabs::-webkit-scrollbar,
   .assessment-tab-list::-webkit-scrollbar,
   .choice-list::-webkit-scrollbar,
@@ -4157,7 +4228,8 @@ $ink: #1f2937;
   }
 
   .lesson-card,
-  .challenge-card {
+  .challenge-card,
+  .fault-scenario-card {
     width: 238px;
     min-width: 238px;
   }
