@@ -55,6 +55,7 @@ import {
 } from '@/core/assessment'
 import {
   MATERIAL_LIBRARY,
+  buildMaterialFinder,
   getMaterialCoverageSummary,
   getMaterialSpec,
   getMaterialSpecsByFamily
@@ -81,7 +82,7 @@ import type {
   AssessmentSession,
   AssessmentSimulationReadiness
 } from '@/core/assessment'
-import type { MaterialFamily } from '@/core/materials'
+import type { MaterialFamily, MaterialFinderResult } from '@/core/materials'
 import type {
   AuthSession,
   BillingPlan,
@@ -93,6 +94,7 @@ import type {
 
 const visualParts = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 type MobileTabId = 'learn' | 'simulate' | 'bank' | 'library' | 'account'
+const MATERIAL_QUERY_PRESETS = ['额定电压', 'NPN', '回线', '过压', '安全链']
 
 const MOBILE_NAV_ITEMS: Array<{ id: MobileTabId; label: string }> = [
   { id: 'learn', label: '学习' },
@@ -1166,15 +1168,31 @@ function PracticeReportPanel({ report }: { report: AssessmentPracticeReport }) {
 
 function MaterialSpecPanel({
   selectedKind,
-  activeDomain
+  activeDomain,
+  activeTrackId,
+  materialQuery,
+  onMaterialQueryChange
 }: {
   selectedKind?: DeviceKind
   activeDomain: WorkbenchDomain
+  activeTrackId: KnowledgeTrackId
+  materialQuery: string
+  onMaterialQueryChange: (query: string) => void
 }) {
   const summary = getMaterialCoverageSummary()
   const activeFamily = domainMaterialFamily(activeDomain)
+  const activeTrack = getKnowledgeTrack(activeTrackId)
   const selectedSpec = selectedKind ? getMaterialSpec(selectedKind) : undefined
   const familySpecs = getMaterialSpecsByFamily(activeFamily)
+  const finder = buildMaterialFinder({
+    family: activeFamily,
+    query: materialQuery,
+    limit: 4
+  })
+  const trackFinder = buildMaterialFinder({
+    family: activeFamily,
+    level: activeTrackId
+  })
   const fallbackSpec = familySpecs[0] ?? MATERIAL_LIBRARY[0]
   const primarySpec = selectedSpec ?? fallbackSpec
   const referenceSpecs = familySpecs
@@ -1229,6 +1247,14 @@ function MaterialSpecPanel({
         </View>
       </View>
 
+      <MaterialFinderPanel
+        finder={finder}
+        activeQuery={materialQuery}
+        activeTrackLabel={activeTrack.level}
+        trackMatches={trackFinder.filtered}
+        onQueryChange={onMaterialQueryChange}
+      />
+
       <View className='material-mini-list'>
         {referenceSpecs.map((item) => (
           <View key={item.kind} className='material-mini-row'>
@@ -1237,6 +1263,76 @@ function MaterialSpecPanel({
           </View>
         ))}
       </View>
+    </View>
+  )
+}
+
+function MaterialFinderPanel({
+  finder,
+  activeQuery,
+  activeTrackLabel,
+  trackMatches,
+  onQueryChange
+}: {
+  finder: MaterialFinderResult
+  activeQuery: string
+  activeTrackLabel: string
+  trackMatches: number
+  onQueryChange: (query: string) => void
+}) {
+  return (
+    <View className='material-finder-panel'>
+      <View className='section-head'>
+        <Text className='note-title'>素材训练检索</Text>
+        <Text className='material-finder-count'>{finder.filtered}/{finder.total}</Text>
+      </View>
+      <Text className='material-detail'>
+        {activeTrackLabel}适配 {trackMatches} 项，可按参数、故障和考试标签快速定位。
+      </Text>
+      <View className='material-query-row'>
+        <Button
+          className={`material-query-button ${activeQuery.length === 0 ? 'is-active' : ''}`}
+          onClick={() => onQueryChange('')}
+        >
+          全部
+        </Button>
+        {MATERIAL_QUERY_PRESETS.map((query) => (
+          <Button
+            key={query}
+            className={`material-query-button ${activeQuery === query ? 'is-active' : ''}`}
+            onClick={() => onQueryChange(query)}
+          >
+            {query}
+          </Button>
+        ))}
+      </View>
+
+      {finder.matches.length === 0 ? (
+        <Text className='material-empty'>当前筛选暂无匹配素材，切换关键词或行业域继续检索。</Text>
+      ) : (
+        <View className='material-finder-list'>
+          {finder.matches.map((item) => (
+            <View key={`${finder.query}-${item.kind}`} className='material-finder-card'>
+              <View className='material-card-head'>
+                <Text className='material-finder-name'>{item.displayName}</Text>
+                <Text className='material-family'>{item.family}</Text>
+              </View>
+              <Text className='material-detail'>{item.simulationUse}</Text>
+              <Text className='material-finder-meta'>{item.examTags.slice(0, 3).join(' / ')}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {finder.highlightedTags.length > 0 && (
+        <MaterialChipRow title='命中标签' items={finder.highlightedTags.slice(0, 6)} />
+      )}
+      {finder.safetyChecklist.length > 0 && (
+        <MaterialChipRow title='安全检查' items={finder.safetyChecklist.slice(0, 4)} />
+      )}
+      {finder.faultSamples.length > 0 && (
+        <MaterialChipRow title='故障样本' items={finder.faultSamples.slice(0, 4)} />
+      )}
     </View>
   )
 }
@@ -1490,6 +1586,7 @@ export default function Index() {
   const [knowledgeAnswers, setKnowledgeAnswers] = useState<Record<string, string>>({})
   const [activeAssessmentId, setActiveAssessmentId] = useState<AssessmentBlueprintId>('high-school-foundation-check')
   const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, string>>({})
+  const [materialQuery, setMaterialQuery] = useState('')
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTabId>('learn')
   const simulation = useMemo(() => simulateCircuit(model), [model])
   const activeLesson = getLessonById(activeLessonId)
@@ -1765,7 +1862,13 @@ export default function Index() {
               当前账号已解锁 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐门槛和分类已拆到商业配置层。
             </Text>
           </View>
-          <MaterialSpecPanel selectedKind={selectedDevice?.kind} activeDomain={activeDomain} />
+          <MaterialSpecPanel
+            selectedKind={selectedDevice?.kind}
+            activeDomain={activeDomain}
+            activeTrackId={activeKnowledgeTrackId}
+            materialQuery={materialQuery}
+            onMaterialQueryChange={setMaterialQuery}
+          />
         </View>
 
         <View className='canvas-panel'>

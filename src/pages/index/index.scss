@@ -64,6 +64,7 @@ $ink: #1f2937;
 .material-card-head,
 .material-chip-row,
 .material-mini-row,
+.material-query-row,
 .review-item-head,
 .mobile-status-strip,
 .mobile-bottom-nav,
@@ -153,6 +154,8 @@ $ink: #1f2937;
 .assessment-remediation,
 .material-detail,
 .material-chip-title,
+.material-empty,
+.material-finder-meta,
 .review-detail,
 .review-empty {
   display: block;
@@ -1256,6 +1259,92 @@ $ink: #1f2937;
   border: 1px solid #e3e9f2;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.material-finder-panel {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.material-finder-count {
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #e8fbf5;
+  color: #087c67;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.material-query-row {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.material-query-button {
+  width: auto;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 7px;
+  background: #f8fbff;
+  color: #344054;
+  font-size: 12px;
+  line-height: 28px;
+  font-weight: 900;
+}
+
+.material-query-button::after {
+  border: none;
+}
+
+.material-query-button.is-active {
+  border-color: #bdebdc;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.material-empty {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 7px;
+  background: #f8fbff;
+}
+
+.material-finder-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.material-finder-card {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.material-finder-name {
+  display: block;
+  min-width: 0;
+  color: $text;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 900;
+}
+
+.material-finder-meta {
+  margin-top: 5px;
+  color: #087c67;
+  font-weight: 800;
 }
 
 .material-card-head {
