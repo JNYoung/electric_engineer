@@ -47,6 +47,7 @@ import {
 } from '@/core/knowledge'
 import {
   ASSESSMENT_BLUEPRINTS,
+  buildAssessmentCertificationReadiness,
   buildAssessmentPracticeReport,
   buildAssessmentSession,
   evaluateAssessmentSimulationReadiness,
@@ -77,6 +78,7 @@ import type {
 } from '@/core/knowledge'
 import type {
   AssessmentBlueprintId,
+  AssessmentCertificationReadiness,
   AssessmentPracticeReport,
   AssessmentScore,
   AssessmentSession,
@@ -220,6 +222,12 @@ function reviewStatusClass(status: KnowledgeReviewNotebook['status']) {
 
 function reviewReasonLabel(reason: KnowledgeReviewItem['reason']) {
   return reason === 'wrong' ? '错题' : '未答'
+}
+
+function certificationStatusClass(status: AssessmentCertificationReadiness['status']) {
+  if (status === '可提交') return 'ready'
+  if (status === '待补仿真') return 'warning'
+  return 'danger'
 }
 
 function DomainSwitcher({
@@ -907,6 +915,7 @@ function AssessmentBoard({
   const session = buildAssessmentSession(activeBlueprintId)
   const score = scoreAssessmentSession(session, answers)
   const report = buildAssessmentPracticeReport(session, answers, readiness)
+  const certification = buildAssessmentCertificationReadiness(session, answers, readiness)
   const scoreClass = score.passed ? 'passed' : score.answered > 0 ? 'needs-work' : 'ready'
 
   return (
@@ -981,6 +990,7 @@ function AssessmentBoard({
             blueprintId={activeBlueprintId}
             readiness={readiness}
             report={report}
+            certification={certification}
             session={session}
             score={score}
           />
@@ -1049,12 +1059,14 @@ function AssessmentRequirements({
   blueprintId,
   readiness,
   report,
+  certification,
   session,
   score
 }: {
   blueprintId: AssessmentBlueprintId
   readiness: AssessmentSimulationReadiness
   report: AssessmentPracticeReport
+  certification: AssessmentCertificationReadiness
   session: AssessmentSession
   score: AssessmentScore
 }) {
@@ -1117,8 +1129,59 @@ function AssessmentRequirements({
         </View>
       </View>
 
+      <CertificationReadinessPanel certification={certification} />
       <PracticeReportPanel report={report} />
     </>
+  )
+}
+
+function CertificationReadinessPanel({
+  certification
+}: {
+  certification: AssessmentCertificationReadiness
+}) {
+  const statusClass = certificationStatusClass(certification.status)
+
+  return (
+    <View className='certification-panel'>
+      <View className='assessment-panel-head'>
+        <View>
+          <Text className='note-title'>认证准入</Text>
+          <Text className='certification-label'>{certification.certificateLabel}</Text>
+        </View>
+        <Text className={`certification-status status-${statusClass}`}>{certification.status}</Text>
+      </View>
+      <View className='certification-metrics'>
+        <View>
+          <Text className='metric-label'>总进度</Text>
+          <Text className='metric-value'>{certification.overallPercent}%</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>闸门</Text>
+          <Text className='metric-value'>{certification.completedGates}/{certification.totalGates}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>结果</Text>
+          <Text className='metric-value'>{certification.eligible ? '可提交' : '待补'}</Text>
+        </View>
+      </View>
+      <View className='certification-gate-list'>
+        {certification.gates.map((gate) => (
+          <View key={gate.id} className={`certification-gate ${gate.passed ? 'is-passed' : ''}`}>
+            <Text className='check-dot'>{gate.passed ? '✓' : '·'}</Text>
+            <View>
+              <Text className='check-title'>{gate.label}</Text>
+              <Text className='check-detail'>{gate.detail}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      <View className='certification-next-list'>
+        {certification.nextActions.map((action) => (
+          <Text key={action}>{action}</Text>
+        ))}
+      </View>
+    </View>
   )
 }
 

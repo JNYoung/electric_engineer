@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ASSESSMENT_BLUEPRINTS,
+  buildAssessmentCertificationReadiness,
   buildAssessmentPracticeReport,
   buildAssessmentSession,
   evaluateAssessmentSimulationReadiness,
@@ -124,5 +125,40 @@ describe('assessment blueprints', () => {
     expect(simulationGapReport.status).toBe('待补仿真')
     expect(simulationGapReport.passed).toBe(false)
     expect(simulationGapReport.nextActions.some((action) => action.includes('闭合主开关'))).toBe(true)
+  })
+
+  it('builds certification readiness gates for submission decisions', () => {
+    const session = buildAssessmentSession('high-school-foundation-check')
+    const model = createInitialCircuit(12)
+    const readiness = evaluateAssessmentSimulationReadiness(
+      session.blueprintId,
+      model,
+      simulateCircuit(model)
+    )
+    const emptyReadiness = buildAssessmentCertificationReadiness(session, {}, readiness)
+    const perfectAnswers = Object.fromEntries(session.items.map((item) => [item.question.id, item.question.answerId]))
+    const passedReadiness = buildAssessmentCertificationReadiness(session, perfectAnswers, readiness)
+    const openModel = {
+      ...model,
+      wires: model.wires.map((wire) =>
+        wire.id === 'w-lamp-neg' || wire.id === 'w-fan-neg'
+          ? { ...wire, connected: false }
+          : wire
+      )
+    }
+    const simulationGapReadiness = buildAssessmentCertificationReadiness(
+      session,
+      perfectAnswers,
+      evaluateAssessmentSimulationReadiness(session.blueprintId, openModel, simulateCircuit(openModel))
+    )
+
+    expect(emptyReadiness.status).toBe('待完成')
+    expect(emptyReadiness.eligible).toBe(false)
+    expect(emptyReadiness.gates.map((gate) => gate.id)).toEqual(['completion', 'score', 'simulation'])
+    expect(passedReadiness.status).toBe('可提交')
+    expect(passedReadiness.eligible).toBe(true)
+    expect(passedReadiness.completedGates).toBe(3)
+    expect(simulationGapReadiness.status).toBe('待补仿真')
+    expect(simulationGapReadiness.nextActions.some((action) => action.includes('闭合主开关'))).toBe(true)
   })
 })
