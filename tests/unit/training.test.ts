@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { createBranchWires, createDevice, createInitialCircuit } from '../../src/core/circuitFactory'
 import { simulateCircuit } from '../../src/core/simulator'
 import {
+  FAULT_SCENARIOS,
   buildSafetyDiagnostics,
+  createFaultScenarioCircuit,
   createTrainingCircuit,
-  evaluateTrainingChallenge
+  evaluateTrainingChallenge,
+  getFaultScenarioSummary,
+  getFaultScenariosByLevel
 } from '../../src/core/training'
 import type { CircuitModel, Wire } from '../../src/core/types'
 
@@ -56,5 +60,32 @@ describe('training challenge evaluation', () => {
     const diagnostics = buildSafetyDiagnostics(model, result)
 
     expect(diagnostics.some((item) => item.id === `over-voltage-${led.id}`)).toBe(true)
+  })
+
+  it('indexes reusable fault and verification scenarios by learning level', () => {
+    const summary = getFaultScenarioSummary()
+
+    expect(summary.total).toBe(FAULT_SCENARIOS.length)
+    expect(summary.highSchool).toBeGreaterThanOrEqual(1)
+    expect(summary.university).toBeGreaterThanOrEqual(1)
+    expect(summary.electrician).toBeGreaterThanOrEqual(3)
+    expect(summary.faultLike + summary.verificationLike).toBe(summary.total)
+    expect(getFaultScenariosByLevel('electrician').some((scenario) => scenario.id === 'source-short-protection')).toBe(true)
+  })
+
+  it('creates fault scenario circuits for open, short, and over-voltage training', () => {
+    const openModel = createFaultScenarioCircuit('lamp-return-open')
+    expect(openModel.wires.find((wire) => wire.id === 'w-lamp-neg')?.connected).toBe(false)
+
+    const shortModel = createFaultScenarioCircuit('source-short-protection')
+    const shortResult = simulateCircuit(shortModel)
+    const shortDiagnostics = buildSafetyDiagnostics(shortModel, shortResult)
+    expect(shortResult.shortCircuit).toBe(true)
+    expect(shortDiagnostics.find((item) => item.id === 'short-circuit')?.severity).toBe('danger')
+
+    const overVoltageModel = createFaultScenarioCircuit('low-voltage-overload')
+    const overVoltageResult = simulateCircuit(overVoltageModel)
+    const overVoltageDiagnostics = buildSafetyDiagnostics(overVoltageModel, overVoltageResult)
+    expect(overVoltageDiagnostics.some((item) => item.id.startsWith('over-voltage-'))).toBe(true)
   })
 })

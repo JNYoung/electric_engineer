@@ -135,6 +135,8 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
+    await expect(page.locator('.fault-scenario-panel')).toContainText('故障场景库')
+    await expect(page.locator('.fault-scenario-panel')).toContainText('低压模块过压样本')
     await page.locator('.challenge-card').filter({ hasText: '照明支路排障' }).locator('.challenge-action').click()
 
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('未通电')
@@ -146,6 +148,10 @@ test.describe('electric workbench e2e', () => {
 
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
     await expect(page.locator('.training-card')).toContainText('100%')
+
+    await page.locator('.fault-scenario-card').filter({ hasText: '低压模块过压样本' }).locator('.scenario-action').click()
+    await expect(page.locator('.safety-card')).toContainText('可能过压')
+    await expect(page.locator('.knowledge-board')).toContainText('电工实操')
 
     await expectHealthyRuntime(runtimeProblems)
   })

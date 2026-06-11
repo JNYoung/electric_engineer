@@ -24,10 +24,14 @@ import {
   hasTierAccess
 } from '@/core/commercial'
 import {
+  FAULT_SCENARIOS,
   buildSafetyDiagnostics,
+  createFaultScenarioCircuit,
   createTrainingCircuit,
   evaluateTrainingChallenge,
   getChallengeById,
+  getFaultScenarioById,
+  getFaultScenarioSummary,
   getLessonById,
   LEARNING_LESSONS,
   TRAINING_CHALLENGES
@@ -57,6 +61,7 @@ import {
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire } from '@/core/types'
 import type {
   ChallengeEvaluation,
+  FaultScenario,
   LearningLesson,
   SafetyDiagnostic,
   TrainingChallenge
@@ -534,18 +539,95 @@ function ChallengeCard({
   )
 }
 
+function FaultScenarioLibrary({
+  onStartScenario
+}: {
+  onStartScenario: (scenarioId: string) => void
+}) {
+  const summary = getFaultScenarioSummary()
+
+  return (
+    <View className='fault-scenario-panel'>
+      <View className='section-head'>
+        <Text className='section-title'>故障场景库</Text>
+        <Text className='section-meta'>{summary.total} 个可模拟场景</Text>
+      </View>
+      <View className='fault-summary-grid'>
+        <View>
+          <Text className='metric-label'>高中</Text>
+          <Text className='metric-value'>{summary.highSchool}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>大学</Text>
+          <Text className='metric-value'>{summary.university}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>电工</Text>
+          <Text className='metric-value'>{summary.electrician}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>排障</Text>
+          <Text className='metric-value'>{summary.faultLike}</Text>
+        </View>
+      </View>
+      <View className='fault-scenario-grid'>
+        {FAULT_SCENARIOS.map((scenario) => (
+          <FaultScenarioCard
+            key={scenario.id}
+            scenario={scenario}
+            onStartScenario={onStartScenario}
+          />
+        ))}
+      </View>
+    </View>
+  )
+}
+
+function FaultScenarioCard({
+  scenario,
+  onStartScenario
+}: {
+  scenario: FaultScenario
+  onStartScenario: (scenarioId: string) => void
+}) {
+  const track = getKnowledgeTrack(scenario.level)
+
+  return (
+    <View className='fault-scenario-card'>
+      <View className='challenge-card-head'>
+        <Text className='scenario-mode'>{scenario.mode}</Text>
+        <Text className='lesson-time'>{scenario.estimatedMinutes} 分钟</Text>
+      </View>
+      <Text className='challenge-title'>{scenario.title}</Text>
+      <Text className='challenge-objective'>{scenario.summary}</Text>
+      <View className='scenario-chip-row'>
+        <Text>{track.level}</Text>
+        {scenario.examTags.slice(0, 2).map((tag) => (
+          <Text key={tag}>{tag}</Text>
+        ))}
+      </View>
+      <Text className='scenario-symptom'>{scenario.symptoms[0]}</Text>
+      <Button className='small-action scenario-action' onClick={() => onStartScenario(scenario.id)}>
+        载入场景
+      </Button>
+    </View>
+  )
+}
+
 function LearningDashboard({
   lesson,
   challenge,
   evaluation,
   onSelectLesson,
-  onStartChallenge
+  onStartChallenge,
+  onStartScenario
 }: {
   lesson: LearningLesson
   challenge: TrainingChallenge
   evaluation: ChallengeEvaluation
   onSelectLesson: (id: string) => void
   onStartChallenge: (id: string) => void
+  onStartScenario: (scenarioId: string) => void
 }) {
   return (
     <View className='learning-dashboard'>
@@ -596,6 +678,8 @@ function LearningDashboard({
           </View>
         </View>
       </View>
+
+      <FaultScenarioLibrary onStartScenario={onStartScenario} />
     </View>
   )
 }
@@ -1412,6 +1496,18 @@ export default function Index() {
     setModel(createTrainingCircuit(challenge.id))
   }
 
+  function startFaultScenario(scenarioId: string) {
+    const scenario = getFaultScenarioById(scenarioId)
+    setActiveLessonId(scenario.lessonId)
+    if (scenario.challengeId) {
+      setActiveChallengeId(scenario.challengeId)
+    }
+    setActiveKnowledgeTrackId(scenario.level)
+    setSelectedId(scenario.id === 'source-short-protection' ? 'w-training-short' : 'l1')
+    setModel(createFaultScenarioCircuit(scenario.id))
+    setActiveMobileTab('simulate')
+  }
+
   function changeDomain(domain: WorkbenchDomain) {
     const profile = getDomainProfile(domain)
     setActiveDomain(domain)
@@ -1532,6 +1628,7 @@ export default function Index() {
         evaluation={challengeEvaluation}
         onSelectLesson={setActiveLessonId}
         onStartChallenge={startChallenge}
+        onStartScenario={startFaultScenario}
       />
 
       <KnowledgeValidationBoard
