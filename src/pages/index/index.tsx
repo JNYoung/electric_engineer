@@ -1481,6 +1481,7 @@ export default function Index() {
         wires: [...current.wires, ...wires]
       }
     })
+    setActiveMobileTab('simulate')
   }
 
   function resetCircuit() {
@@ -1494,6 +1495,7 @@ export default function Index() {
     setActiveLessonId(challenge.lessonId)
     setSelectedId(challenge.id === 'sensor-io' ? 'x1' : 'l1')
     setModel(createTrainingCircuit(challenge.id))
+    setActiveMobileTab('simulate')
   }
 
   function startFaultScenario(scenarioId: string) {
@@ -1616,38 +1618,43 @@ export default function Index() {
         diagnostics={safetyDiagnostics}
       />
 
-      <CommercialDashboard
-        access={commercialAccess}
-        activeDomain={activeDomain}
-        onChangeDomain={changeDomain}
-      />
+      <View className='mobile-section mobile-section-learn'>
+        <CommercialDashboard
+          access={commercialAccess}
+          activeDomain={activeDomain}
+          onChangeDomain={changeDomain}
+        />
 
-      <LearningDashboard
-        lesson={activeLesson}
-        challenge={activeChallenge}
-        evaluation={challengeEvaluation}
-        onSelectLesson={setActiveLessonId}
-        onStartChallenge={startChallenge}
-        onStartScenario={startFaultScenario}
-      />
+        <LearningDashboard
+          lesson={activeLesson}
+          challenge={activeChallenge}
+          evaluation={challengeEvaluation}
+          onSelectLesson={setActiveLessonId}
+          onStartChallenge={startChallenge}
+          onStartScenario={startFaultScenario}
+        />
+      </View>
 
-      <KnowledgeValidationBoard
-        activeTrackId={activeKnowledgeTrackId}
-        answers={knowledgeAnswers}
-        simulationChecks={knowledgeSimulationChecks}
-        onSelectTrack={changeKnowledgeTrack}
-        onAnswer={answerKnowledgeQuestion}
-      />
+      <View className='mobile-section mobile-section-bank'>
+        <KnowledgeValidationBoard
+          activeTrackId={activeKnowledgeTrackId}
+          answers={knowledgeAnswers}
+          simulationChecks={knowledgeSimulationChecks}
+          onSelectTrack={changeKnowledgeTrack}
+          onAnswer={answerKnowledgeQuestion}
+        />
 
-      <AssessmentBoard
-        activeBlueprintId={activeAssessmentId}
-        answers={assessmentAnswers}
-        readiness={assessmentReadiness}
-        onSelectBlueprint={changeAssessment}
-        onAnswer={answerAssessmentQuestion}
-      />
+        <AssessmentBoard
+          activeBlueprintId={activeAssessmentId}
+          answers={assessmentAnswers}
+          readiness={assessmentReadiness}
+          onSelectBlueprint={changeAssessment}
+          onAnswer={answerAssessmentQuestion}
+        />
+      </View>
 
-      <View className='workspace'>
+      <View className='mobile-section mobile-section-workspace'>
+        <View className='workspace'>
         <View className='palette-panel'>
           <Text className='panel-title'>{activeDomainProfile.label}元件库</Text>
           <Text className='panel-subtitle'>{activeDomainProfile.description}</Text>
@@ -1859,17 +1866,20 @@ export default function Index() {
           />
         </View>
       </View>
+      </View>
 
-      <View className='effects-bar'>
-        {loadDevices.map((device) => {
-          const effect = simulation.effects[device.id]
-          return (
-            <View key={device.id} className={`effect-pill ${effect?.active ? 'is-active' : ''}`}>
-              <Text className='effect-name'>{device.label}</Text>
-              <Text className='effect-value'>{effect?.label ?? '未通电'}</Text>
-            </View>
-          )
-        })}
+      <View className='mobile-section mobile-section-effects'>
+        <View className='effects-bar'>
+          {loadDevices.map((device) => {
+            const effect = simulation.effects[device.id]
+            return (
+              <View key={device.id} className={`effect-pill ${effect?.active ? 'is-active' : ''}`}>
+                <Text className='effect-name'>{device.label}</Text>
+                <Text className='effect-value'>{effect?.label ?? '未通电'}</Text>
+              </View>
+            )
+          })}
+        </View>
       </View>
 
       <MobileBottomNav activeTab={activeMobileTab} onChange={setActiveMobileTab} />

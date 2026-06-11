@@ -62,10 +62,24 @@ async function expectDevicesInsideBoard(page: Page) {
   expect(clippedDevices).toEqual([])
 }
 
+async function isMobileViewport(page: Page) {
+  return (page.viewportSize()?.width ?? await page.evaluate(() => window.innerWidth)) <= 760
+}
+
+async function openMobileTab(page: Page, label: string) {
+  if (!(await isMobileViewport(page))) return
+
+  const button = page.locator('.mobile-nav-button').filter({ hasText: label })
+  await button.click()
+  await expect(button).toHaveClass(/is-active/)
+}
+
 async function addPaletteDevice(page: Page, name: string) {
+  await openMobileTab(page, '素材')
   const paletteItem = page.locator('.palette-item').filter({ hasText: name }).first()
   await paletteItem.scrollIntoViewIfNeeded()
   await paletteItem.locator('.small-action').click()
+  await openMobileTab(page, '仿真')
 }
 
 async function gotoWorkbench(page: Page) {
@@ -80,6 +94,7 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
+    await openMobileTab(page, '仿真')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
     await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('转速 100%')
     await expectNoIconText(page)
@@ -120,6 +135,7 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
+    await openMobileTab(page, '仿真')
     const lampReturn = page.locator('.wire-toggle').filter({ hasText: '灯泡回负极' })
     await lampReturn.locator('.toggle-button').click()
 
@@ -149,6 +165,7 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
     await expect(page.locator('.training-card')).toContainText('100%')
 
+    await openMobileTab(page, '学习')
     await page.locator('.fault-scenario-card').filter({ hasText: '低压模块过压样本' }).locator('.scenario-action').click()
     await expect(page.locator('.safety-card')).toContainText('可能过压')
     await expect(page.locator('.knowledge-board')).toContainText('电工实操')
@@ -160,6 +177,7 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
+    await openMobileTab(page, '题库')
     await expect(page.locator('.knowledge-board')).toContainText('高中基础')
     await expect(page.locator('.knowledge-board')).toContainText('欧姆定律与电功率')
 
@@ -186,11 +204,14 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
-    await expect(page.locator('.assessment-board')).toContainText('专业考试模拟')
-    await expect(page.locator('.assessment-board')).toContainText('高中电学基础测验')
+    await openMobileTab(page, '素材')
     await expect(page.locator('.material-spec-panel')).toContainText('素材规格速查')
     await expect(page.locator('.material-spec-panel')).toContainText('照明灯')
     await expect(page.locator('.material-spec-panel')).toContainText('PLC 控制器')
+
+    await openMobileTab(page, '题库')
+    await expect(page.locator('.assessment-board')).toContainText('专业考试模拟')
+    await expect(page.locator('.assessment-board')).toContainText('高中电学基础测验')
     await expect(page.locator('.assessment-board')).toContainText('仿真准备度')
     await expect(page.locator('.assessment-board')).toContainText('3/3')
     await expect(page.locator('.assessment-board')).toContainText('练习复盘')
@@ -216,7 +237,9 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.practice-report-panel')).toContainText('完成20%')
     await expect(page.locator('.practice-report-panel')).toContainText('正确100%')
 
+    await openMobileTab(page, '学习')
     await page.locator('.domain-tab').filter({ hasText: '装修工控' }).click()
+    await openMobileTab(page, '素材')
     await expect(page.locator('.material-spec-panel')).toContainText('智能网关')
 
     await expectHealthyRuntime(runtimeProblems)
@@ -229,7 +252,9 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.commercial-dashboard')).toContainText('工程工控')
     await expect(page.locator('.commercial-dashboard')).toContainText('已解锁')
     await expect(page.locator('.commercial-dashboard')).toContainText('待解锁')
+    await openMobileTab(page, '素材')
     await expect(page.locator('.palette-panel')).toContainText('PLC 控制器')
+    await openMobileTab(page, '账号')
     await expect(page.locator('.commerce-panel')).toContainText('登录后开通专业版')
     await expect(page.locator('.commerce-panel')).toContainText('待解锁：PLC 控制器')
     await expect(page.locator('.feature-gate-row').filter({ hasText: '高级工程工控元件' })).toContainText('专业版')
@@ -238,10 +263,13 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.commerce-panel')).toContainText('/api/billing/portal')
     await expect(page.locator('.commerce-panel')).toContainText('/api/billing/webhook')
 
+    await openMobileTab(page, '学习')
     await page.locator('.domain-tab').filter({ hasText: '装修工控' }).click()
+    await openMobileTab(page, '素材')
     await expect(page.locator('.palette-panel')).toContainText('装修工控元件库')
     await expect(page.locator('.palette-item').filter({ hasText: '智能开关面板' })).toHaveCount(1)
 
+    await openMobileTab(page, '账号')
     await page.locator('.commerce-panel').locator('.commerce-primary-action').filter({ hasText: '登录后开通专业版' }).click()
     await expect(page.locator('.commerce-panel')).toContainText('专业版演示账号')
     await expect(page.locator('.commerce-panel')).toContainText('开通团队版')
@@ -254,20 +282,43 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
-    await expect(page.locator('.palette-panel')).toBeVisible()
-    await expect(page.locator('.canvas-panel')).toBeVisible()
-    await expect(page.locator('.inspector-panel')).toBeVisible()
-    await expect(page.locator('.palette-item').filter({ hasText: '超声波测距' })).toHaveCount(1)
-    await expect(page.locator('.palette-item').filter({ hasText: '温湿度传感器' })).toHaveCount(1)
-    await expectNoIconText(page)
-    await expectDevicesInsideBoard(page)
 
     if (testInfo.project.name.includes('mobile')) {
       await expect(page.locator('.mobile-status-strip')).toBeVisible()
       await expect(page.locator('.mobile-bottom-nav')).toBeVisible()
-      await page.locator('.mobile-nav-button').filter({ hasText: '题库' }).click()
-      await expect(page.locator('.mobile-nav-button').filter({ hasText: '题库' })).toHaveClass(/is-active/)
+      await expect(page.locator('.learning-dashboard')).toBeVisible()
+      await expect(page.locator('.canvas-panel')).not.toBeVisible()
+
+      await openMobileTab(page, '仿真')
+      await expect(page.locator('.canvas-panel')).toBeVisible()
+      await expect(page.locator('.inspector-panel')).toBeVisible()
+      await expect(page.locator('.palette-panel')).not.toBeVisible()
+      await expectDevicesInsideBoard(page)
+
+      await openMobileTab(page, '素材')
+      await expect(page.locator('.palette-panel')).toBeVisible()
+      await expect(page.locator('.material-spec-panel')).toBeVisible()
+      await expect(page.locator('.canvas-panel')).not.toBeVisible()
+      await expect(page.locator('.palette-item').filter({ hasText: '超声波测距' })).toHaveCount(1)
+      await expect(page.locator('.palette-item').filter({ hasText: '温湿度传感器' })).toHaveCount(1)
+
+      await openMobileTab(page, '题库')
+      await expect(page.locator('.knowledge-board')).toBeVisible()
+      await expect(page.locator('.assessment-board')).toBeVisible()
+      await expect(page.locator('.workspace')).not.toBeVisible()
+
+      await openMobileTab(page, '账号')
+      await expect(page.locator('.commerce-panel')).toBeVisible()
+      await expect(page.locator('.canvas-panel')).not.toBeVisible()
+    } else {
+      await expect(page.locator('.palette-panel')).toBeVisible()
+      await expect(page.locator('.canvas-panel')).toBeVisible()
+      await expect(page.locator('.inspector-panel')).toBeVisible()
+      await expect(page.locator('.palette-item').filter({ hasText: '超声波测距' })).toHaveCount(1)
+      await expect(page.locator('.palette-item').filter({ hasText: '温湿度传感器' })).toHaveCount(1)
+      await expectDevicesInsideBoard(page)
     }
+    await expectNoIconText(page)
 
     await expectHealthyRuntime(runtimeProblems)
   })
