@@ -58,6 +58,8 @@ $ink: #1f2937;
 .assessment-tab-list,
 .assessment-metrics,
 .assessment-requirement,
+.practice-status,
+.practice-focus,
 .material-summary-grid,
 .material-card-head,
 .material-chip-row,
@@ -834,6 +836,8 @@ $ink: #1f2937;
 .assessment-question-list,
 .requirement-list,
 .remediation-list,
+.practice-focus-list,
+.practice-next-list,
 .material-mini-list {
   display: grid;
   gap: 10px;
@@ -933,6 +937,103 @@ $ink: #1f2937;
   border-radius: 7px;
   background: #ffffff;
   color: #344054;
+}
+
+.practice-report-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #f8fbff;
+  box-sizing: border-box;
+}
+
+.practice-status {
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.practice-status.is-passed {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.practice-status.needs-work {
+  background: #fff7ed;
+  color: #9a4b00;
+}
+
+.practice-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.practice-metrics > view,
+.practice-metrics > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.practice-focus {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.practice-focus.focus-success {
+  border-color: #bdebdc;
+  background: #f0fdf9;
+}
+
+.practice-focus.focus-warning {
+  border-color: #ffdca8;
+  background: #fff7ed;
+}
+
+.practice-focus.focus-danger {
+  border-color: #ffc2c2;
+  background: #fff1f2;
+}
+
+.practice-focus-title {
+  display: block;
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.practice-focus-detail {
+  display: block;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.practice-next-list text,
+.practice-next-list span {
+  padding: 8px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .material-spec-panel {

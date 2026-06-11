@@ -1,6 +1,7 @@
 import {
   KNOWLEDGE_QUESTIONS,
   evaluateKnowledgeAnswer,
+  getKnowledgeTrack,
   getQuestionsForTrack
 } from './knowledge'
 import {
@@ -77,6 +78,30 @@ export interface AssessmentSimulationReadiness {
   passedChecks: number
   totalChecks: number
   checks: AssessmentSimulationCheck[]
+  nextActions: string[]
+}
+
+export type AssessmentPracticeStatus = '未开始' | '进行中' | '待补仿真' | '未通过' | '已通过'
+export type AssessmentPracticeSeverity = 'success' | 'info' | 'warning' | 'danger'
+
+export interface AssessmentPracticeFocus {
+  id: string
+  title: string
+  detail: string
+  severity: AssessmentPracticeSeverity
+}
+
+export interface AssessmentPracticeReport {
+  blueprintId: AssessmentBlueprintId
+  status: AssessmentPracticeStatus
+  completionPercent: number
+  accuracyPercent: number
+  scorePercent: number
+  readinessPercent: number
+  passed: boolean
+  weakTracks: KnowledgeTrackId[]
+  recommendedTrackIds: KnowledgeTrackId[]
+  focus: AssessmentPracticeFocus[]
   nextActions: string[]
 }
 
@@ -202,10 +227,133 @@ export function buildAssessmentRemediation(
     .map((item) => `${item.question.title}：${item.question.simulationHint}`)
 }
 
+export function buildAssessmentPracticeReport(
+  session: AssessmentSession,
+  answers: Record<string, string>,
+  readiness: AssessmentSimulationReadiness
+): AssessmentPracticeReport {
+  const score = scoreAssessmentSession(session, answers)
+  const completionPercent = session.items.length === 0
+    ? 0
+    : Math.round((score.answered / session.items.length) * 100)
+  const accuracyPercent = score.answered === 0
+    ? 0
+    : Math.round((score.correct / score.answered) * 100)
+  const recommendedTrackIds = getRecommendedTracks(session, answers, score.weakTracks)
+  const status = getPracticeStatus(score, readiness, completionPercent)
+  const focus = buildPracticeFocus(session, score, readiness, completionPercent, accuracyPercent, recommendedTrackIds)
+  const nextActions = uniqueText([
+    ...readiness.nextActions.slice(0, 2),
+    ...score.remediation.slice(0, 2),
+    completionPercent < 100 ? '完成剩余题目后再生成最终通过判断。' : '',
+    recommendedTrackIds.length > 0
+      ? `优先回到 ${recommendedTrackIds.map((trackId) => getKnowledgeTrack(trackId).level).join('、')} 题组复训。`
+      : ''
+  ]).slice(0, 4)
+
+  return {
+    blueprintId: session.blueprintId,
+    status,
+    completionPercent,
+    accuracyPercent,
+    scorePercent: score.percent,
+    readinessPercent: readiness.percent,
+    passed: score.passed && readiness.passed,
+    weakTracks: score.weakTracks,
+    recommendedTrackIds,
+    focus,
+    nextActions
+  }
+}
+
 export function getBlueprintsForTrack(trackId: KnowledgeTrackId) {
   return ASSESSMENT_BLUEPRINTS.filter((blueprint) =>
     blueprint.trackWeights.some((weight) => weight.trackId === trackId)
   )
+}
+
+function getPracticeStatus(
+  score: AssessmentScore,
+  readiness: AssessmentSimulationReadiness,
+  completionPercent: number
+): AssessmentPracticeStatus {
+  if (score.passed && readiness.passed) return '已通过'
+  if (score.passed && !readiness.passed) return '待补仿真'
+  if (score.answered === 0) return '未开始'
+  if (completionPercent < 100) return '进行中'
+  return '未通过'
+}
+
+function buildPracticeFocus(
+  session: AssessmentSession,
+  score: AssessmentScore,
+  readiness: AssessmentSimulationReadiness,
+  completionPercent: number,
+  accuracyPercent: number,
+  recommendedTrackIds: KnowledgeTrackId[]
+): AssessmentPracticeFocus[] {
+  const focus: AssessmentPracticeFocus[] = [
+    {
+      id: 'completion',
+      title: '答题完成度',
+      detail: completionPercent === 100
+        ? '本套试卷已经完成，可用于通过判断。'
+        : `已完成 ${score.answered}/${score.total} 题，还剩 ${score.total - score.answered} 题。`,
+      severity: completionPercent === 100 ? 'success' : score.answered === 0 ? 'info' : 'warning'
+    },
+    {
+      id: 'score',
+      title: '成绩表现',
+      detail: score.answered === 0
+        ? `通过线 ${session.passingPercent}%，先完成题目后再看成绩。`
+        : `当前得分 ${score.percent}%，答题正确率 ${accuracyPercent}%。`,
+      severity: score.passed ? 'success' : score.answered === 0 ? 'info' : 'warning'
+    },
+    {
+      id: 'readiness',
+      title: '仿真环境',
+      detail: readiness.passed
+        ? '当前电路满足本套考试的仿真验证条件。'
+        : `仿真准备度 ${readiness.percent}%，需补齐 ${readiness.totalChecks - readiness.passedChecks} 项条件。`,
+      severity: readiness.passed ? 'success' : 'danger'
+    }
+  ]
+
+  if (recommendedTrackIds.length > 0) {
+    focus.push({
+      id: 'recommended-tracks',
+      title: '优先复训',
+      detail: recommendedTrackIds.map((trackId) => getKnowledgeTrack(trackId).level).join('、'),
+      severity: score.weakTracks.length > 0 ? 'danger' : 'warning'
+    })
+  }
+
+  return focus
+}
+
+function getRecommendedTracks(
+  session: AssessmentSession,
+  answers: Record<string, string>,
+  weakTracks: KnowledgeTrackId[]
+) {
+  const incompleteTracks = session.items
+    .filter((item) => {
+      const answer = answers[item.question.id]
+      return !answer || !evaluateKnowledgeAnswer(item.question.id, answer).correct
+    })
+    .map((item) => item.question.trackId)
+
+  return uniqueTrackIds([...weakTracks, ...incompleteTracks])
+}
+
+function uniqueTrackIds(trackIds: KnowledgeTrackId[]) {
+  return trackIds.filter((trackId, index, source) => source.indexOf(trackId) === index)
+}
+
+function uniqueText(items: string[]) {
+  return items
+    .filter((item) => item.trim().length > 0)
+    .filter((item, index, source) => source.indexOf(item) === index)
 }
 
 export function evaluateAssessmentSimulationReadiness(

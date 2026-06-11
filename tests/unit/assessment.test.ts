@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ASSESSMENT_BLUEPRINTS,
+  buildAssessmentPracticeReport,
   buildAssessmentSession,
   evaluateAssessmentSimulationReadiness,
   getBlueprintsForTrack,
@@ -60,9 +61,10 @@ describe('assessment blueprints', () => {
   })
 
   it('reports actionable readiness gaps when the circuit is not suitable for a blueprint', () => {
+    const baseCircuit = createInitialCircuit(12)
     const openCircuit = {
-      ...createInitialCircuit(12),
-      wires: createInitialCircuit(12).wires.map((wire) =>
+      ...baseCircuit,
+      wires: baseCircuit.wires.map((wire) =>
         wire.id === 'w-lamp-neg' || wire.id === 'w-fan-neg'
           ? { ...wire, connected: false }
           : wire
@@ -85,5 +87,42 @@ describe('assessment blueprints', () => {
     expect(electricianReadiness.passed).toBe(false)
     expect(electricianReadiness.checks.find((check) => check.id === 'pro-low-voltage')?.passed).toBe(false)
     expect(electricianReadiness.checks.find((check) => check.id === 'pro-rated-match')?.passed).toBe(false)
+  })
+
+  it('builds practice reports for progress, pass, and simulation-gap states', () => {
+    const session = buildAssessmentSession('high-school-foundation-check')
+    const model = createInitialCircuit(12)
+    const readiness = evaluateAssessmentSimulationReadiness(
+      'high-school-foundation-check',
+      model,
+      simulateCircuit(model)
+    )
+    const emptyReport = buildAssessmentPracticeReport(session, {}, readiness)
+    const perfectAnswers = Object.fromEntries(session.items.map((item) => [item.question.id, item.question.answerId]))
+    const passedReport = buildAssessmentPracticeReport(session, perfectAnswers, readiness)
+    const openModel = {
+      ...model,
+      wires: model.wires.map((wire) =>
+        wire.id === 'w-lamp-neg' || wire.id === 'w-fan-neg'
+          ? { ...wire, connected: false }
+          : wire
+      )
+    }
+    const openReadiness = evaluateAssessmentSimulationReadiness(
+      'high-school-foundation-check',
+      openModel,
+      simulateCircuit(openModel)
+    )
+    const simulationGapReport = buildAssessmentPracticeReport(session, perfectAnswers, openReadiness)
+
+    expect(emptyReport.status).toBe('未开始')
+    expect(emptyReport.completionPercent).toBe(0)
+    expect(emptyReport.recommendedTrackIds).toContain('high-school')
+    expect(passedReport.status).toBe('已通过')
+    expect(passedReport.passed).toBe(true)
+    expect(passedReport.focus.some((item) => item.title === '成绩表现' && item.severity === 'success')).toBe(true)
+    expect(simulationGapReport.status).toBe('待补仿真')
+    expect(simulationGapReport.passed).toBe(false)
+    expect(simulationGapReport.nextActions.some((action) => action.includes('闭合主开关'))).toBe(true)
   })
 })
