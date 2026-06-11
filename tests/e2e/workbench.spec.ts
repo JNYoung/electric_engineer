@@ -231,10 +231,21 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.assessment-board')).toContainText('3/3')
     await expect(page.locator('.assessment-board')).toContainText('练习复盘')
     await expect(page.locator('.assessment-board')).toContainText('未开始')
+    const certificationPanel = page.locator('.certification-panel')
+    await expect(certificationPanel).toContainText('认证准入')
+    await expect(certificationPanel).toContainText('高中测验准入')
+    await expect(certificationPanel).toContainText('待完成')
+
+    await page.locator('.assessment-question').filter({ hasText: '欧姆定律计算' }).locator('.choice-button').filter({ hasText: '0.5A' }).click()
+    await page.locator('.assessment-question').filter({ hasText: '并联支路判断' }).locator('.choice-button').filter({ hasText: '各约 12V' }).click()
+    await page.locator('.assessment-question').filter({ hasText: '电功率意义' }).locator('.choice-button').filter({ hasText: '通常增大' }).click()
+    await expect(certificationPanel).toContainText('可提交')
+    await expect(certificationPanel).toContainText('3/3')
 
     await page.locator('.toolbar .tool-button.primary').click()
     await expect(page.locator('.assessment-board')).toContainText('当前没有形成可测工作电流')
     await expect(page.locator('.assessment-board')).toContainText('闭合主开关')
+    await expect(certificationPanel).toContainText('待补仿真')
     await page.locator('.toolbar .tool-button.primary').click()
 
     await page.locator('.assessment-tab').filter({ hasText: '电工取证' }).click()

@@ -58,6 +58,7 @@ $ink: #1f2937;
 .assessment-tab-list,
 .assessment-metrics,
 .assessment-requirement,
+.certification-gate,
 .practice-status,
 .practice-focus,
 .material-summary-grid,
@@ -152,6 +153,7 @@ $ink: #1f2937;
 .assessment-copy,
 .assessment-meta,
 .assessment-remediation,
+.certification-label,
 .material-detail,
 .material-chip-title,
 .material-empty,
@@ -1138,6 +1140,98 @@ $ink: #1f2937;
   border-radius: 8px;
   background: #f8fbff;
   box-sizing: border-box;
+}
+
+.certification-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #f8fbff;
+  box-sizing: border-box;
+}
+
+.certification-label {
+  margin-top: 2px;
+}
+
+.certification-status {
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.certification-status.status-ready {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.certification-status.status-warning {
+  background: #fff7ed;
+  color: #9a4b00;
+}
+
+.certification-status.status-danger {
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.certification-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.certification-metrics > view,
+.certification-metrics > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.certification-gate-list,
+.certification-next-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.certification-gate {
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.certification-gate.is-passed {
+  border-color: #bdebdc;
+  background: #f0fdf9;
+}
+
+.certification-gate.is-passed .check-dot {
+  background: #0f9f9a;
+  color: #ffffff;
+}
+
+.certification-next-list text,
+.certification-next-list span {
+  padding: 8px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .practice-status {

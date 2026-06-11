@@ -105,6 +105,29 @@ export interface AssessmentPracticeReport {
   nextActions: string[]
 }
 
+export type AssessmentCertificationStatus = '待完成' | '待补仿真' | '未达标' | '可提交'
+export type AssessmentCertificationGateId = 'completion' | 'score' | 'simulation'
+
+export interface AssessmentCertificationGate {
+  id: AssessmentCertificationGateId
+  label: string
+  passed: boolean
+  detail: string
+  action: string
+}
+
+export interface AssessmentCertificationReadiness {
+  blueprintId: AssessmentBlueprintId
+  status: AssessmentCertificationStatus
+  eligible: boolean
+  overallPercent: number
+  completedGates: number
+  totalGates: number
+  certificateLabel: string
+  gates: AssessmentCertificationGate[]
+  nextActions: string[]
+}
+
 export const ASSESSMENT_BLUEPRINTS: AssessmentBlueprint[] = [
   {
     id: 'high-school-foundation-check',
@@ -266,10 +289,73 @@ export function buildAssessmentPracticeReport(
   }
 }
 
+export function buildAssessmentCertificationReadiness(
+  session: AssessmentSession,
+  answers: Record<string, string>,
+  readiness: AssessmentSimulationReadiness
+): AssessmentCertificationReadiness {
+  const score = scoreAssessmentSession(session, answers)
+  const report = buildAssessmentPracticeReport(session, answers, readiness)
+  const gates: AssessmentCertificationGate[] = [
+    {
+      id: 'completion',
+      label: '题目完成',
+      passed: score.answered === session.items.length,
+      detail: `已完成 ${score.answered}/${session.items.length} 题。`,
+      action: '完成剩余题目后再提交认证判断。'
+    },
+    {
+      id: 'score',
+      label: '成绩达线',
+      passed: score.passed,
+      detail: `当前成绩 ${score.percent}%，通过线 ${session.passingPercent}%。`,
+      action: report.recommendedTrackIds.length > 0
+        ? `先复训 ${report.recommendedTrackIds.map((trackId) => getKnowledgeTrack(trackId).level).join('、')}。`
+        : '复盘错题并重新完成本套试卷。'
+    },
+    {
+      id: 'simulation',
+      label: '仿真验收',
+      passed: readiness.passed,
+      detail: `仿真通过 ${readiness.passedChecks}/${readiness.totalChecks} 项。`,
+      action: readiness.nextActions[0] ?? '保持当前仿真电路满足考试验证条件。'
+    }
+  ]
+  const completedGates = gates.filter((gate) => gate.passed).length
+  const eligible = completedGates === gates.length
+  const overallPercent = Math.round(
+    (report.completionPercent + Math.min(100, score.percent) + readiness.percent) / 3
+  )
+  const status = getCertificationStatus(gates)
+  const nextActions = uniqueText([
+    ...gates.filter((gate) => !gate.passed).map((gate) => gate.action),
+    ...report.nextActions
+  ]).slice(0, 4)
+
+  return {
+    blueprintId: session.blueprintId,
+    status,
+    eligible,
+    overallPercent,
+    completedGates,
+    totalGates: gates.length,
+    certificateLabel: `${getAssessmentBlueprint(session.blueprintId).level}准入`,
+    gates,
+    nextActions
+  }
+}
+
 export function getBlueprintsForTrack(trackId: KnowledgeTrackId) {
   return ASSESSMENT_BLUEPRINTS.filter((blueprint) =>
     blueprint.trackWeights.some((weight) => weight.trackId === trackId)
   )
+}
+
+function getCertificationStatus(gates: AssessmentCertificationGate[]): AssessmentCertificationStatus {
+  if (gates.every((gate) => gate.passed)) return '可提交'
+  if (!gates.find((gate) => gate.id === 'completion')?.passed) return '待完成'
+  if (!gates.find((gate) => gate.id === 'score')?.passed) return '未达标'
+  return '待补仿真'
 }
 
 function getPracticeStatus(
