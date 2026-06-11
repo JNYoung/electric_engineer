@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialCircuit } from '../../src/core/circuitFactory'
 import {
   KNOWLEDGE_TRACKS,
+  buildFormulaVerificationWorksheet,
   buildKnowledgeMeasurementWorksheet,
   buildKnowledgeReviewNotebook,
   buildKnowledgeSimulationChecks,
@@ -90,6 +91,24 @@ describe('knowledge verification library', () => {
     expect(university.items.find((item) => item.id === 'uni-kcl-gap')?.passed).toBe(true)
     expect(pro.status).toBe('风险')
     expect(pro.items.find((item) => item.id === 'pro-safe-voltage')?.passed).toBe(false)
+    expect(pro.nextActions.some((action) => action.includes('36V'))).toBe(true)
+  })
+
+  it('builds formula verification cards from live simulation readings', () => {
+    const model = createInitialCircuit(12)
+    const result = simulateCircuit(model)
+    const highSchool = buildFormulaVerificationWorksheet('high-school', model, result)
+    const university = buildFormulaVerificationWorksheet('university', model, result)
+    const proModel = createInitialCircuit(48)
+    const pro = buildFormulaVerificationWorksheet('electrician', proModel, simulateCircuit(proModel))
+
+    expect(highSchool.status).toBe('可验算')
+    expect(highSchool.cards.find((card) => card.id === 'formula-ohm-current')?.passed).toBe(true)
+    expect(highSchool.cards.find((card) => card.id === 'formula-power')?.formula).toBe('P = U × I')
+    expect(university.cards.find((card) => card.id === 'formula-kcl')?.passed).toBe(true)
+    expect(university.cards.find((card) => card.id === 'formula-equivalent-resistance')?.observed).toContain('Ω')
+    expect(pro.status).toBe('风险')
+    expect(pro.cards.find((card) => card.id === 'formula-safe-voltage')?.passed).toBe(false)
     expect(pro.nextActions.some((action) => action.includes('36V'))).toBe(true)
   })
 })
