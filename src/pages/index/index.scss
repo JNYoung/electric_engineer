@@ -58,6 +58,7 @@ $ink: #1f2937;
 .assessment-tab-list,
 .assessment-metrics,
 .assessment-requirement,
+.station-gate,
 .certification-gate,
 .practice-status,
 .practice-focus,
@@ -1254,6 +1255,7 @@ $ink: #1f2937;
   color: #344054;
 }
 
+.station-panel,
 .practice-report-panel {
   margin-top: 10px;
   padding: 12px;
@@ -1276,6 +1278,17 @@ $ink: #1f2937;
   margin-top: 2px;
 }
 
+.station-label {
+  margin-top: 2px;
+}
+
+.station-summary {
+  display: block;
+  margin-top: 8px;
+  color: $muted;
+}
+
+.station-status,
 .certification-status {
   flex: 0 0 auto;
   min-height: 22px;
@@ -1288,21 +1301,25 @@ $ink: #1f2937;
   font-weight: 900;
 }
 
+.station-status.status-ready,
 .certification-status.status-ready {
   background: #e8fbf5;
   color: #087c67;
 }
 
+.station-status.status-warning,
 .certification-status.status-warning {
   background: #fff7ed;
   color: #9a4b00;
 }
 
+.station-status.status-danger,
 .certification-status.status-danger {
   background: #fff1f2;
   color: #b42318;
 }
 
+.station-metrics,
 .certification-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1310,6 +1327,8 @@ $ink: #1f2937;
   margin-top: 10px;
 }
 
+.station-metrics > view,
+.station-metrics > div,
 .certification-metrics > view,
 .certification-metrics > div {
   min-width: 0;
@@ -1319,6 +1338,8 @@ $ink: #1f2937;
   background: #ffffff;
 }
 
+.station-gate-list,
+.station-next-list,
 .certification-gate-list,
 .certification-next-list {
   display: grid;
@@ -1326,6 +1347,7 @@ $ink: #1f2937;
   margin-top: 10px;
 }
 
+.station-gate,
 .certification-gate {
   align-items: flex-start;
   gap: 9px;
@@ -1335,16 +1357,30 @@ $ink: #1f2937;
   background: #ffffff;
 }
 
+.station-gate.is-passed,
 .certification-gate.is-passed {
   border-color: #bdebdc;
   background: #f0fdf9;
 }
 
+.station-gate.gate-warning {
+  border-color: #ffdca8;
+  background: #fffaf1;
+}
+
+.station-gate.gate-danger {
+  border-color: #ffc2c2;
+  background: #fff7f8;
+}
+
+.station-gate.is-passed .check-dot,
 .certification-gate.is-passed .check-dot {
   background: #0f9f9a;
   color: #ffffff;
 }
 
+.station-next-list text,
+.station-next-list span,
 .certification-next-list text,
 .certification-next-list span {
   padding: 8px;

@@ -10,6 +10,7 @@ import {
   isLoadKind
 } from './registry'
 import type { KnowledgeQuestion, KnowledgeTrackId } from './knowledge'
+import type { VirtualMeterWorksheet } from './instruments'
 import type { CircuitDevice, CircuitModel, SimulationResult } from './types'
 
 export type AssessmentLevel = '高中测验' | '大学期中' | '电工取证'
@@ -125,6 +126,31 @@ export interface AssessmentCertificationReadiness {
   totalGates: number
   certificateLabel: string
   gates: AssessmentCertificationGate[]
+  nextActions: string[]
+}
+
+export type AssessmentStationStatus = '可提交' | '待补证据' | '需排障'
+export type AssessmentStationGateId = 'theory' | 'simulation' | 'meter'
+
+export interface AssessmentStationGate {
+  id: AssessmentStationGateId
+  label: string
+  passed: boolean
+  detail: string
+  action: string
+  severity: AssessmentPracticeSeverity
+}
+
+export interface AssessmentSkillStation {
+  blueprintId: AssessmentBlueprintId
+  status: AssessmentStationStatus
+  ready: boolean
+  overallPercent: number
+  completedGates: number
+  totalGates: number
+  stationLabel: string
+  evidenceSummary: string
+  gates: AssessmentStationGate[]
   nextActions: string[]
 }
 
@@ -345,6 +371,62 @@ export function buildAssessmentCertificationReadiness(
   }
 }
 
+export function buildAssessmentSkillStation(
+  session: AssessmentSession,
+  answers: Record<string, string>,
+  readiness: AssessmentSimulationReadiness,
+  meter: VirtualMeterWorksheet
+): AssessmentSkillStation {
+  const score = scoreAssessmentSession(session, answers)
+  const theoryPassed = score.passed
+  const meterPassed = meter.safeToMeasure && meter.status === '可测量'
+  const gates: AssessmentStationGate[] = [
+    {
+      id: 'theory',
+      label: '理论答题',
+      passed: theoryPassed,
+      detail: `已答 ${score.answered}/${score.total} 题，当前成绩 ${score.percent}%。`,
+      action: score.answered < score.total
+        ? '完成剩余题目后再提交考试工位。'
+        : '复盘错题并达到本套试卷通过线。',
+      severity: theoryPassed ? 'success' : 'warning'
+    },
+    {
+      id: 'simulation',
+      label: '仿真工况',
+      passed: readiness.passed,
+      detail: `仿真通过 ${readiness.passedChecks}/${readiness.totalChecks} 项，准备度 ${readiness.percent}%。`,
+      action: readiness.nextActions[0] ?? '保持当前仿真电路满足考试要求。',
+      severity: readiness.passed ? 'success' : 'warning'
+    },
+    {
+      id: 'meter',
+      label: '仪表证据',
+      passed: meterPassed,
+      detail: `虚拟万用表 ${meter.passed}/${meter.total} 项，状态 ${meter.status}。`,
+      action: meter.nextActions[0] ?? '保持虚拟万用表证据完整可测。',
+      severity: meter.status === '需断电排障' ? 'danger' : meterPassed ? 'success' : 'warning'
+    }
+  ]
+  const completedGates = gates.filter((gate) => gate.passed).length
+  const ready = completedGates === gates.length
+  const meterPercent = meter.total === 0 ? 0 : Math.round((meter.passed / meter.total) * 100)
+  const status = getStationStatus(gates, ready)
+
+  return {
+    blueprintId: session.blueprintId,
+    status,
+    ready,
+    overallPercent: Math.round((Math.min(100, score.percent) + readiness.percent + meterPercent) / 3),
+    completedGates,
+    totalGates: gates.length,
+    stationLabel: `${getAssessmentBlueprint(session.blueprintId).level}考试工位`,
+    evidenceSummary: getStationSummary(status, completedGates, gates.length),
+    gates,
+    nextActions: uniqueText(gates.filter((gate) => !gate.passed).map((gate) => gate.action)).slice(0, 3)
+  }
+}
+
 export function getBlueprintsForTrack(trackId: KnowledgeTrackId) {
   return ASSESSMENT_BLUEPRINTS.filter((blueprint) =>
     blueprint.trackWeights.some((weight) => weight.trackId === trackId)
@@ -415,6 +497,17 @@ function buildPracticeFocus(
   }
 
   return focus
+}
+
+function getStationStatus(gates: AssessmentStationGate[], ready: boolean): AssessmentStationStatus {
+  if (gates.some((gate) => gate.severity === 'danger' && !gate.passed)) return '需排障'
+  return ready ? '可提交' : '待补证据'
+}
+
+function getStationSummary(status: AssessmentStationStatus, completed: number, total: number) {
+  if (status === '可提交') return '理论、仿真和仪表证据均满足当前考试工位要求。'
+  if (status === '需排障') return '当前存在未通过的危险/失分闸门，先修复后再提交。'
+  return `当前 ${completed}/${total} 个工位闸门通过，仍需补齐考试证据。`
 }
 
 function getRecommendedTracks(
