@@ -3,7 +3,7 @@ import { getDeviceDefinition, isLoadKind } from './registry'
 import type { KnowledgeTrackId } from './knowledge'
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult } from './types'
 
-export type LessonStage = '入门' | '进阶' | '实训'
+export type LessonStage = '基础强化' | '进阶' | '实训'
 export type ChallengeLevel = '基础' | '进阶' | '综合'
 export type FaultScenarioMode = '故障排障' | '知识验证' | '安全保护'
 
@@ -163,9 +163,9 @@ export const LEARNING_LESSONS: LearningLesson[] = [
   {
     id: 'dc-basics',
     title: '直流回路基础',
-    stage: '入门',
+    stage: '基础强化',
     minutes: 18,
-    summary: '从正极、开关、负载、回线四个部分理解低压直流闭合回路。',
+    summary: '面向取证和弱电排障，复盘正极、开关、负载、回线四个低压直流关键点。',
     goals: ['识别电源正负极与参考地', '判断开关断开和闭合对支路的影响', '读取电压、电流和功率'],
     coreIdeas: ['节点电位', '并联支路', '等效电阻'],
     drills: ['切换主开关观察负载状态', '断开单支路回线并定位故障', '比较灯泡与电扇电流'],

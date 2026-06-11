@@ -30,6 +30,9 @@ describe('material specification library', () => {
 
     expect(plc?.examTags).toContain('PLC')
     expect(plc?.safetyNotes.length).toBeGreaterThan(0)
+    expect(plc?.careerUse).toContain('电工证实操')
+    expect(plc?.connectionGuide).toContain('公共端 COM 要与输入/输出类型匹配')
+    expect(plc?.certificationFocus).toContain('I/O 点位和公共端')
     expect(lamp?.commonFaults).toContain('回线断开')
     expect(getMaterialSpec('pressure-transmitter')?.examTags).toContain('4-20mA')
     expect(getMaterialSpec('access-control')?.safetyNotes).toContain('消防释放优先级必须保留')
@@ -40,6 +43,8 @@ describe('material specification library', () => {
     expect(getMaterialSpecsByFamily('装修工控').some((item) => item.kind === 'smart-gateway')).toBe(true)
     expect(searchMaterialSpecs('NPN').some((item) => item.kind === 'proximity-sensor')).toBe(true)
     expect(searchMaterialSpecs('消防').some((item) => item.kind === 'access-control')).toBe(true)
+    expect(searchMaterialSpecs('面试').some((item) => item.kind === 'proximity-sensor')).toBe(true)
+    expect(searchMaterialSpecs('取证').some((item) => item.kind === 'fuse')).toBe(true)
   })
 
   it('builds training-ready material finder results', () => {
@@ -62,7 +67,7 @@ describe('material specification library', () => {
     expect(renovationFinder.faultSamples).toContain('回线断开')
   })
 
-  it('builds complete training kits for school, industrial, and renovation practice', () => {
+  it('builds complete training kits for foundation, industrial, and renovation practice', () => {
     const highSchoolKit = getMaterialTrainingKit('high-school-parallel-kit')
     const industrialKits = getMaterialTrainingKits({
       family: '工程工控',
@@ -78,6 +83,7 @@ describe('material specification library', () => {
     expect(industrialKits.some((kit) => kit.id === 'electrician-control-kit')).toBe(true)
     expect(industrialKits[0].safetyChecklist.length).toBeGreaterThan(0)
     expect(industrialKits[0].faultSamples.length).toBeGreaterThan(0)
+    expect(highSchoolKit?.title).toBe('基础电学并联测量包')
     expect(renovationKits[0].title).toBe('装修智能联动包')
     expect(renovationKits[0].components.some((item) => item.kind === 'curtain-motor')).toBe(true)
   })

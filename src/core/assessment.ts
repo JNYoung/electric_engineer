@@ -13,7 +13,7 @@ import type { KnowledgeQuestion, KnowledgeTrackId } from './knowledge'
 import type { VirtualMeterWorksheet } from './instruments'
 import type { CircuitDevice, CircuitModel, SimulationResult } from './types'
 
-export type AssessmentLevel = '高中测验' | '大学期中' | '电工取证'
+export type AssessmentLevel = '基础电学测验' | '大学期中' | '电工取证'
 export type AssessmentBlueprintId =
   | 'high-school-foundation-check'
   | 'university-circuit-midterm'
@@ -157,9 +157,9 @@ export interface AssessmentSkillStation {
 export const ASSESSMENT_BLUEPRINTS: AssessmentBlueprint[] = [
   {
     id: 'high-school-foundation-check',
-    title: '高中电学基础测验',
-    level: '高中测验',
-    description: '聚焦欧姆定律、并联支路和电功率，适合课堂随堂测和基础自测。',
+    title: '基础电学能力测验',
+    level: '基础电学测验',
+    description: '聚焦欧姆定律、并联支路和电功率，适合作为电工取证和低压排障前置复盘。',
     timeLimitMinutes: 12,
     passingPercent: 80,
     trackWeights: [{ trackId: 'high-school', count: 3 }],
@@ -170,7 +170,7 @@ export const ASSESSMENT_BLUEPRINTS: AssessmentBlueprint[] = [
     id: 'university-circuit-midterm',
     title: '大学电路分析小考',
     level: '大学期中',
-    description: '把 KCL、等效电阻和模型边界混合考查，适合电路原理入门阶段。',
+    description: '把 KCL、等效电阻和模型边界混合考查，适合作为岗位能力提升中的电路分析强化。',
     timeLimitMinutes: 20,
     passingPercent: 75,
     trackWeights: [
@@ -184,7 +184,7 @@ export const ASSESSMENT_BLUEPRINTS: AssessmentBlueprint[] = [
     id: 'electrician-practice-cert',
     title: '电工实操取证模拟',
     level: '电工取证',
-    description: '面向低压控制、安全排障和额定电压匹配，适合电工证与工控入门训练。',
+    description: '面向低压控制、安全排障和额定电压匹配，适合电工证备考、弱电施工和工控岗位提升。',
     timeLimitMinutes: 30,
     passingPercent: 85,
     trackWeights: [

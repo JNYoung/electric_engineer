@@ -66,6 +66,7 @@ import {
   getMaterialTrainingKits
 } from '@/core/materials'
 import { buildVirtualMeterWorksheet } from '@/core/instruments'
+import { createTelemetryClient } from '@/core/telemetry'
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire, WirePathMode } from '@/core/types'
 import type {
   ChallengeEvaluation,
@@ -93,6 +94,7 @@ import type {
 } from '@/core/assessment'
 import type { MaterialFamily, MaterialFinderResult, MaterialTrainingKitPlan } from '@/core/materials'
 import type { VirtualMeterWorksheet } from '@/core/instruments'
+import type { TelemetryEventName, TelemetryProperties } from '@/core/telemetry'
 import type {
   AuthSession,
   BillingPlan,
@@ -161,6 +163,21 @@ function ComponentIllustration({ kind, compact = false }: { kind: DeviceKind; co
 
 function formatNumber(value: number, digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : '0.00'
+}
+
+function getRuntimeTelemetryPlatform() {
+  try {
+    return String(Taro.getEnv?.() ?? 'unknown').toLowerCase()
+  } catch {
+    return 'unknown'
+  }
+}
+
+function getRuntimeLocale() {
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return navigator.language
+  }
+  return 'zh-CN'
 }
 
 function terminalPoint(device: CircuitDevice, terminalId: string) {
@@ -484,7 +501,7 @@ function CatalogEntryRow({
   entry: ComponentCatalogEntry
   session: AuthSession
   onAdd: (kind: DeviceKind) => void
-  onLocked: (tier: SubscriptionTier) => void
+  onLocked: (entry: ComponentCatalogEntry) => void
 }) {
   const definition = getDeviceDefinition(entry.kind)
   const accessible = canUseCatalogEntry(session, entry)
@@ -513,7 +530,7 @@ function CatalogEntryRow({
           if (accessible) {
             onAdd(entry.kind)
           } else {
-            onLocked(entry.tier)
+            onLocked(entry)
           }
         }}
       >
@@ -720,7 +737,7 @@ function FaultScenarioLibrary({
       </View>
       <View className='fault-summary-grid'>
         <View>
-          <Text className='metric-label'>高中</Text>
+          <Text className='metric-label'>基础</Text>
           <Text className='metric-value'>{summary.highSchool}</Text>
         </View>
         <View>
@@ -1531,7 +1548,7 @@ function MaterialSpecPanel({
       </View>
       <View className='material-summary-grid'>
         <View>
-          <Text className='metric-label'>高中</Text>
+          <Text className='metric-label'>基础</Text>
           <Text className='metric-value'>{summary.highSchool}</Text>
         </View>
         <View>
@@ -1562,7 +1579,19 @@ function MaterialSpecPanel({
           <Text>{primarySpec.currentRange}</Text>
         </View>
         <Text className='material-detail'>{primarySpec.simulationUse}</Text>
+        {primarySpec.careerUse && (
+          <View className='material-explain-card'>
+            <Text className='material-explain-title'>岗位用途</Text>
+            <Text className='material-explain-copy'>{primarySpec.careerUse}</Text>
+          </View>
+        )}
         <MaterialChipRow title='关键参数' items={primarySpec.keyParameters} />
+        {primarySpec.connectionGuide && primarySpec.connectionGuide.length > 0 && (
+          <MaterialChipRow title='接线要点' items={primarySpec.connectionGuide} />
+        )}
+        {primarySpec.certificationFocus && primarySpec.certificationFocus.length > 0 && (
+          <MaterialChipRow title='取证考点' items={primarySpec.certificationFocus} />
+        )}
         <MaterialChipRow title='考试标签' items={primarySpec.examTags} />
         <View className='spec-list'>
           {primarySpec.safetyNotes.slice(0, 2).map((item) => (
@@ -1691,7 +1720,7 @@ function MaterialFinderPanel({
                 <Text className='material-finder-name'>{item.displayName}</Text>
                 <Text className='material-family'>{item.family}</Text>
               </View>
-              <Text className='material-detail'>{item.simulationUse}</Text>
+              <Text className='material-detail'>{item.careerUse ?? item.simulationUse}</Text>
               <Text className='material-finder-meta'>{item.examTags.slice(0, 3).join(' / ')}</Text>
             </View>
           ))}
@@ -2032,6 +2061,16 @@ export default function Index() {
   const modelRef = useRef(model)
   const boardSizeRef = useRef(boardSize)
   const boardHeightRef = useRef(500)
+  const telemetry = useMemo(
+    () =>
+      createTelemetryClient({
+        context: {
+          platform: getRuntimeTelemetryPlatform(),
+          locale: getRuntimeLocale()
+        }
+      }),
+    []
+  )
   const simulation = useMemo(() => simulateCircuit(model), [model])
   const activeLesson = getLessonById(activeLessonId)
   const activeChallenge = getChallengeById(activeChallengeId)
@@ -2089,6 +2128,15 @@ export default function Index() {
   }, [boardHeight])
 
   useEffect(() => {
+    trackTelemetryEvent('app_open', {
+      active_tab: activeMobileTab,
+      active_domain: activeDomain,
+      device_count: model.devices.length,
+      wire_count: model.wires.length
+    })
+  }, [])
+
+  useEffect(() => {
     Taro.nextTick(() => {
       Taro.createSelectorQuery()
         .select('.circuit-board')
@@ -2144,8 +2192,24 @@ export default function Index() {
     }
   }, [])
 
-  function setVoltage(nextVoltage: number) {
+  function trackTelemetryEvent(name: TelemetryEventName, properties?: TelemetryProperties) {
+    telemetry.track(name, properties)
+  }
+
+  function changeMobileTab(tabId: MobileTabId, source = 'bottom_nav') {
+    setActiveMobileTab(tabId)
+    trackTelemetryEvent('mobile_tab_changed', {
+      tab_id: tabId,
+      source
+    })
+  }
+
+  function setVoltage(nextVoltage: number, source = 'voltage_control') {
     const voltage = Math.max(1, Math.min(48, nextVoltage))
+    trackTelemetryEvent('circuit_voltage_changed', {
+      voltage,
+      source
+    })
     setModel((current) =>
       updateDevice(current, 'p1', {
         sourceVoltage: voltage
@@ -2154,6 +2218,12 @@ export default function Index() {
   }
 
   function toggleSwitch(deviceId = 's1') {
+    const device = modelRef.current.devices.find((item) => item.id === deviceId)
+    trackTelemetryEvent('circuit_switch_toggled', {
+      device_id: deviceId,
+      kind: device?.kind ?? 'unknown',
+      closed: !device?.isClosed
+    })
     setModel((current) => {
       const device = current.devices.find((item) => item.id === deviceId)
       return updateDevice(current, deviceId, { isClosed: !device?.isClosed })
@@ -2161,20 +2231,26 @@ export default function Index() {
   }
 
   function addDevice(kind: DeviceKind) {
-    setModel((current) => {
-      const nextIndex = current.devices.filter((device) => device.id.startsWith('x')).length + 1
-      const sameKindIndex = current.devices.filter((device) => device.kind === kind).length + 1
-      const device = createDevice(kind, nextIndex, sameKindIndex)
-      const wires = canAutoConnect(kind)
-        ? createBranchWires(device.id, nextIndex, device.label)
-        : []
-      setSelectedId(device.id)
-      return {
-        devices: [...current.devices, device],
-        wires: [...current.wires, ...wires]
-      }
+    const currentModel = modelRef.current
+    const nextIndex = currentModel.devices.filter((device) => device.id.startsWith('x')).length + 1
+    const sameKindIndex = currentModel.devices.filter((device) => device.kind === kind).length + 1
+    const device = createDevice(kind, nextIndex, sameKindIndex)
+    const wires = canAutoConnect(kind)
+      ? createBranchWires(device.id, nextIndex, device.label)
+      : []
+
+    trackTelemetryEvent('component_added', {
+      kind,
+      device_id: device.id,
+      domain: activeDomain,
+      auto_connected: wires.length > 0
     })
-    setActiveMobileTab('simulate')
+    setModel((current) => ({
+      devices: [...current.devices, device],
+      wires: [...current.wires, ...wires]
+    }))
+    setSelectedId(device.id)
+    changeMobileTab('simulate', 'component_added')
   }
 
   function startDeviceDrag(event: PointerLikeEvent, deviceId: string) {
@@ -2214,27 +2290,54 @@ export default function Index() {
   }
 
   function stopDeviceDrag() {
-    if (!dragRef.current) return
+    const activeDrag = dragRef.current
+    if (!activeDrag) return
+    const device = modelRef.current.devices.find((item) => item.id === activeDrag.deviceId)
+    if (device) {
+      trackTelemetryEvent('canvas_device_dragged', {
+        device_id: activeDrag.deviceId,
+        from_x: activeDrag.deviceStart.x,
+        from_y: activeDrag.deviceStart.y,
+        to_x: device.x,
+        to_y: device.y
+      })
+    }
     dragRef.current = null
     setDraggingDeviceId(null)
   }
 
   function resetCircuit() {
+    trackTelemetryEvent('circuit_reset', {
+      voltage,
+      device_count: modelRef.current.devices.length,
+      wire_count: modelRef.current.wires.length
+    })
     setSelectedId('l1')
     setModel(createInitialCircuit(model.devices.find((item) => item.id === 'p1')?.sourceVoltage ?? 12))
   }
 
   function startChallenge(challengeId: string) {
     const challenge = getChallengeById(challengeId)
+    trackTelemetryEvent('training_started', {
+      challenge_id: challenge.id,
+      lesson_id: challenge.lessonId,
+      source: 'challenge'
+    })
     setActiveChallengeId(challenge.id)
     setActiveLessonId(challenge.lessonId)
     setSelectedId(challenge.id === 'sensor-io' ? 'x1' : 'l1')
     setModel(createTrainingCircuit(challenge.id))
-    setActiveMobileTab('simulate')
+    changeMobileTab('simulate', 'training_started')
   }
 
   function startFaultScenario(scenarioId: string) {
     const scenario = getFaultScenarioById(scenarioId)
+    trackTelemetryEvent('fault_scenario_started', {
+      scenario_id: scenario.id,
+      lesson_id: scenario.lessonId,
+      level: scenario.level,
+      mode: scenario.mode
+    })
     setActiveLessonId(scenario.lessonId)
     if (scenario.challengeId) {
       setActiveChallengeId(scenario.challengeId)
@@ -2242,52 +2345,119 @@ export default function Index() {
     setActiveKnowledgeTrackId(scenario.level)
     setSelectedId(scenario.id === 'source-short-protection' ? 'w-training-short' : 'l1')
     setModel(createFaultScenarioCircuit(scenario.id))
-    setActiveMobileTab('simulate')
+    changeMobileTab('simulate', 'fault_scenario_started')
   }
 
   function changeDomain(domain: WorkbenchDomain) {
     const profile = getDomainProfile(domain)
+    trackTelemetryEvent('domain_changed', {
+      domain,
+      recommended_voltage: profile.recommendedVoltage,
+      recommended_tier: profile.recommendedTier
+    })
     setActiveDomain(domain)
     setActiveCategoryId('all')
-    setVoltage(profile.recommendedVoltage)
+    setVoltage(profile.recommendedVoltage, 'domain_changed')
   }
 
-  function openPlan(tier: SubscriptionTier) {
+  function changeCategory(categoryId: string) {
+    trackTelemetryEvent('category_changed', {
+      domain: activeDomain,
+      category_id: categoryId
+    })
+    setActiveCategoryId(categoryId)
+  }
+
+  function selectLesson(lessonId: string) {
+    trackTelemetryEvent('lesson_selected', {
+      lesson_id: lessonId
+    })
+    setActiveLessonId(lessonId)
+  }
+
+  function openPlan(tier: SubscriptionTier, source = 'manual') {
+    trackTelemetryEvent('paywall_viewed', {
+      target_tier: tier,
+      current_tier: authSession.tier,
+      source
+    })
     setSelectedPlanId(tier)
-    setActiveMobileTab('account')
+    changeMobileTab('account', 'paywall_viewed')
+  }
+
+  function openLockedComponentPlan(entry: ComponentCatalogEntry) {
+    trackTelemetryEvent('locked_component_clicked', {
+      kind: entry.kind,
+      domain: entry.domain,
+      category_id: entry.categoryId,
+      required_tier: entry.tier
+    })
+    openPlan(entry.tier, 'locked_component')
   }
 
   function simulateSignIn(tier = selectedPlanId) {
+    trackTelemetryEvent('auth_changed', {
+      status: 'authenticated',
+      tier,
+      source: 'demo_sign_in'
+    })
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
-    setActiveMobileTab('account')
+    changeMobileTab('account', 'auth_changed')
   }
 
   function simulateSignOut() {
+    trackTelemetryEvent('auth_changed', {
+      status: 'anonymous',
+      tier: 'free',
+      source: 'demo_sign_out'
+    })
     setAuthSession(DEFAULT_AUTH_SESSION)
-    setActiveMobileTab('account')
+    changeMobileTab('account', 'auth_changed')
   }
 
   function selectPlan(tier: SubscriptionTier) {
+    trackTelemetryEvent('purchase_intent', {
+      target_tier: tier,
+      current_tier: authSession.tier,
+      source: 'plan_card'
+    })
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
-    setActiveMobileTab('account')
+    changeMobileTab('account', 'purchase_intent')
   }
 
   function answerKnowledgeQuestion(questionId: string, answerId: string) {
+    const result = evaluateKnowledgeAnswer(questionId, answerId)
+    trackTelemetryEvent('knowledge_answered', {
+      question_id: questionId,
+      answer_id: answerId,
+      track_id: activeKnowledgeTrackId,
+      correct: result.correct
+    })
     setKnowledgeAnswers((current) => ({
       ...current,
       [questionId]: answerId
     }))
-    setActiveMobileTab('bank')
+    changeMobileTab('bank', 'knowledge_answered')
   }
 
   function changeKnowledgeTrack(trackId: KnowledgeTrackId) {
+    trackTelemetryEvent('knowledge_track_changed', {
+      track_id: trackId
+    })
     setActiveKnowledgeTrackId(trackId)
-    setActiveMobileTab('bank')
+    changeMobileTab('bank', 'knowledge_track_changed')
   }
 
   function answerAssessmentQuestion(questionId: string, answerId: string) {
+    const result = evaluateKnowledgeAnswer(questionId, answerId)
+    trackTelemetryEvent('assessment_answered', {
+      blueprint_id: activeAssessmentId,
+      question_id: questionId,
+      answer_id: answerId,
+      correct: result.correct
+    })
     setAssessmentAnswers((current) => ({
       ...current,
       [questionId]: answerId
@@ -2296,13 +2466,43 @@ export default function Index() {
       ...current,
       [questionId]: answerId
     }))
-    setActiveMobileTab('bank')
+    changeMobileTab('bank', 'assessment_answered')
   }
 
   function changeAssessment(blueprintId: AssessmentBlueprintId) {
+    trackTelemetryEvent('assessment_changed', {
+      blueprint_id: blueprintId
+    })
     setActiveAssessmentId(blueprintId)
     setAssessmentAnswers({})
-    setActiveMobileTab('bank')
+    changeMobileTab('bank', 'assessment_changed')
+  }
+
+  function toggleWireConnection(wireId: string) {
+    const wire = modelRef.current.wires.find((item) => item.id === wireId)
+    const connected = !wire?.connected
+    trackTelemetryEvent('wire_connection_changed', {
+      wire_id: wireId,
+      connected,
+      source: 'wire_toggle'
+    })
+    setModel((current) => updateWire(current, wireId, connected))
+  }
+
+  function changeWirePathMode(wireId: string, mode: WirePathMode) {
+    trackTelemetryEvent('wire_path_changed', {
+      wire_id: wireId,
+      path_mode: mode
+    })
+    setModel((current) => updateWirePathMode(current, wireId, mode))
+  }
+
+  function setAllWiresConnected(connected: boolean) {
+    trackTelemetryEvent('all_wires_changed', {
+      connected,
+      wire_count: modelRef.current.wires.length
+    })
+    setModel((current) => setAllWires(current, connected))
   }
 
   const voltage = model.devices.find((device) => device.id === 'p1')?.sourceVoltage ?? 12
@@ -2331,10 +2531,10 @@ export default function Index() {
             {model.devices.find((device) => device.id === 's1')?.isClosed ? '■ 断开' : '▶ 接通'}
           </Button>
           <Button className='tool-button' onClick={resetCircuit}>↺ 复位</Button>
-          <Button className='tool-button' onClick={() => setModel((current) => setAllWires(current, true))}>
+          <Button className='tool-button' onClick={() => setAllWiresConnected(true)}>
             全部连接
           </Button>
-          <Button className='tool-button' onClick={() => setModel((current) => setAllWires(current, false))}>
+          <Button className='tool-button' onClick={() => setAllWiresConnected(false)}>
             全部断开
           </Button>
           <Button className='tool-button' onClick={() => startChallenge(activeChallenge.id)}>载入训练</Button>
@@ -2364,7 +2564,7 @@ export default function Index() {
           lesson={activeLesson}
           challenge={activeChallenge}
           evaluation={challengeEvaluation}
-          onSelectLesson={setActiveLessonId}
+          onSelectLesson={selectLesson}
           onStartChallenge={startChallenge}
           onStartScenario={startFaultScenario}
         />
@@ -2398,7 +2598,7 @@ export default function Index() {
           <CategoryFilter
             activeDomain={activeDomain}
             activeCategoryId={activeCategoryId}
-            onSelect={setActiveCategoryId}
+            onSelect={changeCategory}
           />
           <ScrollView scrollY className='palette-scroll'>
             {catalogEntries.map((entry) => (
@@ -2407,7 +2607,7 @@ export default function Index() {
                 entry={entry}
                 session={authSession}
                 onAdd={addDevice}
-                onLocked={openPlan}
+                onLocked={openLockedComponentPlan}
               />
             ))}
           </ScrollView>
@@ -2456,11 +2656,11 @@ export default function Index() {
             onTouchCancel={stopDeviceDrag}
           >
             <View className='grid-bg' />
-            <WireLayer
-              wires={model.wires}
-              devices={model.devices}
-              simulation={simulation}
-              selectedWireId={selectedWire?.id}
+              <WireLayer
+                wires={model.wires}
+                devices={model.devices}
+                simulation={simulation}
+                selectedWireId={selectedWire?.id}
               onSelectWire={setSelectedId}
             />
             {model.devices.map((device) => (
@@ -2496,7 +2696,7 @@ export default function Index() {
                   </View>
                   <Button
                     className={`toggle-button ${wire.connected ? 'is-on' : ''}`}
-                    onClick={() => setModel((current) => updateWire(current, wire.id, !wire.connected))}
+                    onClick={() => toggleWireConnection(wire.id)}
                   >
                     {wire.connected ? '断开' : '接入'}
                   </Button>
@@ -2588,7 +2788,7 @@ export default function Index() {
                       ]
                         .filter(Boolean)
                         .join(' ')}
-                      onClick={() => setModel((current) => updateWirePathMode(current, selectedWire.id, mode))}
+                      onClick={() => changeWirePathMode(selectedWire.id, mode)}
                     >
                       {label}
                     </Button>
@@ -2597,7 +2797,7 @@ export default function Index() {
               </View>
               <Button
                 className='full-button'
-                onClick={() => setModel((current) => updateWire(current, selectedWire.id, !selectedWire.connected))}
+                onClick={() => toggleWireConnection(selectedWire.id)}
               >
                 {selectedWire.connected ? '断开这根导线' : '接入这根导线'}
               </Button>
@@ -2658,7 +2858,7 @@ export default function Index() {
         </View>
       </View>
 
-      <MobileBottomNav activeTab={activeMobileTab} onChange={setActiveMobileTab} />
+      <MobileBottomNav activeTab={activeMobileTab} onChange={changeMobileTab} />
     </View>
   )
 }

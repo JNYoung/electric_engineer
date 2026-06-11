@@ -18,6 +18,9 @@ export interface ComponentMaterialSpec {
   currentRange: string
   keyParameters: string[]
   simulationUse: string
+  careerUse?: string
+  connectionGuide?: string[]
+  certificationFocus?: string[]
   safetyNotes: string[]
   commonFaults: string[]
   examTags: string[]
@@ -94,6 +97,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: 'mA 到 A 级，取决于阻值',
     keyParameters: ['阻值', '功率', '误差', '温漂'],
     simulationUse: '欧姆定律、电功率和等效电阻训练',
+    careerUse: '用于快速复盘取证题里的电流、电压、功率估算，也是现场判断负载是否超额定的基础。',
+    connectionGuide: ['先确认阻值和功率', '串联用于限流', '并联用于分流或等效负载验证'],
+    certificationFocus: ['会用 I=U/R 估算电流', '会判断功率余量是否足够'],
     safetyNotes: ['功率不足会发热', '串并联前先估算电流'],
     commonFaults: ['开路', '阻值漂移', '过热烧毁'],
     examTags: ['欧姆定律', '功率', '等效电阻']
@@ -107,6 +113,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '0.2A - 2A',
     keyParameters: ['额定电压', '额定功率', '亮度', '极性要求'],
     simulationUse: '并联支路、回线故障和亮度变化训练',
+    careerUse: '适合练习“有电但不亮”的现场排查，迁移到指示灯、灯带和控制柜状态灯。',
+    connectionGuide: ['一端接受控正极', '另一端必须回到负极或公共端', '并联支路之间不要共用错误回线'],
+    certificationFocus: ['能区分开关前后电压', '能定位回线断开和接触不良'],
     safetyNotes: ['确认回线完整', '避免过压长时间运行'],
     commonFaults: ['回线断开', '灯丝断路', '接触不良'],
     examTags: ['并联支路', '回线排障', '额定电压']
@@ -120,6 +129,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '5mA - 20mA',
     keyParameters: ['正向压降', '额定电流', '限流电阻', '极性'],
     simulationUse: '极性、限流和过压诊断训练',
+    careerUse: '用于理解状态指示、模块输入反馈和低压面板指示灯，帮助判断“亮/不亮”背后的电气原因。',
+    connectionGuide: ['确认阳极和阴极', '串联合适限流电阻', '不要直接跨接 12V/24V 电源'],
+    certificationFocus: ['能判断极性方向', '能解释为什么需要限流'],
     safetyNotes: ['必须限流', '反接或过压可能损坏'],
     commonFaults: ['反接不亮', '过流烧毁', '虚焊闪烁'],
     examTags: ['二极管', '限流', '过压']
@@ -133,6 +145,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '0.5A - 10A 常见',
     keyParameters: ['额定电流', '分断能力', '快断/慢断', '安装方式'],
     simulationUse: '短路保护链和安全诊断训练',
+    careerUse: '电工证和现场维修都高频考查保护选型，能帮助解释为什么不能随意加大保险规格。',
+    connectionGuide: ['串入被保护回路', '额定电流按负载和导线能力选择', '熔断后先找故障源再更换'],
+    certificationFocus: ['取证保护选型', '短路和过载保护边界', '分断能力和额定电流', '禁止铜丝替代保险丝'],
     safetyNotes: ['不可用铜丝替代', '更换前必须排除故障源'],
     commonFaults: ['熔断', '接触不良', '选型过大失去保护'],
     examTags: ['短路保护', '安全隔离', '保护选型']
@@ -146,6 +161,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '20mA - 500mA',
     keyParameters: ['供电电压', 'I/O 电平', '输入阻抗', '输出能力'],
     simulationUse: '传感器接口、I/O 供电和额定电压训练',
+    careerUse: '对应门禁、报警、智能面板和小型控制盒调试，重点训练供电公共端和输入输出边界。',
+    connectionGuide: ['先接稳定供电和公共地', '输入接传感器信号', '输出大负载时必须经过继电器或驱动级'],
+    certificationFocus: ['公共端必须一致', '弱电 I/O 不能直接带大负载', '3.3V/5V/24V 电平要匹配'],
     safetyNotes: ['确认 I/O 电平兼容', '弱电模块不要直接接大功率负载'],
     commonFaults: ['供电反接', 'I/O 过压', '地线缺失'],
     examTags: ['接口供电', 'I/O', '额定匹配']
@@ -159,6 +177,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '100mA - 1A',
     keyParameters: ['输入类型', '输出类型', '公共端', '扫描周期'],
     simulationUse: '工控输入输出、联锁和控制核心训练',
+    careerUse: '面向电工证实操、设备维护和工控岗位面试，核心是会读 PLC 输入输出点和公共端接法。',
+    connectionGuide: ['输入侧接按钮、急停或传感器', '输出侧通过继电器/接触器驱动负载', '公共端 COM 要与输入/输出类型匹配'],
+    certificationFocus: ['源型/漏型输入输出', 'I/O 点位和公共端', '联锁逻辑和故障点定位'],
     safetyNotes: ['输入公共端需匹配', '输出侧需要隔离大负载'],
     commonFaults: ['公共端接错', '输出点过载', '输入信号悬空'],
     examTags: ['PLC', 'I/O', '联锁']
@@ -172,6 +193,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '50mA - 500mA',
     keyParameters: ['线圈电压', '吸合电流', '辅助触点', '机械寿命'],
     simulationUse: '线圈吸合、互锁和电机控制侧训练',
+    careerUse: '常见于电机启停、风机水泵和控制柜维修，是从弱电控制过渡到强电执行的关键元件。',
+    connectionGuide: ['线圈接控制回路', '主触点接动力回路', '辅助触点用于自锁、互锁和状态反馈'],
+    certificationFocus: ['线圈和主触点要分清', '自锁/互锁回路', '吸合不稳的电压和触点原因'],
     safetyNotes: ['线圈电压必须匹配', '控制侧和主回路要区分'],
     commonFaults: ['线圈烧毁', '吸合不稳', '触点粘连'],
     examTags: ['接触器', '线圈', '互锁']
@@ -185,6 +209,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '整定电流按电机额定电流',
     keyParameters: ['整定电流', '复位方式', '辅助触点', '脱扣等级'],
     simulationUse: '过载保护、故障反馈和安全链训练',
+    careerUse: '电机保护和控制柜维护高频场景，能体现是否理解“过载保护不是短路保护”。',
+    connectionGuide: ['主回路按电机电流整定', '常闭辅助触点串入控制回路', '动作后先查负载再复位'],
+    certificationFocus: ['整定电流按铭牌', '常闭触点串联保护链', '过载与短路保护区别'],
     safetyNotes: ['整定值应匹配电机铭牌', '不能替代短路保护'],
     commonFaults: ['误动作', '整定过大', '辅助触点接错'],
     examTags: ['过载保护', '电机', '安全链']
@@ -198,6 +225,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '触点按控制回路电流选型',
     keyParameters: ['常闭触点', '自锁结构', '复位方式', '安全回路'],
     simulationUse: '急停串联、断电保持和安全联锁训练',
+    careerUse: '电工证和设备维修都要求优先理解急停链，关系到现场安全和面试中的安全意识。',
+    connectionGuide: ['使用常闭触点串入安全链', '动作后切断控制许可', '复位前确认危险源解除'],
+    certificationFocus: ['常闭而不是常开', '急停串联安全链', '先安全隔离再复位'],
     safetyNotes: ['急停应串入安全链', '复位前必须确认危险源解除'],
     commonFaults: ['触点粘连', '常闭接错', '复位机构卡滞'],
     examTags: ['急停', '安全链', '联锁']
@@ -211,6 +241,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '10mA - 200mA',
     keyParameters: ['NPN/PNP', '常开/常闭', '检测距离', '响应频率'],
     simulationUse: '现场检测、计数和到位反馈训练',
+    careerUse: '设备调试、产线维护和面试常问 NPN/PNP 接法，能直接对应到到位检测和计数故障。',
+    connectionGuide: ['棕线接正极，蓝线接 0V', '黑线为信号输出', '按 PLC 输入类型选择 NPN 或 PNP'],
+    certificationFocus: ['NPN/PNP 区别', '常开/常闭判断', '检测距离和误触发'],
     safetyNotes: ['NPN/PNP 接线不能混用', '屏蔽干扰和机械距离要留裕量'],
     commonFaults: ['类型接错', '距离不足', '干扰误触发'],
     examTags: ['传感器', 'NPN/PNP', '到位检测']
@@ -224,6 +257,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '控制端 mA 级',
     keyParameters: ['启停端子', '模拟量', '频率给定', '故障继电器'],
     simulationUse: '风机水泵启停、频率给定和故障反馈训练',
+    careerUse: '面向风机、水泵和输送设备维护岗位，重点训练控制端子、运行命令和故障复位逻辑。',
+    connectionGuide: ['启停端子接控制触点', '模拟量端接 0-10V 或 4-20mA 给定', '故障继电器回到报警或 PLC 输入'],
+    certificationFocus: ['主回路和控制端隔离', '启停/方向/频率给定', '故障复位与参数匹配'],
     safetyNotes: ['主回路危险电压需隔离', '控制端不能直接接强电'],
     commonFaults: ['端子参数不匹配', '公共端接错', '故障未复位'],
     examTags: ['变频器', '启停', '模拟量']
@@ -237,6 +273,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '每层 20mA - 200mA',
     keyParameters: ['灯层颜色', '蜂鸣器', '公共端', '闪烁模式'],
     simulationUse: '设备状态、故障报警和 PLC 输出点训练',
+    careerUse: '用于设备状态可视化和报警联动，能体现 PLC 输出分配、公共端和故障等级设计能力。',
+    connectionGuide: ['每个灯层单独接输出点', '公共端按模块类型接正或负', '蜂鸣器建议独立回路便于静音控制'],
+    certificationFocus: ['状态灯颜色含义', 'PLC 输出点负载能力', '公共端接法'],
     safetyNotes: ['输出点电流需留裕量', '蜂鸣器回路应可独立测试'],
     commonFaults: ['公共端接错', '灯层不亮', '报警逻辑反向'],
     examTags: ['报警', 'PLC 输出', '状态指示']
@@ -250,6 +289,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '100mA - 1A 常见',
     keyParameters: ['线圈电压', '阀位类型', '保持电流', '浪涌抑制'],
     simulationUse: '执行器驱动、续流保护和动作反馈训练',
+    careerUse: '气动夹具、水路控制和自动化设备常见执行器，适合训练感性负载保护和输出点容量核算。',
+    connectionGuide: ['线圈接受控输出', '公共端回到对应电源', '直流线圈建议加续流或浪涌抑制'],
+    certificationFocus: ['感性负载保护', '线圈电压匹配', '输出触点容量'],
     safetyNotes: ['线圈电压必须匹配', '感性负载应配置吸收或续流保护'],
     commonFaults: ['线圈开路', '阀芯卡滞', '驱动触点烧蚀'],
     examTags: ['执行器', '感性负载', '续流保护']
@@ -263,6 +305,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '4mA - 20mA 或电压输出',
     keyParameters: ['量程', '输出信号', '二线/三线制', '零点校准'],
     simulationUse: '模拟量采集、线性换算和断线诊断训练',
+    careerUse: '水泵、空压和暖通岗位常见，能帮助用户掌握 4-20mA 信号、量程换算和断线判断。',
+    connectionGuide: ['确认二线制或三线制', '供电正负和信号端按手册接线', '屏蔽线通常单端接地'],
+    certificationFocus: ['4-20mA 含义', '量程线性换算', '断线和零点漂移判断'],
     safetyNotes: ['屏蔽线单端接地', '供电和信号公共端需按手册接线'],
     commonFaults: ['零点漂移', '信号断线', '量程设置错误'],
     examTags: ['模拟量', '4-20mA', '线性换算']
@@ -367,6 +412,9 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     currentRange: '控制器 100mA - 1A，锁具另算',
     keyParameters: ['门磁输入', '锁输出', '出门按钮', '消防联动'],
     simulationUse: '安防门禁、回线检测和联动释放训练',
+    careerUse: '适合弱电施工、物业维护和安防岗位训练，覆盖门磁、锁具、按钮和消防释放的完整链路。',
+    connectionGuide: ['控制器单独供电', '门磁和出门按钮接输入回路', '锁具电源容量单独核算并保留消防释放'],
+    certificationFocus: ['常开/常闭门磁', '锁输出容量', '消防联动优先级'],
     safetyNotes: ['消防释放优先级必须保留', '锁具供电应单独核算容量'],
     commonFaults: ['门磁常开常闭接错', '锁输出过载', '出门按钮回线断开'],
     examTags: ['门禁', '安防联动', '回线检测']
@@ -378,9 +426,9 @@ export const MATERIAL_TRAINING_KITS: MaterialTrainingKit[] = [
     id: 'high-school-parallel-kit',
     level: 'high-school',
     family: '常用器件',
-    title: '高中并联测量包',
+    title: '基础电学并联测量包',
     scenario: '12V 照明灯、电阻和 LED 组成低压并联支路，观察电压、电流和功率变化。',
-    objective: '用常用器件完成欧姆定律、并联电压和电功率验证。',
+    objective: '用常用器件完成取证前置的欧姆定律、并联电压和电功率验证。',
     componentKinds: ['lamp', 'resistor', 'led'],
     estimatedMinutes: 18,
     assessmentTags: ['欧姆定律', '并联支路', '功率']
@@ -542,7 +590,10 @@ function materialSearchText(item: ComponentMaterialSpec) {
     item.nominalVoltage,
     item.currentRange,
     item.simulationUse,
+    item.careerUse ?? '',
     ...item.keyParameters,
+    ...(item.connectionGuide ?? []),
+    ...(item.certificationFocus ?? []),
     ...item.safetyNotes,
     ...item.commonFaults,
     ...item.examTags

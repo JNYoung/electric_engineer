@@ -1675,6 +1675,30 @@ $ink: #1f2937;
   color: $muted;
 }
 
+.material-explain-card {
+  display: grid;
+  gap: 4px;
+  margin-top: 9px;
+  padding: 9px;
+  border: 1px solid #dce9f8;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.material-explain-title {
+  color: $blue;
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 900;
+}
+
+.material-explain-copy {
+  color: #344054;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
 .material-kit-scenario {
   display: block;
   margin-top: 7px;

@@ -6,8 +6,12 @@
   "scripts": {
     "dev:h5": "taro build --type h5 --watch",
     "build:h5": "taro build --type h5",
+    "build:h5:domestic": "TELEMETRY_REGION=domestic TELEMETRY_CHANNEL=h5-cn taro build --type h5",
+    "build:h5:overseas": "TELEMETRY_REGION=overseas TELEMETRY_CHANNEL=h5-global taro build --type h5",
+    "build:app:domestic": "TELEMETRY_REGION=domestic TELEMETRY_CHANNEL=app-cn taro build --type h5",
+    "build:app:overseas": "TELEMETRY_REGION=overseas TELEMETRY_CHANNEL=app-global taro build --type h5",
     "dev:weapp": "taro build --type weapp --watch",
-    "build:weapp": "taro build --type weapp",
+    "build:weapp": "TELEMETRY_REGION=domestic TELEMETRY_CHANNEL=weapp taro build --type weapp",
     "typecheck": "tsc --noEmit",
     "test:physics": "vitest run tests/unit",
     "test:e2e": "playwright test",

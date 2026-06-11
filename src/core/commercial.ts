@@ -372,16 +372,16 @@ export const BILLING_PLANS: BillingPlan[] = [
     id: 'free',
     name: '体验版',
     monthlyPrice: 0,
-    target: '个人学习和装修弱电入门',
-    features: ['基础电路仿真', '装修工控常用器件', '3 个训练挑战']
+    target: '有基础的取证备考、弱电施工和岗位技能复盘',
+    features: ['基础强化电路仿真', '取证常用器件速查', '3 个排障挑战']
   },
   {
     id: 'pro',
     name: '专业版',
     monthlyPrice: 39,
-    target: '工控学习、施工培训和付费课程',
+    target: '电工证、工控弱电岗位提升和施工培训',
     checkoutSku: 'sku_dg_pro_month',
-    features: ['工程工控高级器件', '过压/断线/短路诊断', '行业训练模板', '项目导出接口']
+    features: ['工程工控高级器件', '过压/断线/短路诊断', '取证训练模板', '项目导出接口']
   },
   {
     id: 'team',
@@ -396,9 +396,9 @@ export const BILLING_PLANS: BillingPlan[] = [
 export const FEATURE_GATES: FeatureGate[] = [
   {
     id: 'basic-training',
-    label: '基础训练',
+    label: '基础强化训练',
     requiredTier: 'free',
-    description: '基础电路、装修工控常用模块和入门挑战。'
+    description: '面向已有基础用户的低压回路、常用模块和排障挑战。'
   },
   {
     id: 'advanced-industrial-components',

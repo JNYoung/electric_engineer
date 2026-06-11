@@ -254,12 +254,12 @@ test.describe('electric workbench e2e', () => {
     await expectHealthyRuntime(runtimeProblems)
   })
 
-  test('answers knowledge questions across school and professional tracks', async ({ page }) => {
+  test('answers knowledge questions across foundation and professional tracks', async ({ page }) => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
     await openMobileTab(page, '题库')
-    await expect(page.locator('.knowledge-board')).toContainText('高中基础')
+    await expect(page.locator('.knowledge-board')).toContainText('基础电学')
     await expect(page.locator('.knowledge-board')).toContainText('欧姆定律与电功率')
     const reviewNotebook = page.locator('.review-notebook-panel')
     const measurementPanel = page.locator('.measurement-panel')
@@ -318,7 +318,7 @@ test.describe('electric workbench e2e', () => {
 
     await openMobileTab(page, '题库')
     await expect(page.locator('.assessment-board')).toContainText('专业考试模拟')
-    await expect(page.locator('.assessment-board')).toContainText('高中电学基础测验')
+    await expect(page.locator('.assessment-board')).toContainText('基础电学能力测验')
     await expect(page.locator('.assessment-board')).toContainText('仿真准备度')
     await expect(page.locator('.assessment-board')).toContainText('3/3')
     await expect(page.locator('.assessment-board')).toContainText('练习复盘')
@@ -330,7 +330,7 @@ test.describe('electric workbench e2e', () => {
     await expect(stationPanel).toContainText('仪表证据')
     const certificationPanel = page.locator('.certification-panel')
     await expect(certificationPanel).toContainText('认证准入')
-    await expect(certificationPanel).toContainText('高中测验准入')
+    await expect(certificationPanel).toContainText('基础电学测验准入')
     await expect(certificationPanel).toContainText('待完成')
 
     await page.locator('.assessment-question').filter({ hasText: '欧姆定律计算' }).locator('.choice-button').filter({ hasText: '0.5A' }).click()
