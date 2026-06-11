@@ -38,6 +38,7 @@ import {
 } from '@/core/training'
 import {
   KNOWLEDGE_TRACKS,
+  buildFormulaVerificationWorksheet,
   buildKnowledgeMeasurementWorksheet,
   buildKnowledgeReviewNotebook,
   buildKnowledgeSimulationChecks,
@@ -74,6 +75,7 @@ import type {
   TrainingChallenge
 } from '@/core/training'
 import type {
+  FormulaVerificationWorksheet,
   KnowledgeReviewItem,
   KnowledgeReviewNotebook,
   KnowledgeMeasurementWorksheet,
@@ -234,6 +236,12 @@ function reviewReasonLabel(reason: KnowledgeReviewItem['reason']) {
 function measurementStatusClass(status: KnowledgeMeasurementWorksheet['status']) {
   if (status === '风险') return 'danger'
   if (status === '待接线') return 'warning'
+  return 'ready'
+}
+
+function formulaStatusClass(status: FormulaVerificationWorksheet['status']) {
+  if (status === '风险') return 'danger'
+  if (status === '待补读数') return 'warning'
   return 'ready'
 }
 
@@ -737,6 +745,7 @@ function KnowledgeValidationBoard({
   answers,
   simulationChecks,
   measurement,
+  formulaVerification,
   onSelectTrack,
   onAnswer
 }: {
@@ -744,6 +753,7 @@ function KnowledgeValidationBoard({
   answers: Record<string, string>
   simulationChecks: KnowledgeSimulationCheck[]
   measurement: KnowledgeMeasurementWorksheet
+  formulaVerification: FormulaVerificationWorksheet
   onSelectTrack: (trackId: KnowledgeTrackId) => void
   onAnswer: (questionId: string, answerId: string) => void
 }) {
@@ -856,6 +866,7 @@ function KnowledgeValidationBoard({
             ))}
           </View>
           <KnowledgeMeasurementPanel measurement={measurement} />
+          <FormulaVerificationPanel worksheet={formulaVerification} />
           <ReviewNotebookPanel review={review} />
           <View className='lab-focus'>
             <Text className='note-title'>实训观察点</Text>
@@ -865,6 +876,65 @@ function KnowledgeValidationBoard({
           </View>
         </View>
       </View>
+    </View>
+  )
+}
+
+function FormulaVerificationPanel({ worksheet }: { worksheet: FormulaVerificationWorksheet }) {
+  const statusClass = formulaStatusClass(worksheet.status)
+
+  return (
+    <View className='formula-panel'>
+      <View className='section-head'>
+        <Text className='section-title'>公式验算</Text>
+        <Text className={`measurement-status status-${statusClass}`}>{worksheet.status}</Text>
+      </View>
+
+      <View className='formula-summary-grid'>
+        <View>
+          <Text className='metric-label'>通过</Text>
+          <Text className='metric-value'>{worksheet.passed}/{worksheet.total}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>类型</Text>
+          <Text className='metric-value'>实时</Text>
+        </View>
+      </View>
+
+      <View className='formula-card-list'>
+        {worksheet.cards.map((card) => (
+          <View key={card.id} className={`formula-card severity-${card.severity} ${card.passed ? 'is-passed' : ''}`}>
+            <View className='formula-card-head'>
+              <Text className='formula-card-title'>{card.label}</Text>
+              <Text className='formula-chip'>{card.formula}</Text>
+            </View>
+            <View className='formula-value-grid'>
+              <View>
+                <Text className='metric-label'>期望</Text>
+                <Text className='formula-value'>{card.expected}</Text>
+              </View>
+              <View>
+                <Text className='metric-label'>实测</Text>
+                <Text className='formula-value'>{card.observed}</Text>
+              </View>
+            </View>
+            <View className='formula-known-row'>
+              {card.knownValues.slice(0, 4).map((value) => (
+                <Text key={value}>{value}</Text>
+              ))}
+            </View>
+            <Text className='formula-detail'>容差：{card.tolerance} · {card.detail}</Text>
+          </View>
+        ))}
+      </View>
+
+      {worksheet.nextActions.length > 0 && (
+        <View className='formula-next-list'>
+          {worksheet.nextActions.map((action) => (
+            <Text key={action} className='measurement-detail'>{action}</Text>
+          ))}
+        </View>
+      )}
     </View>
   )
 }
@@ -1911,6 +1981,10 @@ export default function Index() {
     () => buildKnowledgeMeasurementWorksheet(activeKnowledgeTrackId, model, simulation),
     [activeKnowledgeTrackId, model, simulation]
   )
+  const formulaVerification = useMemo(
+    () => buildFormulaVerificationWorksheet(activeKnowledgeTrackId, model, simulation),
+    [activeKnowledgeTrackId, model, simulation]
+  )
   const assessmentReadiness = useMemo(
     () => evaluateAssessmentSimulationReadiness(activeAssessmentId, model, simulation),
     [activeAssessmentId, model, simulation]
@@ -2129,6 +2203,7 @@ export default function Index() {
           answers={knowledgeAnswers}
           simulationChecks={knowledgeSimulationChecks}
           measurement={knowledgeMeasurement}
+          formulaVerification={formulaVerification}
           onSelectTrack={changeKnowledgeTrack}
           onAnswer={answerKnowledgeQuestion}
         />
