@@ -142,8 +142,10 @@ $ink: #1f2937;
 .commercial-desc,
 .commercial-plan,
 .commerce-status,
+.locked-preview,
 .plan-target,
 .plan-feature,
+.feature-gate-detail,
 .api-row,
 .assessment-copy,
 .assessment-meta,
@@ -171,7 +173,8 @@ $ink: #1f2937;
 .catalog-title-row,
 .catalog-tags,
 .commerce-actions-row,
-.plan-head {
+.plan-head,
+.feature-gate-row {
   display: flex;
   align-items: center;
 }
@@ -3635,12 +3638,81 @@ $ink: #1f2937;
 }
 
 .commerce-actions-row {
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
 }
 
 .commerce-status {
   min-width: 0;
+}
+
+.commerce-primary-action {
+  background: #132238;
+  border-color: #132238;
+  color: #ffffff;
+}
+
+.access-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.access-summary > view,
+.access-summary > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.locked-preview {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 7px;
+  background: #fff7ed;
+  color: #9a4b00;
+}
+
+.feature-gate-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.feature-gate-row {
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.feature-gate-row.is-open {
+  border-color: #bdebdc;
+  background: #f0fdf9;
+}
+
+.feature-gate-row.is-locked {
+  border-color: #fde3bd;
+  background: #fffaf3;
+}
+
+.feature-gate-title {
+  display: block;
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.feature-gate-detail {
+  margin-top: 3px;
 }
 
 .plan-list {

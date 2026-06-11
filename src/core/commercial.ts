@@ -3,6 +3,7 @@ import type { DeviceKind } from './types'
 
 export type WorkbenchDomain = 'engineering-control' | 'renovation-control'
 export type SubscriptionTier = 'free' | 'pro' | 'team'
+export type CommercialActionKind = 'sign-in' | 'checkout' | 'billing-portal'
 export type CommercialFeatureId =
   | 'basic-training'
   | 'advanced-industrial-components'
@@ -25,6 +26,7 @@ export interface DomainProfile {
   recommendedVoltage: number
   recommendedTier: SubscriptionTier
   categories: DomainCategory[]
+  featureIds: CommercialFeatureId[]
 }
 
 export interface ComponentCatalogEntry {
@@ -73,6 +75,35 @@ export interface CommercialApiContract {
   }
 }
 
+export interface CatalogAccessSummary {
+  total: number
+  available: number
+  locked: number
+  lockedByTier: Record<SubscriptionTier, number>
+  lockedPreview: string[]
+}
+
+export interface FeatureAccessSummary extends FeatureGate {
+  available: boolean
+}
+
+export interface CommercialAccessAction {
+  kind: CommercialActionKind
+  label: string
+  endpoint: string
+  targetTier: SubscriptionTier
+  detail: string
+}
+
+export interface CommercialAccessSnapshot {
+  domain: WorkbenchDomain
+  session: AuthSession
+  catalog: CatalogAccessSummary
+  features: FeatureAccessSummary[]
+  recommendedPlan: BillingPlan
+  primaryAction: CommercialAccessAction
+}
+
 export const DOMAIN_PROFILES: DomainProfile[] = [
   {
     id: 'engineering-control',
@@ -82,6 +113,7 @@ export const DOMAIN_PROFILES: DomainProfile[] = [
     description: '聚焦 24V 控制回路、PLC、变频器、接触器、安全联锁和设备告警。',
     recommendedVoltage: 24,
     recommendedTier: 'pro',
+    featureIds: ['basic-training', 'advanced-industrial-components', 'project-export', 'team-management'],
     categories: [
       { id: 'control-core', label: '控制核心', description: 'PLC、控制器、驱动与接口模块' },
       { id: 'safety-chain', label: '安全联锁', description: '急停、热继、保护与故障反馈' },
@@ -97,6 +129,7 @@ export const DOMAIN_PROFILES: DomainProfile[] = [
     description: '聚焦 12V/24V 弱电、智能面板、照明调光、窗帘、暖通、门禁和漏水告警。',
     recommendedVoltage: 12,
     recommendedTier: 'free',
+    featureIds: ['basic-training', 'renovation-templates', 'project-export', 'team-management'],
     categories: [
       { id: 'smart-home-core', label: '智能中枢', description: '网关、门禁、情景面板和控制核心' },
       { id: 'lighting-scene', label: '照明场景', description: '灯光、调光、状态指示和场景控制' },
@@ -422,6 +455,14 @@ export function getDomainProfile(domain: WorkbenchDomain) {
   return DOMAIN_PROFILES.find((profile) => profile.id === domain) ?? DOMAIN_PROFILES[0]
 }
 
+export function getBillingPlan(tier: SubscriptionTier) {
+  return BILLING_PLANS.find((item) => item.id === tier) ?? BILLING_PLANS[0]
+}
+
+export function getFeatureGate(featureId: CommercialFeatureId) {
+  return FEATURE_GATES.find((item) => item.id === featureId)
+}
+
 export function getCatalogEntries(domain: WorkbenchDomain) {
   return COMPONENT_CATALOG.filter((entry) => entry.domain === domain)
 }
@@ -452,12 +493,12 @@ export function canUseCatalogEntry(session: AuthSession, entry: ComponentCatalog
 }
 
 export function canUseFeature(session: AuthSession, featureId: CommercialFeatureId) {
-  const gate = FEATURE_GATES.find((item) => item.id === featureId)
+  const gate = getFeatureGate(featureId)
   return gate ? hasTierAccess(session.tier, gate.requiredTier) : false
 }
 
 export function createAuthenticatedSession(tier: SubscriptionTier): AuthSession {
-  const plan = BILLING_PLANS.find((item) => item.id === tier) ?? BILLING_PLANS[0]
+  const plan = getBillingPlan(tier)
   return {
     status: 'authenticated',
     userId: `demo-${tier}-user`,
@@ -468,4 +509,112 @@ export function createAuthenticatedSession(tier: SubscriptionTier): AuthSession 
 
 export function getEntryDisplayName(entry: ComponentCatalogEntry) {
   return getDeviceDefinition(entry.kind).name
+}
+
+export function getCatalogAccessSummary(session: AuthSession, domain: WorkbenchDomain): CatalogAccessSummary {
+  const entries = getCatalogEntries(domain)
+  const lockedEntries = entries.filter((entry) => !canUseCatalogEntry(session, entry))
+
+  return {
+    total: entries.length,
+    available: entries.length - lockedEntries.length,
+    locked: lockedEntries.length,
+    lockedByTier: {
+      free: lockedEntries.filter((entry) => entry.tier === 'free').length,
+      pro: lockedEntries.filter((entry) => entry.tier === 'pro').length,
+      team: lockedEntries.filter((entry) => entry.tier === 'team').length
+    },
+    lockedPreview: lockedEntries.slice(0, 3).map(getEntryDisplayName)
+  }
+}
+
+export function buildCommercialAccessSnapshot(
+  session: AuthSession,
+  domain: WorkbenchDomain,
+  selectedPlanId?: SubscriptionTier
+): CommercialAccessSnapshot {
+  const profile = getDomainProfile(domain)
+  const catalog = getCatalogAccessSummary(session, domain)
+  const features = profile.featureIds
+    .map(getFeatureGate)
+    .filter((gate): gate is FeatureGate => Boolean(gate))
+    .map((gate) => ({
+      ...gate,
+      available: canUseFeature(session, gate.id)
+    }))
+  const recommendedTier = getRecommendedCommercialTier(session, domain, selectedPlanId)
+  const recommendedPlan = getBillingPlan(recommendedTier)
+
+  return {
+    domain,
+    session,
+    catalog,
+    features,
+    recommendedPlan,
+    primaryAction: buildPrimaryCommercialAction(session, recommendedPlan)
+  }
+}
+
+function getRecommendedCommercialTier(
+  session: AuthSession,
+  domain: WorkbenchDomain,
+  selectedPlanId?: SubscriptionTier
+) {
+  const profile = getDomainProfile(domain)
+  const lockedEntryTiers = getCatalogEntries(domain)
+    .filter((entry) => !canUseCatalogEntry(session, entry))
+    .map((entry) => entry.tier)
+  const lockedFeatureTiers = profile.featureIds
+    .map(getFeatureGate)
+    .filter((gate): gate is FeatureGate => Boolean(gate))
+    .filter((gate) => !canUseFeature(session, gate.id))
+    .map((gate) => gate.requiredTier)
+  const candidates = uniqueTiers([
+    selectedPlanId,
+    profile.recommendedTier,
+    ...lockedEntryTiers,
+    ...lockedFeatureTiers,
+    session.tier
+  ].filter((tier): tier is SubscriptionTier => Boolean(tier)))
+    .filter((tier) => hasTierAccess(tier, session.tier))
+    .sort((left, right) => tierRank[left] - tierRank[right])
+
+  return candidates.find((tier) => tierRank[tier] > tierRank[session.tier]) ?? session.tier
+}
+
+function buildPrimaryCommercialAction(
+  session: AuthSession,
+  recommendedPlan: BillingPlan
+): CommercialAccessAction {
+  if (session.status === 'anonymous') {
+    return {
+      kind: 'sign-in',
+      label: `登录后开通${recommendedPlan.name}`,
+      endpoint: COMMERCIAL_API_CONTRACT.auth.signInEndpoint,
+      targetTier: recommendedPlan.id,
+      detail: '真实接入时先完成账号登录，再创建支付会话。'
+    }
+  }
+
+  if (tierRank[recommendedPlan.id] > tierRank[session.tier]) {
+    return {
+      kind: 'checkout',
+      label: `开通${recommendedPlan.name}`,
+      endpoint: COMMERCIAL_API_CONTRACT.billing.checkoutEndpoint,
+      targetTier: recommendedPlan.id,
+      detail: `创建 ${recommendedPlan.checkoutSku ?? recommendedPlan.id} 的结账会话。`
+    }
+  }
+
+  return {
+    kind: 'billing-portal',
+    label: '管理订阅',
+    endpoint: COMMERCIAL_API_CONTRACT.billing.portalEndpoint,
+    targetTier: session.tier,
+    detail: '进入账户中心查看套餐、发票和续费状态。'
+  }
+}
+
+function uniqueTiers(tiers: SubscriptionTier[]) {
+  return tiers.filter((tier, index, source) => source.indexOf(tier) === index)
 }

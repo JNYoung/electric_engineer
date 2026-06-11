@@ -221,7 +221,12 @@ test.describe('electric workbench e2e', () => {
 
     await gotoWorkbench(page)
     await expect(page.locator('.commercial-dashboard')).toContainText('工程工控')
+    await expect(page.locator('.commercial-dashboard')).toContainText('已解锁')
+    await expect(page.locator('.commercial-dashboard')).toContainText('待解锁')
     await expect(page.locator('.palette-panel')).toContainText('PLC 控制器')
+    await expect(page.locator('.commerce-panel')).toContainText('登录后开通专业版')
+    await expect(page.locator('.commerce-panel')).toContainText('待解锁：PLC 控制器')
+    await expect(page.locator('.feature-gate-row').filter({ hasText: '高级工程工控元件' })).toContainText('专业版')
     await expect(page.locator('.commerce-panel')).toContainText('/api/auth/sign-in')
     await expect(page.locator('.commerce-panel')).toContainText('/api/billing/checkout')
     await expect(page.locator('.commerce-panel')).toContainText('/api/billing/portal')
@@ -231,8 +236,10 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.palette-panel')).toContainText('装修工控元件库')
     await expect(page.locator('.palette-item').filter({ hasText: '智能开关面板' })).toHaveCount(1)
 
-    await page.locator('.commerce-panel').locator('.small-action').filter({ hasText: '模拟登录' }).click()
+    await page.locator('.commerce-panel').locator('.commerce-primary-action').filter({ hasText: '登录后开通专业版' }).click()
     await expect(page.locator('.commerce-panel')).toContainText('专业版演示账号')
+    await expect(page.locator('.commerce-panel')).toContainText('开通团队版')
+    await expect(page.locator('.feature-gate-row').filter({ hasText: '装修工控模板' })).toContainText('已解锁')
 
     await expectHealthyRuntime(runtimeProblems)
   })
