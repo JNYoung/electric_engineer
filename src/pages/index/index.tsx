@@ -62,6 +62,7 @@ import {
   getMaterialSpec,
   getMaterialSpecsByFamily
 } from '@/core/materials'
+import { buildVirtualMeterWorksheet } from '@/core/instruments'
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire } from '@/core/types'
 import type {
   ChallengeEvaluation,
@@ -87,6 +88,7 @@ import type {
   AssessmentSimulationReadiness
 } from '@/core/assessment'
 import type { MaterialFamily, MaterialFinderResult } from '@/core/materials'
+import type { VirtualMeterWorksheet } from '@/core/instruments'
 import type {
   AuthSession,
   BillingPlan,
@@ -236,6 +238,12 @@ function certificationStatusClass(status: AssessmentCertificationReadiness['stat
   if (status === '可提交') return 'ready'
   if (status === '待补仿真') return 'warning'
   return 'danger'
+}
+
+function meterStatusClass(status: VirtualMeterWorksheet['status']) {
+  if (status === '需断电排障') return 'danger'
+  if (status === '待接线') return 'warning'
+  return 'ready'
 }
 
 function DomainSwitcher({
@@ -1529,6 +1537,57 @@ function SafetyDiagnosticsCard({ diagnostics }: { diagnostics: SafetyDiagnostic[
   )
 }
 
+function VirtualMeterPanel({ worksheet }: { worksheet: VirtualMeterWorksheet }) {
+  const statusClass = meterStatusClass(worksheet.status)
+
+  return (
+    <View className='meter-panel'>
+      <View className='section-head'>
+        <Text className='summary-title'>虚拟万用表</Text>
+        <Text className={`meter-panel-status status-${statusClass}`}>{worksheet.status}</Text>
+      </View>
+      <Text className='meter-summary'>{worksheet.summary}</Text>
+
+      <View className='meter-metrics'>
+        <View>
+          <Text className='metric-label'>测点</Text>
+          <Text className='metric-value'>{worksheet.passed}/{worksheet.total}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>带电测量</Text>
+          <Text className='metric-value'>{worksheet.safeToMeasure ? '允许' : '禁止'}</Text>
+        </View>
+      </View>
+
+      <View className='meter-reading-list'>
+        {worksheet.readings.map((reading) => (
+          <View key={reading.id} className={`meter-reading severity-${reading.severity} ${reading.passed ? 'is-passed' : ''}`}>
+            <View className='meter-reading-head'>
+              <Text className='meter-mode'>{reading.mode}</Text>
+              <Text className='meter-reading-title'>{reading.label}</Text>
+              <Text className='meter-reading-status'>{reading.status}</Text>
+            </View>
+            <View className='meter-value-row'>
+              <Text className='meter-value'>{reading.value}{reading.unit}</Text>
+              <Text className='meter-expected'>{reading.expected}</Text>
+            </View>
+            <Text className='meter-probe'>{reading.probe}</Text>
+            <Text className='meter-detail'>{reading.detail}</Text>
+          </View>
+        ))}
+      </View>
+
+      {worksheet.nextActions.length > 0 && (
+        <View className='meter-action-list'>
+          {worksheet.nextActions.map((action) => (
+            <Text key={action} className='meter-detail'>{action}</Text>
+          ))}
+        </View>
+      )}
+    </View>
+  )
+}
+
 function BoardDevice({
   device,
   selected,
@@ -1743,6 +1802,10 @@ export default function Index() {
   )
   const safetyDiagnostics = useMemo(
     () => buildSafetyDiagnostics(model, simulation),
+    [model, simulation]
+  )
+  const virtualMeter = useMemo(
+    () => buildVirtualMeterWorksheet(model, simulation),
     [model, simulation]
   )
   const selectedDevice = model.devices.find((device) => device.id === selectedId)
@@ -2151,6 +2214,8 @@ export default function Index() {
               <Text>{simulation.supplyVoltage}V DC</Text>
             </View>
           </View>
+
+          <VirtualMeterPanel worksheet={virtualMeter} />
 
           <View className='issue-list'>
             {simulation.issues.map((issue, index) => (

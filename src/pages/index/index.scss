@@ -343,7 +343,9 @@ $ink: #1f2937;
 .section-head,
 .lesson-card-head,
 .challenge-card-head,
-.training-card-head {
+.training-card-head,
+.meter-reading-head,
+.meter-value-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3990,6 +3992,7 @@ $ink: #1f2937;
 }
 
 .training-card,
+.meter-panel,
 .safety-card,
 .commerce-panel {
   margin-top: 16px;
@@ -3997,6 +4000,169 @@ $ink: #1f2937;
   border: 1px solid $line;
   border-radius: 8px;
   background: #f8fbff;
+}
+
+.meter-panel-status {
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.meter-panel-status.status-ready {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.meter-panel-status.status-warning {
+  background: #fff7ed;
+  color: #9a4b00;
+}
+
+.meter-panel-status.status-danger {
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.meter-summary {
+  display: block;
+  margin-top: 8px;
+  color: $muted;
+}
+
+.meter-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.meter-metrics > view,
+.meter-metrics > div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.meter-reading-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.meter-reading {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.meter-reading.is-passed {
+  border-color: #bdebdc;
+  background: #f0fdf9;
+}
+
+.meter-reading.severity-warning {
+  border-color: #ffdca8;
+  background: #fffaf1;
+}
+
+.meter-reading.severity-danger {
+  border-color: #ffc2c2;
+  background: #fff7f8;
+}
+
+.meter-reading-head {
+  align-items: flex-start;
+}
+
+.meter-mode {
+  flex: 0 0 auto;
+  min-width: 34px;
+  min-height: 22px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: #162133;
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.meter-reading-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: $text;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.meter-reading-status {
+  flex: 0 0 auto;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.meter-value-row {
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.meter-value {
+  display: block;
+  flex: 0 0 auto;
+  max-width: 48%;
+  color: #172033;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.meter-expected {
+  min-width: 0;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+  word-break: break-word;
+}
+
+.meter-probe,
+.meter-detail {
+  display: block;
+  margin-top: 6px;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
+  word-break: break-word;
+}
+
+.meter-probe {
+  color: #344054;
+  font-weight: 800;
+}
+
+.meter-action-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #edf1f6;
 }
 
 .training-card-title {
