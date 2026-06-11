@@ -56,6 +56,46 @@ export interface KnowledgeSimulationCheck {
   passed: boolean
 }
 
+export type ReviewReason = 'wrong' | 'unanswered'
+export type ReviewSeverity = 'danger' | 'warning'
+
+export interface KnowledgeReviewItem {
+  questionId: string
+  trackId: KnowledgeTrackId
+  title: string
+  reason: ReviewReason
+  severity: ReviewSeverity
+  selectedAnswerLabel?: string
+  correctAnswerLabel: string
+  explanation: string
+  simulationHint: string
+}
+
+export interface KnowledgeReviewTrackSummary {
+  trackId: KnowledgeTrackId
+  level: KnowledgeLevel
+  wrong: number
+  unanswered: number
+  total: number
+}
+
+export interface KnowledgeReviewNotebook {
+  status: '已清空' | '复训中' | '待复训'
+  total: number
+  wrong: number
+  unanswered: number
+  byTrack: KnowledgeReviewTrackSummary[]
+  priorityTrackIds: KnowledgeTrackId[]
+  items: KnowledgeReviewItem[]
+  nextActions: string[]
+}
+
+export interface KnowledgeReviewNotebookOptions {
+  trackIds?: KnowledgeTrackId[]
+  includeUnanswered?: boolean
+  limit?: number
+}
+
 export const KNOWLEDGE_TRACKS: KnowledgeTrack[] = [
   {
     id: 'high-school',
@@ -269,6 +309,105 @@ export function buildKnowledgeTrackProgress(
     percent,
     status: results.length === 0 ? '待练习' : percent >= 80 ? '已掌握' : '训练中'
   }
+}
+
+export function buildKnowledgeReviewNotebook(
+  answers: Record<string, string>,
+  options: KnowledgeReviewNotebookOptions = {}
+): KnowledgeReviewNotebook {
+  const trackIds = options.trackIds ?? KNOWLEDGE_TRACKS.map((track) => track.id)
+  const includeUnanswered = options.includeUnanswered ?? false
+  const limit = options.limit ?? 8
+  const items = trackIds.flatMap((trackId) =>
+    getQuestionsForTrack(trackId)
+      .map((question) => buildReviewItem(question, answers[question.id], includeUnanswered))
+      .filter((item): item is KnowledgeReviewItem => Boolean(item))
+  )
+  const wrong = items.filter((item) => item.reason === 'wrong').length
+  const unanswered = items.filter((item) => item.reason === 'unanswered').length
+  const byTrack = trackIds.map((trackId) => {
+    const track = getKnowledgeTrack(trackId)
+    const trackItems = items.filter((item) => item.trackId === trackId)
+    return {
+      trackId,
+      level: track.level,
+      wrong: trackItems.filter((item) => item.reason === 'wrong').length,
+      unanswered: trackItems.filter((item) => item.reason === 'unanswered').length,
+      total: trackItems.length
+    }
+  })
+  const priorityTrackIds = byTrack
+    .filter((track) => track.total > 0)
+    .sort((left, right) => right.wrong - left.wrong || right.unanswered - left.unanswered)
+    .map((track) => track.trackId)
+  const visibleItems = items
+    .sort((left, right) => reviewPriority(left) - reviewPriority(right))
+    .slice(0, limit)
+  const nextActions = uniqueReviewText([
+    visibleItems.find((item) => item.reason === 'wrong')?.simulationHint ?? '',
+    visibleItems.find((item) => item.reason === 'unanswered')?.simulationHint ?? '',
+    priorityTrackIds.length > 0
+      ? `优先复训 ${priorityTrackIds.map((trackId) => getKnowledgeTrack(trackId).level).join('、')}。`
+      : '当前没有错题，继续完成新题或切换更高层级。'
+  ])
+
+  return {
+    status: wrong > 0 ? '待复训' : items.length > 0 ? '复训中' : '已清空',
+    total: items.length,
+    wrong,
+    unanswered,
+    byTrack,
+    priorityTrackIds,
+    items: visibleItems,
+    nextActions
+  }
+}
+
+function buildReviewItem(
+  question: KnowledgeQuestion,
+  selectedAnswerId: string | undefined,
+  includeUnanswered: boolean
+): KnowledgeReviewItem | undefined {
+  const correctAnswerLabel = question.choices.find((choice) => choice.id === question.answerId)?.label ?? question.answerId
+
+  if (!selectedAnswerId) {
+    if (!includeUnanswered) return undefined
+    return {
+      questionId: question.id,
+      trackId: question.trackId,
+      title: question.title,
+      reason: 'unanswered' as const,
+      severity: 'warning' as const,
+      correctAnswerLabel,
+      explanation: question.explanation,
+      simulationHint: question.simulationHint
+    }
+  }
+
+  const result = evaluateKnowledgeAnswer(question.id, selectedAnswerId)
+  if (result.correct) return undefined
+
+  return {
+    questionId: question.id,
+    trackId: question.trackId,
+    title: question.title,
+    reason: 'wrong' as const,
+    severity: 'danger' as const,
+    selectedAnswerLabel: question.choices.find((choice) => choice.id === selectedAnswerId)?.label ?? selectedAnswerId,
+    correctAnswerLabel,
+    explanation: question.explanation,
+    simulationHint: question.simulationHint
+  }
+}
+
+function reviewPriority(item: KnowledgeReviewItem) {
+  return item.reason === 'wrong' ? 0 : 1
+}
+
+function uniqueReviewText(items: string[]) {
+  return items
+    .filter((item) => item.trim().length > 0)
+    .filter((item, index, source) => source.indexOf(item) === index)
 }
 
 export function buildKnowledgeSimulationChecks(

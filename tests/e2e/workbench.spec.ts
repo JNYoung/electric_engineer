@@ -180,11 +180,22 @@ test.describe('electric workbench e2e', () => {
     await openMobileTab(page, '题库')
     await expect(page.locator('.knowledge-board')).toContainText('高中基础')
     await expect(page.locator('.knowledge-board')).toContainText('欧姆定律与电功率')
+    const reviewNotebook = page.locator('.review-notebook-panel')
+    await expect(reviewNotebook).toContainText('错题复训')
+    await expect(reviewNotebook).toContainText('已清空')
 
     const ohmQuestion = page.locator('.knowledge-question').filter({ hasText: '欧姆定律计算' })
     await ohmQuestion.locator('.choice-button').filter({ hasText: '0.5A' }).click()
     await expect(ohmQuestion).toContainText('回答正确')
     await expect(page.locator('.mobile-status-strip')).toContainText('33%')
+
+    const parallelQuestion = page.locator('.knowledge-question').filter({ hasText: '并联支路判断' })
+    await parallelQuestion.locator('.choice-button').filter({ hasText: '各约 6V' }).click()
+    await expect(parallelQuestion).toContainText('需要复盘')
+    await expect(reviewNotebook).toContainText('待复训')
+    await expect(reviewNotebook).toContainText('并联支路判断')
+    await expect(reviewNotebook).toContainText('错选：各约 6V')
+    await expect(reviewNotebook).toContainText('未完成')
 
     await page.locator('.knowledge-track-tab').filter({ hasText: '大学电路' }).click()
     await expect(page.locator('.knowledge-board')).toContainText('节点法与线性电路')

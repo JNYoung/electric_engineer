@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialCircuit } from '../../src/core/circuitFactory'
 import {
   KNOWLEDGE_TRACKS,
+  buildKnowledgeReviewNotebook,
   buildKnowledgeSimulationChecks,
   buildKnowledgeTrackProgress,
   evaluateKnowledgeAnswer,
@@ -34,6 +35,35 @@ describe('knowledge verification library', () => {
     expect(incorrect.correct).toBe(false)
     expect(progress.percent).toBe(100)
     expect(progress.status).toBe('已掌握')
+  })
+
+  it('builds a review notebook for wrong and unfinished questions', () => {
+    const wrongOnly = buildKnowledgeReviewNotebook(
+      {
+        'hs-ohm-current': 'b',
+        'hs-parallel-voltage': 'b'
+      },
+      { trackIds: ['high-school'] }
+    )
+
+    expect(wrongOnly.status).toBe('待复训')
+    expect(wrongOnly.wrong).toBe(1)
+    expect(wrongOnly.unanswered).toBe(0)
+    expect(wrongOnly.items[0].title).toBe('欧姆定律计算')
+    expect(wrongOnly.items[0].selectedAnswerLabel).toBe('2A')
+    expect(wrongOnly.priorityTrackIds).toEqual(['high-school'])
+
+    const withUnanswered = buildKnowledgeReviewNotebook(
+      {
+        'pro-lockout': 'a'
+      },
+      { trackIds: ['electrician'], includeUnanswered: true }
+    )
+
+    expect(withUnanswered.status).toBe('复训中')
+    expect(withUnanswered.wrong).toBe(0)
+    expect(withUnanswered.unanswered).toBe(2)
+    expect(withUnanswered.nextActions.some((item) => item.includes('电工实操'))).toBe(true)
   })
 
   it('maps a simulated circuit to knowledge checks for each learning level', () => {

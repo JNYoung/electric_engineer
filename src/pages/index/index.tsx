@@ -38,6 +38,7 @@ import {
 } from '@/core/training'
 import {
   KNOWLEDGE_TRACKS,
+  buildKnowledgeReviewNotebook,
   buildKnowledgeSimulationChecks,
   buildKnowledgeTrackProgress,
   evaluateKnowledgeAnswer,
@@ -67,6 +68,8 @@ import type {
   TrainingChallenge
 } from '@/core/training'
 import type {
+  KnowledgeReviewItem,
+  KnowledgeReviewNotebook,
   KnowledgeSimulationCheck,
   KnowledgeTrackId,
   KnowledgeTrackProgress
@@ -205,6 +208,16 @@ function tierLabel(tier: SubscriptionTier) {
 
 function domainMaterialFamily(domain: WorkbenchDomain): MaterialFamily {
   return domain === 'engineering-control' ? '工程工控' : '装修工控'
+}
+
+function reviewStatusClass(status: KnowledgeReviewNotebook['status']) {
+  if (status === '待复训') return 'danger'
+  if (status === '复训中') return 'warning'
+  return 'ready'
+}
+
+function reviewReasonLabel(reason: KnowledgeReviewItem['reason']) {
+  return reason === 'wrong' ? '错题' : '未答'
 }
 
 function DomainSwitcher({
@@ -700,6 +713,11 @@ function KnowledgeValidationBoard({
   const track = getKnowledgeTrack(activeTrackId)
   const questions = getQuestionsForTrack(activeTrackId)
   const progress = buildKnowledgeTrackProgress(activeTrackId, answers)
+  const review = buildKnowledgeReviewNotebook(answers, {
+    trackIds: [activeTrackId],
+    includeUnanswered: progress.answered > 0,
+    limit: 4
+  })
 
   return (
     <View className='knowledge-board'>
@@ -800,6 +818,7 @@ function KnowledgeValidationBoard({
               </View>
             ))}
           </View>
+          <ReviewNotebookPanel review={review} />
           <View className='lab-focus'>
             <Text className='note-title'>实训观察点</Text>
             {track.labFocus.map((item) => (
@@ -807,6 +826,63 @@ function KnowledgeValidationBoard({
             ))}
           </View>
         </View>
+      </View>
+    </View>
+  )
+}
+
+function ReviewNotebookPanel({ review }: { review: KnowledgeReviewNotebook }) {
+  const statusClass = reviewStatusClass(review.status)
+
+  return (
+    <View className='review-notebook-panel'>
+      <View className='section-head'>
+        <Text className='section-title'>错题复训</Text>
+        <Text className={`review-status status-${statusClass}`}>{review.status}</Text>
+      </View>
+
+      <View className='review-metrics'>
+        <View>
+          <Text className='metric-label'>错题</Text>
+          <Text className='metric-value'>{review.wrong}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>未完成</Text>
+          <Text className='metric-value'>{review.unanswered}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>复训项</Text>
+          <Text className='metric-value'>{review.total}</Text>
+        </View>
+      </View>
+
+      {review.items.length === 0 ? (
+        <Text className='review-empty'>当前 Track 暂无错题，继续完成新题或切换更高层级。</Text>
+      ) : (
+        <View className='review-item-list'>
+          {review.items.map((item) => (
+            <View key={item.questionId} className={`review-item review-${item.severity}`}>
+              <View className='review-item-head'>
+                <Text className='review-item-title'>{item.title}</Text>
+                <Text className='review-reason'>{reviewReasonLabel(item.reason)}</Text>
+              </View>
+              {item.selectedAnswerLabel ? (
+                <Text className='review-detail'>
+                  错选：{item.selectedAnswerLabel} · 正解：{item.correctAnswerLabel}
+                </Text>
+              ) : (
+                <Text className='review-detail'>建议先完成本题 · 正解：{item.correctAnswerLabel}</Text>
+              )}
+              <Text className='review-detail'>{item.simulationHint}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <View className='review-action-list'>
+        {review.nextActions.map((action) => (
+          <Text key={action} className='review-detail'>{action}</Text>
+        ))}
       </View>
     </View>
   )
