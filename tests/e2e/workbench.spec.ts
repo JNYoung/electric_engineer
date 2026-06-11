@@ -219,6 +219,10 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.material-spec-panel')).toContainText('素材规格速查')
     await expect(page.locator('.material-spec-panel')).toContainText('照明灯')
     await expect(page.locator('.material-spec-panel')).toContainText('PLC 控制器')
+    await expect(page.locator('.material-finder-panel')).toContainText('素材训练检索')
+    await page.locator('.material-finder-panel').locator('.material-query-button').filter({ hasText: 'NPN' }).click()
+    await expect(page.locator('.material-finder-panel')).toContainText('接近开关')
+    await expect(page.locator('.material-finder-panel')).toContainText('NPN/PNP')
 
     await openMobileTab(page, '题库')
     await expect(page.locator('.assessment-board')).toContainText('专业考试模拟')

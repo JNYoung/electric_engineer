@@ -26,6 +26,23 @@ export interface MaterialCoverageSummary {
   renovation: number
 }
 
+export interface MaterialFinderOptions {
+  query?: string
+  family?: MaterialFamily
+  level?: KnowledgeTrackId
+  limit?: number
+}
+
+export interface MaterialFinderResult {
+  query: string
+  total: number
+  filtered: number
+  matches: ComponentMaterialSpec[]
+  highlightedTags: string[]
+  safetyChecklist: string[]
+  faultSamples: string[]
+}
+
 export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
   {
     kind: 'resistor',
@@ -238,19 +255,53 @@ export function searchMaterialSpecs(query: string) {
   const normalized = query.trim().toLowerCase()
   if (!normalized) return MATERIAL_LIBRARY
 
-  return MATERIAL_LIBRARY.filter((item) =>
-    [
-      item.displayName,
-      item.family,
-      item.nominalVoltage,
-      item.currentRange,
-      ...item.keyParameters,
-      ...item.safetyNotes,
-      ...item.commonFaults,
-      ...item.examTags
-    ]
-      .join(' ')
-      .toLowerCase()
-      .includes(normalized)
+  return MATERIAL_LIBRARY.filter((item) => materialMatchesQuery(item, normalized))
+}
+
+export function buildMaterialFinder(options: MaterialFinderOptions = {}): MaterialFinderResult {
+  const query = options.query?.trim() ?? ''
+  const normalized = query.toLowerCase()
+  const limit = options.limit ?? 6
+  const candidates = MATERIAL_LIBRARY.filter((item) =>
+    (!options.family || item.family === options.family) &&
+    (!options.level || item.levels.includes(options.level))
   )
+  const matches = normalized
+    ? candidates.filter((item) => materialMatchesQuery(item, normalized))
+    : candidates
+  const visibleMatches = matches.slice(0, limit)
+
+  return {
+    query,
+    total: candidates.length,
+    filtered: matches.length,
+    matches: visibleMatches,
+    highlightedTags: uniqueMaterialValues(visibleMatches.flatMap((item) => item.examTags)).slice(0, 8),
+    safetyChecklist: uniqueMaterialValues(visibleMatches.flatMap((item) => item.safetyNotes)).slice(0, 5),
+    faultSamples: uniqueMaterialValues(visibleMatches.flatMap((item) => item.commonFaults)).slice(0, 5)
+  }
+}
+
+function materialMatchesQuery(item: ComponentMaterialSpec, normalizedQuery: string) {
+  return materialSearchText(item).includes(normalizedQuery)
+}
+
+function materialSearchText(item: ComponentMaterialSpec) {
+  return [
+    item.displayName,
+    item.family,
+    item.nominalVoltage,
+    item.currentRange,
+    item.simulationUse,
+    ...item.keyParameters,
+    ...item.safetyNotes,
+    ...item.commonFaults,
+    ...item.examTags
+  ]
+    .join(' ')
+    .toLowerCase()
+}
+
+function uniqueMaterialValues(items: string[]) {
+  return items.filter((item, index, source) => source.indexOf(item) === index)
 }
