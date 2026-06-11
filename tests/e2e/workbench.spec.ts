@@ -95,6 +95,11 @@ test.describe('electric workbench e2e', () => {
 
     await gotoWorkbench(page)
     await openMobileTab(page, '仿真')
+    const meterPanel = page.locator('.meter-panel')
+    await expect(meterPanel).toContainText('虚拟万用表')
+    await expect(meterPanel).toContainText('电源端电压')
+    await expect(meterPanel).toContainText('照明灯支路电流')
+    await expect(meterPanel).toContainText('支路电流和')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
     await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('转速 100%')
     await expectNoIconText(page)
@@ -102,6 +107,7 @@ test.describe('electric workbench e2e', () => {
 
     await page.locator('.toolbar .tool-button.primary').click()
     await expect(page.locator('.run-state')).toContainText('等待接通')
+    await expect(meterPanel).toContainText('待接线')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('未通电')
     await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('未通电')
 
@@ -141,6 +147,8 @@ test.describe('electric workbench e2e', () => {
 
     await expect(lampReturn).toContainText('已断开')
     await expect(page.locator('.run-state')).toContainText('回路接通')
+    await expect(page.locator('.meter-panel')).toContainText('OL')
+    await expect(page.locator('.meter-panel')).toContainText('接回 灯泡回负极')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('未通电')
     await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('转速 100%')
 
@@ -325,6 +333,7 @@ test.describe('electric workbench e2e', () => {
       await openMobileTab(page, '仿真')
       await expect(page.locator('.canvas-panel')).toBeVisible()
       await expect(page.locator('.inspector-panel')).toBeVisible()
+      await expect(page.locator('.meter-panel')).toBeVisible()
       await expect(page.locator('.palette-panel')).not.toBeVisible()
       await expectDevicesInsideBoard(page)
 
