@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test'
 const port = Number(process.env.E2E_PORT ?? 10086)
 const host = process.env.E2E_HOST ?? '127.0.0.1'
 const baseURL = `http://${host}:${port}`
+const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+const launchOptions = chromiumExecutablePath ? { executablePath: chromiumExecutablePath } : undefined
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -31,13 +33,15 @@ export default defineConfig({
       name: 'chromium-desktop',
       use: {
         ...devices['Desktop Chrome'],
-        viewport: { width: 1440, height: 950 }
+        viewport: { width: 1440, height: 950 },
+        launchOptions
       }
     },
     {
       name: 'chromium-mobile',
       use: {
-        ...devices['Pixel 5']
+        ...devices['Pixel 5'],
+        launchOptions
       }
     }
   ]
