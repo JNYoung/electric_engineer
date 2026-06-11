@@ -51,6 +51,7 @@ import {
   buildAssessmentCertificationReadiness,
   buildAssessmentPracticeReport,
   buildAssessmentSession,
+  buildAssessmentSkillStation,
   evaluateAssessmentSimulationReadiness,
   getAssessmentBlueprint,
   scoreAssessmentSession
@@ -85,6 +86,7 @@ import type {
   AssessmentPracticeReport,
   AssessmentScore,
   AssessmentSession,
+  AssessmentSkillStation,
   AssessmentSimulationReadiness
 } from '@/core/assessment'
 import type { MaterialFamily, MaterialFinderResult } from '@/core/materials'
@@ -243,6 +245,12 @@ function certificationStatusClass(status: AssessmentCertificationReadiness['stat
 function meterStatusClass(status: VirtualMeterWorksheet['status']) {
   if (status === '需断电排障') return 'danger'
   if (status === '待接线') return 'warning'
+  return 'ready'
+}
+
+function stationStatusClass(status: AssessmentSkillStation['status']) {
+  if (status === '需排障') return 'danger'
+  if (status === '待补证据') return 'warning'
   return 'ready'
 }
 
@@ -969,12 +977,14 @@ function AssessmentBoard({
   activeBlueprintId,
   answers,
   readiness,
+  meter,
   onSelectBlueprint,
   onAnswer
 }: {
   activeBlueprintId: AssessmentBlueprintId
   answers: Record<string, string>
   readiness: AssessmentSimulationReadiness
+  meter: VirtualMeterWorksheet
   onSelectBlueprint: (blueprintId: AssessmentBlueprintId) => void
   onAnswer: (questionId: string, answerId: string) => void
 }) {
@@ -983,6 +993,7 @@ function AssessmentBoard({
   const score = scoreAssessmentSession(session, answers)
   const report = buildAssessmentPracticeReport(session, answers, readiness)
   const certification = buildAssessmentCertificationReadiness(session, answers, readiness)
+  const station = buildAssessmentSkillStation(session, answers, readiness, meter)
   const scoreClass = score.passed ? 'passed' : score.answered > 0 ? 'needs-work' : 'ready'
 
   return (
@@ -1058,6 +1069,7 @@ function AssessmentBoard({
             readiness={readiness}
             report={report}
             certification={certification}
+            station={station}
             session={session}
             score={score}
           />
@@ -1127,6 +1139,7 @@ function AssessmentRequirements({
   readiness,
   report,
   certification,
+  station,
   session,
   score
 }: {
@@ -1134,6 +1147,7 @@ function AssessmentRequirements({
   readiness: AssessmentSimulationReadiness
   report: AssessmentPracticeReport
   certification: AssessmentCertificationReadiness
+  station: AssessmentSkillStation
   session: AssessmentSession
   score: AssessmentScore
 }) {
@@ -1196,9 +1210,59 @@ function AssessmentRequirements({
         </View>
       </View>
 
+      <AssessmentStationPanel station={station} />
       <CertificationReadinessPanel certification={certification} />
       <PracticeReportPanel report={report} />
     </>
+  )
+}
+
+function AssessmentStationPanel({ station }: { station: AssessmentSkillStation }) {
+  const statusClass = stationStatusClass(station.status)
+
+  return (
+    <View className='station-panel'>
+      <View className='assessment-panel-head'>
+        <View>
+          <Text className='note-title'>考试工位</Text>
+          <Text className='station-label'>{station.stationLabel}</Text>
+        </View>
+        <Text className={`station-status status-${statusClass}`}>{station.status}</Text>
+      </View>
+      <Text className='station-summary'>{station.evidenceSummary}</Text>
+      <View className='station-metrics'>
+        <View>
+          <Text className='metric-label'>总进度</Text>
+          <Text className='metric-value'>{station.overallPercent}%</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>闸门</Text>
+          <Text className='metric-value'>{station.completedGates}/{station.totalGates}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>结果</Text>
+          <Text className='metric-value'>{station.ready ? '可提交' : '待补'}</Text>
+        </View>
+      </View>
+      <View className='station-gate-list'>
+        {station.gates.map((gate) => (
+          <View key={gate.id} className={`station-gate gate-${gate.severity} ${gate.passed ? 'is-passed' : ''}`}>
+            <Text className='check-dot'>{gate.passed ? '✓' : '·'}</Text>
+            <View>
+              <Text className='check-title'>{gate.label}</Text>
+              <Text className='check-detail'>{gate.detail}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      {station.nextActions.length > 0 && (
+        <View className='station-next-list'>
+          {station.nextActions.map((action) => (
+            <Text key={action}>{action}</Text>
+          ))}
+        </View>
+      )}
+    </View>
   )
 }
 
@@ -2011,6 +2075,7 @@ export default function Index() {
           activeBlueprintId={activeAssessmentId}
           answers={assessmentAnswers}
           readiness={assessmentReadiness}
+          meter={virtualMeter}
           onSelectBlueprint={changeAssessment}
           onAnswer={answerAssessmentQuestion}
         />

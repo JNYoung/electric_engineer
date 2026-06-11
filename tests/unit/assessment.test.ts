@@ -4,11 +4,13 @@ import {
   buildAssessmentCertificationReadiness,
   buildAssessmentPracticeReport,
   buildAssessmentSession,
+  buildAssessmentSkillStation,
   evaluateAssessmentSimulationReadiness,
   getBlueprintsForTrack,
   scoreAssessmentSession
 } from '../../src/core/assessment'
 import { createInitialCircuit } from '../../src/core/circuitFactory'
+import { buildVirtualMeterWorksheet } from '../../src/core/instruments'
 import { simulateCircuit } from '../../src/core/simulator'
 
 describe('assessment blueprints', () => {
@@ -160,5 +162,34 @@ describe('assessment blueprints', () => {
     expect(passedReadiness.completedGates).toBe(3)
     expect(simulationGapReadiness.status).toBe('待补仿真')
     expect(simulationGapReadiness.nextActions.some((action) => action.includes('闭合主开关'))).toBe(true)
+  })
+
+  it('builds assessment station gates from theory, simulation, and meter evidence', () => {
+    const session = buildAssessmentSession('high-school-foundation-check')
+    const model = createInitialCircuit(12)
+    const simulation = simulateCircuit(model)
+    const readiness = evaluateAssessmentSimulationReadiness(session.blueprintId, model, simulation)
+    const meter = buildVirtualMeterWorksheet(model, simulation)
+    const perfectAnswers = Object.fromEntries(session.items.map((item) => [item.question.id, item.question.answerId]))
+    const emptyStation = buildAssessmentSkillStation(session, {}, readiness, meter)
+    const readyStation = buildAssessmentSkillStation(session, perfectAnswers, readiness, meter)
+    const dangerModel = createInitialCircuit(48)
+    const dangerSimulation = simulateCircuit(dangerModel)
+    const dangerStation = buildAssessmentSkillStation(
+      session,
+      perfectAnswers,
+      evaluateAssessmentSimulationReadiness(session.blueprintId, dangerModel, dangerSimulation),
+      buildVirtualMeterWorksheet(dangerModel, dangerSimulation)
+    )
+
+    expect(emptyStation.status).toBe('待补证据')
+    expect(emptyStation.gates.find((gate) => gate.id === 'theory')?.passed).toBe(false)
+    expect(emptyStation.gates.find((gate) => gate.id === 'meter')?.passed).toBe(true)
+    expect(readyStation.status).toBe('可提交')
+    expect(readyStation.ready).toBe(true)
+    expect(readyStation.completedGates).toBe(3)
+    expect(dangerStation.status).toBe('需排障')
+    expect(dangerStation.gates.find((gate) => gate.id === 'meter')?.severity).toBe('danger')
+    expect(dangerStation.nextActions.some((action) => action.includes('降低电源'))).toBe(true)
   })
 })
