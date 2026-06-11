@@ -61,7 +61,8 @@ import {
   buildMaterialFinder,
   getMaterialCoverageSummary,
   getMaterialSpec,
-  getMaterialSpecsByFamily
+  getMaterialSpecsByFamily,
+  getMaterialTrainingKits
 } from '@/core/materials'
 import { buildVirtualMeterWorksheet } from '@/core/instruments'
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire } from '@/core/types'
@@ -89,7 +90,7 @@ import type {
   AssessmentSkillStation,
   AssessmentSimulationReadiness
 } from '@/core/assessment'
-import type { MaterialFamily, MaterialFinderResult } from '@/core/materials'
+import type { MaterialFamily, MaterialFinderResult, MaterialTrainingKitPlan } from '@/core/materials'
 import type { VirtualMeterWorksheet } from '@/core/instruments'
 import type {
   AuthSession,
@@ -1392,6 +1393,17 @@ function MaterialSpecPanel({
   const referenceSpecs = familySpecs
     .filter((item) => item.kind !== primarySpec.kind)
     .slice(0, 4)
+  const levelTrainingKits = getMaterialTrainingKits({
+    family: activeFamily,
+    level: activeTrackId,
+    limit: 2
+  })
+  const trainingKits = levelTrainingKits.length > 0
+    ? levelTrainingKits
+    : getMaterialTrainingKits({
+      family: activeFamily,
+      limit: 2
+    })
 
   return (
     <View className='material-spec-panel'>
@@ -1449,11 +1461,61 @@ function MaterialSpecPanel({
         onQueryChange={onMaterialQueryChange}
       />
 
+      <MaterialTrainingKitsPanel
+        kits={trainingKits}
+      />
+
       <View className='material-mini-list'>
         {referenceSpecs.map((item) => (
           <View key={item.kind} className='material-mini-row'>
             <Text>{item.displayName}</Text>
             <Text>{item.examTags.slice(0, 2).join(' / ')}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
+function MaterialTrainingKitsPanel({
+  kits
+}: {
+  kits: MaterialTrainingKitPlan[]
+}) {
+  return (
+    <View className='material-kit-panel'>
+      <View className='section-head'>
+        <Text className='note-title'>素材实训包</Text>
+        <Text className='material-finder-count'>{kits.length} 套</Text>
+      </View>
+      <Text className='material-detail'>当前行业可衔接器件、故障和安全检查。</Text>
+      <View className='material-kit-list'>
+        {kits.map((kit) => (
+          <View key={kit.id} className={`material-kit-card ${kit.readiness === '素材齐备' ? 'is-ready' : 'needs-material'}`}>
+            <View className='material-card-head'>
+              <Text className='material-finder-name'>{kit.title}</Text>
+              <Text className='material-family'>{kit.readiness}</Text>
+            </View>
+            <Text className='material-detail'>{kit.objective}</Text>
+            <Text className='material-kit-scenario'>{kit.scenario}</Text>
+            <View className='material-kit-metrics'>
+              <View>
+                <Text className='metric-label'>组件</Text>
+                <Text className='metric-value'>{kit.componentCount}</Text>
+              </View>
+              <View>
+                <Text className='metric-label'>分钟</Text>
+                <Text className='metric-value'>{kit.estimatedMinutes}</Text>
+              </View>
+            </View>
+            <MaterialChipRow title='组件' items={kit.components.map((item) => item.displayName).slice(0, 6)} />
+            <MaterialChipRow title='考点' items={kit.examTags.slice(0, 5)} />
+            {kit.safetyChecklist.length > 0 && (
+              <Text className='material-kit-foot'>安全：{kit.safetyChecklist.slice(0, 2).join(' / ')}</Text>
+            )}
+            {kit.faultSamples.length > 0 && (
+              <Text className='material-kit-foot'>故障：{kit.faultSamples.slice(0, 2).join(' / ')}</Text>
+            )}
           </View>
         ))}
       </View>

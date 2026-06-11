@@ -1520,6 +1520,14 @@ $ink: #1f2937;
   background: #ffffff;
 }
 
+.material-kit-panel {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #d9eadf;
+  border-radius: 8px;
+  background: #fbfefc;
+}
+
 .material-finder-count {
   flex: 0 0 auto;
   min-height: 22px;
@@ -1575,12 +1583,36 @@ $ink: #1f2937;
   margin-top: 10px;
 }
 
+.material-kit-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .material-finder-card {
   min-width: 0;
   padding: 9px;
   border: 1px solid #edf1f6;
   border-radius: 8px;
   background: #f8fbff;
+}
+
+.material-kit-card {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #e0efe6;
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.material-kit-card.is-ready {
+  border-color: #bdebdc;
+}
+
+.material-kit-card.needs-material {
+  border-color: #f5c58d;
 }
 
 .material-finder-name {
@@ -1641,6 +1673,39 @@ $ink: #1f2937;
 .material-detail {
   margin-top: 8px;
   color: $muted;
+}
+
+.material-kit-scenario {
+  display: block;
+  margin-top: 7px;
+  color: #344054;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.material-kit-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.material-kit-metrics > view,
+.material-kit-metrics > div {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.material-kit-foot {
+  display: block;
+  margin-top: 8px;
+  color: #344054;
+  font-size: 11px;
+  line-height: 17px;
+  font-weight: 800;
 }
 
 .material-chip-block {
