@@ -3,6 +3,12 @@ import type { KnowledgeTrackId } from './knowledge'
 
 export type MaterialFamily = '常用器件' | '工程工控' | '装修工控'
 
+export type MaterialTrainingKitId =
+  | 'high-school-parallel-kit'
+  | 'university-interface-kit'
+  | 'electrician-control-kit'
+  | 'renovation-smart-home-kit'
+
 export interface ComponentMaterialSpec {
   kind: DeviceKind
   family: MaterialFamily
@@ -41,6 +47,41 @@ export interface MaterialFinderResult {
   highlightedTags: string[]
   safetyChecklist: string[]
   faultSamples: string[]
+}
+
+export interface MaterialTrainingKit {
+  id: MaterialTrainingKitId
+  level: KnowledgeTrackId
+  family: MaterialFamily
+  title: string
+  scenario: string
+  objective: string
+  componentKinds: DeviceKind[]
+  estimatedMinutes: number
+  assessmentTags: string[]
+}
+
+export interface MaterialTrainingKitOptions {
+  family?: MaterialFamily
+  level?: KnowledgeTrackId
+  limit?: number
+}
+
+export interface MaterialTrainingKitPlan {
+  id: MaterialTrainingKitId
+  level: KnowledgeTrackId
+  family: MaterialFamily
+  title: string
+  scenario: string
+  objective: string
+  estimatedMinutes: number
+  components: ComponentMaterialSpec[]
+  componentCount: number
+  examTags: string[]
+  safetyChecklist: string[]
+  faultSamples: string[]
+  readiness: '素材齐备' | '需补素材'
+  missingKinds: DeviceKind[]
 }
 
 export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
@@ -149,6 +190,19 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     examTags: ['过载保护', '电机', '安全链']
   },
   {
+    kind: 'emergency-stop',
+    family: '工程工控',
+    displayName: '急停按钮',
+    levels: ['electrician'],
+    nominalVoltage: '控制侧 24V DC / 220V AC 常见',
+    currentRange: '触点按控制回路电流选型',
+    keyParameters: ['常闭触点', '自锁结构', '复位方式', '安全回路'],
+    simulationUse: '急停串联、断电保持和安全联锁训练',
+    safetyNotes: ['急停应串入安全链', '复位前必须确认危险源解除'],
+    commonFaults: ['触点粘连', '常闭接错', '复位机构卡滞'],
+    examTags: ['急停', '安全链', '联锁']
+  },
+  {
     kind: 'proximity-sensor',
     family: '工程工控',
     displayName: '接近开关',
@@ -173,6 +227,45 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     safetyNotes: ['主回路危险电压需隔离', '控制端不能直接接强电'],
     commonFaults: ['端子参数不匹配', '公共端接错', '故障未复位'],
     examTags: ['变频器', '启停', '模拟量']
+  },
+  {
+    kind: 'stack-light',
+    family: '工程工控',
+    displayName: '三色报警灯',
+    levels: ['electrician'],
+    nominalVoltage: '24V DC 常见',
+    currentRange: '每层 20mA - 200mA',
+    keyParameters: ['灯层颜色', '蜂鸣器', '公共端', '闪烁模式'],
+    simulationUse: '设备状态、故障报警和 PLC 输出点训练',
+    safetyNotes: ['输出点电流需留裕量', '蜂鸣器回路应可独立测试'],
+    commonFaults: ['公共端接错', '灯层不亮', '报警逻辑反向'],
+    examTags: ['报警', 'PLC 输出', '状态指示']
+  },
+  {
+    kind: 'solenoid-valve',
+    family: '工程工控',
+    displayName: '电磁阀',
+    levels: ['electrician', 'university'],
+    nominalVoltage: '24V DC / 220V AC 按阀体铭牌',
+    currentRange: '100mA - 1A 常见',
+    keyParameters: ['线圈电压', '阀位类型', '保持电流', '浪涌抑制'],
+    simulationUse: '执行器驱动、续流保护和动作反馈训练',
+    safetyNotes: ['线圈电压必须匹配', '感性负载应配置吸收或续流保护'],
+    commonFaults: ['线圈开路', '阀芯卡滞', '驱动触点烧蚀'],
+    examTags: ['执行器', '感性负载', '续流保护']
+  },
+  {
+    kind: 'pressure-transmitter',
+    family: '工程工控',
+    displayName: '压力变送器',
+    levels: ['university', 'electrician'],
+    nominalVoltage: '12V - 30V DC',
+    currentRange: '4mA - 20mA 或电压输出',
+    keyParameters: ['量程', '输出信号', '二线/三线制', '零点校准'],
+    simulationUse: '模拟量采集、线性换算和断线诊断训练',
+    safetyNotes: ['屏蔽线单端接地', '供电和信号公共端需按手册接线'],
+    commonFaults: ['零点漂移', '信号断线', '量程设置错误'],
+    examTags: ['模拟量', '4-20mA', '线性换算']
   },
   {
     kind: 'smart-gateway',
@@ -201,6 +294,32 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     examTags: ['智能面板', '照明场景', '输入']
   },
   {
+    kind: 'dimmer-module',
+    family: '装修工控',
+    displayName: '调光模块',
+    levels: ['high-school', 'electrician'],
+    nominalVoltage: '12V/24V 灯带或市电调光按产品',
+    currentRange: '通道电流按灯带功率选型',
+    keyParameters: ['PWM 频率', '通道数', '最大功率', '负载类型'],
+    simulationUse: '照明功率、占空比和弱电控制训练',
+    safetyNotes: ['通道负载不能超额定功率', '市电调光需区分火线和负载线'],
+    commonFaults: ['闪烁', '过载保护', '灯带极性接反'],
+    examTags: ['调光', 'PWM', '照明功率']
+  },
+  {
+    kind: 'curtain-motor',
+    family: '装修工控',
+    displayName: '窗帘电机',
+    levels: ['electrician'],
+    nominalVoltage: '24V DC 或 220V AC',
+    currentRange: '0.5A - 3A 常见',
+    keyParameters: ['正反转', '行程限位', '堵转保护', '控制协议'],
+    simulationUse: '正反转互锁、限位保护和场景联动训练',
+    safetyNotes: ['正反转不可同时得电', '行程调试前先空载试运行'],
+    commonFaults: ['限位失效', '堵转过流', '方向接反'],
+    examTags: ['正反转', '限位', '场景联动']
+  },
+  {
     kind: 'leak-detector',
     family: '装修工控',
     displayName: '漏水检测器',
@@ -225,6 +344,96 @@ export const MATERIAL_LIBRARY: ComponentMaterialSpec[] = [
     safetyNotes: ['探头线避免强电干扰', '执行侧负载需按容量选型'],
     commonFaults: ['探头开路', '继电器不吸合', '阀门无动作'],
     examTags: ['暖通', '温控', '执行器']
+  },
+  {
+    kind: 'scene-panel',
+    family: '装修工控',
+    displayName: '场景面板',
+    levels: ['electrician'],
+    nominalVoltage: '12V/24V 控制侧或总线供电',
+    currentRange: '10mA - 150mA',
+    keyParameters: ['场景键', '状态反馈', '总线地址', '长按逻辑'],
+    simulationUse: '多回路场景、联动触发和状态反馈训练',
+    safetyNotes: ['总线地址避免冲突', '调试时保留手动旁路控制'],
+    commonFaults: ['场景未绑定', '地址重复', '反馈状态不同步'],
+    examTags: ['场景联动', '总线地址', '状态反馈']
+  },
+  {
+    kind: 'access-control',
+    family: '装修工控',
+    displayName: '门禁控制器',
+    levels: ['electrician'],
+    nominalVoltage: '12V DC 常见',
+    currentRange: '控制器 100mA - 1A，锁具另算',
+    keyParameters: ['门磁输入', '锁输出', '出门按钮', '消防联动'],
+    simulationUse: '安防门禁、回线检测和联动释放训练',
+    safetyNotes: ['消防释放优先级必须保留', '锁具供电应单独核算容量'],
+    commonFaults: ['门磁常开常闭接错', '锁输出过载', '出门按钮回线断开'],
+    examTags: ['门禁', '安防联动', '回线检测']
+  }
+]
+
+export const MATERIAL_TRAINING_KITS: MaterialTrainingKit[] = [
+  {
+    id: 'high-school-parallel-kit',
+    level: 'high-school',
+    family: '常用器件',
+    title: '高中并联测量包',
+    scenario: '12V 照明灯、电阻和 LED 组成低压并联支路，观察电压、电流和功率变化。',
+    objective: '用常用器件完成欧姆定律、并联电压和电功率验证。',
+    componentKinds: ['lamp', 'resistor', 'led'],
+    estimatedMinutes: 18,
+    assessmentTags: ['欧姆定律', '并联支路', '功率']
+  },
+  {
+    id: 'university-interface-kit',
+    level: 'university',
+    family: '工程工控',
+    title: '大学接口与模拟量包',
+    scenario: '控制器模块、PLC、接近开关和压力变送器组成接口供电与信号采集训练回路。',
+    objective: '把 KCL、电源公共端、模拟量线性换算映射到真实工控接口。',
+    componentKinds: ['microcontroller', 'plc-controller', 'proximity-sensor', 'pressure-transmitter', 'resistor'],
+    estimatedMinutes: 28,
+    assessmentTags: ['KCL', '接口供电', '模拟量']
+  },
+  {
+    id: 'electrician-control-kit',
+    level: 'electrician',
+    family: '工程工控',
+    title: '电工低压控制排障包',
+    scenario: '急停、保险丝、接触器、热继电器、传感器、电磁阀和三色灯组成一套低压控制工位。',
+    objective: '训练安全隔离、保护链、执行器驱动和现场故障回线排查。',
+    componentKinds: [
+      'emergency-stop',
+      'fuse',
+      'contactor-coil',
+      'thermal-overload',
+      'proximity-sensor',
+      'solenoid-valve',
+      'stack-light'
+    ],
+    estimatedMinutes: 36,
+    assessmentTags: ['安全隔离', '保护链', '执行器']
+  },
+  {
+    id: 'renovation-smart-home-kit',
+    level: 'electrician',
+    family: '装修工控',
+    title: '装修智能联动包',
+    scenario: '网关、智能面板、调光模块、窗帘电机、漏水检测、地暖温控和门禁组成住宅弱电联动工位。',
+    objective: '训练强弱电隔离、总线地址、场景联动、报警与暖通执行的综合排查。',
+    componentKinds: [
+      'smart-gateway',
+      'smart-switch-panel',
+      'dimmer-module',
+      'curtain-motor',
+      'leak-detector',
+      'floor-heating-thermostat',
+      'scene-panel',
+      'access-control'
+    ],
+    estimatedMinutes: 34,
+    assessmentTags: ['智能化', '场景联动', '安防联动']
   }
 ]
 
@@ -279,6 +488,46 @@ export function buildMaterialFinder(options: MaterialFinderOptions = {}): Materi
     highlightedTags: uniqueMaterialValues(visibleMatches.flatMap((item) => item.examTags)).slice(0, 8),
     safetyChecklist: uniqueMaterialValues(visibleMatches.flatMap((item) => item.safetyNotes)).slice(0, 5),
     faultSamples: uniqueMaterialValues(visibleMatches.flatMap((item) => item.commonFaults)).slice(0, 5)
+  }
+}
+
+export function getMaterialTrainingKit(kitId: MaterialTrainingKitId) {
+  const kit = MATERIAL_TRAINING_KITS.find((item) => item.id === kitId)
+  return kit ? buildMaterialTrainingKitPlan(kit) : undefined
+}
+
+export function getMaterialTrainingKits(options: MaterialTrainingKitOptions = {}) {
+  const kits = MATERIAL_TRAINING_KITS.filter((kit) =>
+    (!options.family || kit.family === options.family) &&
+    (!options.level || kit.level === options.level)
+  )
+  const visibleKits = options.limit ? kits.slice(0, options.limit) : kits
+
+  return visibleKits.map(buildMaterialTrainingKitPlan)
+}
+
+function buildMaterialTrainingKitPlan(kit: MaterialTrainingKit): MaterialTrainingKitPlan {
+  const components = kit.componentKinds
+    .map((kind) => getMaterialSpec(kind))
+    .filter((item): item is ComponentMaterialSpec => Boolean(item))
+  const coveredKinds = new Set(components.map((item) => item.kind))
+  const missingKinds = kit.componentKinds.filter((kind) => !coveredKinds.has(kind))
+
+  return {
+    id: kit.id,
+    level: kit.level,
+    family: kit.family,
+    title: kit.title,
+    scenario: kit.scenario,
+    objective: kit.objective,
+    estimatedMinutes: kit.estimatedMinutes,
+    components,
+    componentCount: components.length,
+    examTags: uniqueMaterialValues([...kit.assessmentTags, ...components.flatMap((item) => item.examTags)]).slice(0, 8),
+    safetyChecklist: uniqueMaterialValues(components.flatMap((item) => item.safetyNotes)).slice(0, 6),
+    faultSamples: uniqueMaterialValues(components.flatMap((item) => item.commonFaults)).slice(0, 6),
+    readiness: missingKinds.length === 0 ? '素材齐备' : '需补素材',
+    missingKinds
   }
 }
 

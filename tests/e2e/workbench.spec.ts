@@ -238,6 +238,10 @@ test.describe('electric workbench e2e', () => {
     await page.locator('.material-finder-panel').locator('.material-query-button').filter({ hasText: 'NPN' }).click()
     await expect(page.locator('.material-finder-panel')).toContainText('接近开关')
     await expect(page.locator('.material-finder-panel')).toContainText('NPN/PNP')
+    await expect(page.locator('.material-kit-panel')).toContainText('素材实训包')
+    await expect(page.locator('.material-kit-panel')).toContainText('电工低压控制排障包')
+    await expect(page.locator('.material-kit-panel')).toContainText('素材齐备')
+    await expect(page.locator('.material-kit-panel')).toContainText('电磁阀')
 
     await openMobileTab(page, '题库')
     await expect(page.locator('.assessment-board')).toContainText('专业考试模拟')
@@ -290,6 +294,8 @@ test.describe('electric workbench e2e', () => {
     await page.locator('.domain-tab').filter({ hasText: '装修工控' }).click()
     await openMobileTab(page, '素材')
     await expect(page.locator('.material-spec-panel')).toContainText('智能网关')
+    await expect(page.locator('.material-kit-panel')).toContainText('装修智能联动包')
+    await expect(page.locator('.material-kit-panel')).toContainText('窗帘电机')
 
     await expectHealthyRuntime(runtimeProblems)
   })
