@@ -2,7 +2,7 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 import path from 'path'
 
 const outputRoot = process.env.TARO_ENV === 'weapp' ? 'dist/weapp' : 'dist/h5'
-const buildTarget = process.env.TARO_ENV ?? 'h5'
+const buildTarget = process.env.BUILD_TARGET ?? process.env.TARO_ENV ?? 'h5'
 const telemetryRegion = process.env.TELEMETRY_REGION === 'overseas' ? 'overseas' : 'domestic'
 const telemetryEndpoint =
   process.env.TELEMETRY_ENDPOINT ??
@@ -29,7 +29,12 @@ const config: UserConfigExport = {
     }
   },
   alias: {
-    '@': path.resolve(__dirname, '..', 'src')
+    '@': path.resolve(__dirname, '..', 'src'),
+    ...(buildTarget === 'android-google-play'
+      ? {}
+      : {
+          '@capacitor/core': path.resolve(__dirname, '..', 'src/core/capacitorCoreShim.ts')
+        })
   },
   cache: {
     enable: true

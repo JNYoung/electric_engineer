@@ -1,5 +1,5 @@
 export type TelemetryRegion = 'domestic' | 'overseas'
-export type TelemetryBuildTarget = 'h5' | 'weapp' | 'ios' | 'android' | 'app' | 'unknown'
+export type TelemetryBuildTarget = 'h5' | 'weapp' | 'ios' | 'android' | 'android-google-play' | 'app' | 'unknown'
 export type TelemetryPrimitive = string | number | boolean | null
 export type TelemetryProperties = Record<string, TelemetryPrimitive | undefined>
 
@@ -229,7 +229,14 @@ export function normalizeTelemetryRegion(value: unknown, fallback: TelemetryRegi
 }
 
 export function normalizeBuildTarget(value: unknown): TelemetryBuildTarget {
-  if (value === 'h5' || value === 'weapp' || value === 'ios' || value === 'android' || value === 'app') {
+  if (
+    value === 'h5' ||
+    value === 'weapp' ||
+    value === 'ios' ||
+    value === 'android' ||
+    value === 'android-google-play' ||
+    value === 'app'
+  ) {
     return value
   }
   return 'unknown'

@@ -67,6 +67,7 @@ import {
 } from '@/core/materials'
 import { buildVirtualMeterWorksheet } from '@/core/instruments'
 import { createTelemetryClient } from '@/core/telemetry'
+import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@/core/googlePlayNative'
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire, WirePathMode } from '@/core/types'
 import type {
   ChallengeEvaluation,
@@ -178,6 +179,12 @@ function getRuntimeLocale() {
     return navigator.language
   }
   return 'zh-CN'
+}
+
+function getAdPlacementForMobileTab(tabId: MobileTabId) {
+  if (tabId === 'library') return 'library_banner'
+  if (tabId === 'account') return 'account_banner'
+  return 'hidden'
 }
 
 function terminalPoint(device: CircuitDevice, terminalId: string) {
@@ -2067,7 +2074,8 @@ export default function Index() {
         context: {
           platform: getRuntimeTelemetryPlatform(),
           locale: getRuntimeLocale()
-        }
+        },
+        transport: createGooglePlayTelemetryTransport()
       }),
     []
   )
@@ -2135,6 +2143,10 @@ export default function Index() {
       wire_count: model.wires.length
     })
   }, [])
+
+  useEffect(() => {
+    syncGooglePlayAdPlacement(getAdPlacementForMobileTab(activeMobileTab))
+  }, [activeMobileTab])
 
   useEffect(() => {
     Taro.nextTick(() => {
