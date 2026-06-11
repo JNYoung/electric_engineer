@@ -1,5 +1,9 @@
-import { isLoadKind } from './registry'
-import type { CircuitModel, SimulationResult } from './types'
+import {
+  getDeviceDefinition,
+  isConductiveControlKind,
+  isLoadKind
+} from './registry'
+import type { CircuitDevice, DeviceEffect, CircuitModel, SimulationResult } from './types'
 
 export type KnowledgeTrackId = 'high-school' | 'university' | 'electrician'
 export type KnowledgeLevel = '高中基础' | '大学电路' | '电工实操'
@@ -54,6 +58,27 @@ export interface KnowledgeSimulationCheck {
   label: string
   detail: string
   passed: boolean
+}
+
+export type KnowledgeMeasurementStatus = '可测量' | '待接线' | '风险'
+export type KnowledgeMeasurementSeverity = 'success' | 'warning' | 'danger'
+
+export interface KnowledgeMeasurementItem {
+  id: string
+  label: string
+  value: string
+  detail: string
+  passed: boolean
+  severity: KnowledgeMeasurementSeverity
+}
+
+export interface KnowledgeMeasurementWorksheet {
+  trackId: KnowledgeTrackId
+  status: KnowledgeMeasurementStatus
+  passed: number
+  total: number
+  items: KnowledgeMeasurementItem[]
+  nextActions: string[]
 }
 
 export type ReviewReason = 'wrong' | 'unanswered'
@@ -408,6 +433,182 @@ function uniqueReviewText(items: string[]) {
   return items
     .filter((item) => item.trim().length > 0)
     .filter((item, index, source) => source.indexOf(item) === index)
+}
+
+export function buildKnowledgeMeasurementWorksheet(
+  trackId: KnowledgeTrackId,
+  model: CircuitModel,
+  simulation: SimulationResult
+): KnowledgeMeasurementWorksheet {
+  const loadDevices = model.devices.filter((device) => device.enabled !== false && isLoadKind(device.kind))
+  const activeEffects = getActiveLoadEffects(loadDevices, simulation)
+  const items =
+    trackId === 'university'
+      ? buildUniversityMeasurements(activeEffects, simulation)
+      : trackId === 'electrician'
+        ? buildElectricianMeasurements(model, loadDevices, simulation)
+        : buildHighSchoolMeasurements(activeEffects, simulation)
+  const passed = items.filter((item) => item.passed).length
+
+  return {
+    trackId,
+    status: getMeasurementStatus(items, simulation),
+    passed,
+    total: items.length,
+    items,
+    nextActions: uniqueReviewText(items.filter((item) => !item.passed).map((item) => item.detail)).slice(0, 3)
+  }
+}
+
+function buildHighSchoolMeasurements(
+  activeEffects: Array<{ device: CircuitDevice; effect: DeviceEffect }>,
+  simulation: SimulationResult
+): KnowledgeMeasurementItem[] {
+  const first = activeEffects[0]
+  const voltageSpread = getVoltageSpread(activeEffects)
+
+  return [
+    {
+      id: 'hs-supply-voltage',
+      label: '电源电压',
+      value: `${formatMeasurement(simulation.supplyVoltage)}V`,
+      passed: simulation.hasSource && simulation.supplyVoltage > 0,
+      severity: simulation.hasSource ? 'success' : 'warning',
+      detail: simulation.hasSource ? '电源可作为欧姆定律计算的电压样本。' : '放置正负极电源后再测量电压。'
+    },
+    {
+      id: 'hs-load-current',
+      label: first ? `${first.device.label}电流` : '负载电流',
+      value: first ? `${formatMeasurement(first.effect.current)}A` : '0.00A',
+      passed: Boolean(first && first.effect.current > 0),
+      severity: first ? 'success' : 'warning',
+      detail: first ? '至少一个负载形成电压、电流、功率观测样本。' : '闭合开关并恢复回线，让至少一个负载通电。'
+    },
+    {
+      id: 'hs-parallel-voltage-spread',
+      label: '并联压差',
+      value: activeEffects.length >= 2 ? `${formatMeasurement(voltageSpread)}V` : '待测',
+      passed: activeEffects.length >= 2 && voltageSpread <= 0.3,
+      severity: activeEffects.length >= 2 && voltageSpread <= 0.3 ? 'success' : 'warning',
+      detail: activeEffects.length >= 2 ? '多个支路端电压接近，可验证并联电压相等。' : '接通两个并联负载后比较端电压。'
+    }
+  ]
+}
+
+function buildUniversityMeasurements(
+  activeEffects: Array<{ device: CircuitDevice; effect: DeviceEffect }>,
+  simulation: SimulationResult
+): KnowledgeMeasurementItem[] {
+  const branchCurrentSum = activeEffects.reduce((total, item) => total + item.effect.current, 0)
+  const currentGap = Math.abs(branchCurrentSum - simulation.totalCurrent)
+  const voltageSpread = getVoltageSpread(activeEffects)
+
+  return [
+    {
+      id: 'uni-current-sum',
+      label: '支路电流和',
+      value: `${formatMeasurement(branchCurrentSum)}A`,
+      passed: activeEffects.length >= 2 && currentGap <= 0.03,
+      severity: activeEffects.length >= 2 && currentGap <= 0.03 ? 'success' : 'warning',
+      detail: activeEffects.length >= 2 ? '支路电流和接近总电流，可作为 KCL 样本。' : '接通两个以上并联负载后再验证 KCL。'
+    },
+    {
+      id: 'uni-kcl-gap',
+      label: 'KCL 误差',
+      value: `${formatMeasurement(currentGap)}A`,
+      passed: activeEffects.length >= 2 && currentGap <= 0.03,
+      severity: activeEffects.length >= 2 && currentGap <= 0.03 ? 'success' : 'warning',
+      detail: currentGap <= 0.03 ? '误差在训练容差内。' : '检查是否存在断线、短路或未工作的支路。'
+    },
+    {
+      id: 'uni-voltage-spread',
+      label: '节点压差',
+      value: activeEffects.length >= 2 ? `${formatMeasurement(voltageSpread)}V` : '待测',
+      passed: activeEffects.length >= 2 && voltageSpread <= 0.3,
+      severity: activeEffects.length >= 2 && voltageSpread <= 0.3 ? 'success' : 'warning',
+      detail: activeEffects.length >= 2 ? '并联节点电压差可用于大学电路校核。' : '恢复两个并联负载后再比较节点电压。'
+    }
+  ]
+}
+
+function buildElectricianMeasurements(
+  model: CircuitModel,
+  loadDevices: CircuitDevice[],
+  simulation: SimulationResult
+): KnowledgeMeasurementItem[] {
+  const protectionCount = model.devices.filter((device) =>
+    device.enabled !== false &&
+    (isConductiveControlKind(device.kind) ||
+      ['fuse', 'thermal-overload', 'emergency-stop'].includes(device.kind))
+  ).length
+  const mismatchedLoads = loadDevices.filter((device) => {
+    const ratedVoltage = device.ratedVoltage ?? getDeviceDefinition(device.kind).defaultRatedVoltage
+    return typeof ratedVoltage === 'number' && ratedVoltage > 0 && simulation.supplyVoltage > ratedVoltage * 1.25
+  })
+  const dangerIssues = simulation.issues.filter((issue) => issue.severity === 'error')
+  const safeSupplyPassed = simulation.hasSource && simulation.supplyVoltage > 0 && simulation.supplyVoltage <= 36
+
+  return [
+    {
+      id: 'pro-safe-voltage',
+      label: '训练电源',
+      value: `${formatMeasurement(simulation.supplyVoltage)}V`,
+      passed: safeSupplyPassed,
+      severity: !simulation.hasSource ? 'warning' : simulation.supplyVoltage <= 36 ? 'success' : 'danger',
+      detail: !simulation.hasSource
+        ? '放置正负极电源后再做实操验证。'
+        : simulation.supplyVoltage <= 36
+          ? '电源处于低压训练范围。'
+          : '把训练电源降到 36V 以内再进行实操验证。'
+    },
+    {
+      id: 'pro-protection-count',
+      label: '保护器件',
+      value: `${protectionCount} 个`,
+      passed: protectionCount > 0,
+      severity: protectionCount > 0 ? 'success' : 'warning',
+      detail: protectionCount > 0 ? '当前回路具备可隔离的控制/保护链。' : '加入主开关、保险、热继或急停后再验收。'
+    },
+    {
+      id: 'pro-risk-count',
+      label: '危险项',
+      value: `${dangerIssues.length + (simulation.shortCircuit ? 1 : 0)} 项`,
+      passed: !simulation.shortCircuit && dangerIssues.length === 0,
+      severity: !simulation.shortCircuit && dangerIssues.length === 0 ? 'success' : 'danger',
+      detail: simulation.shortCircuit || dangerIssues.length > 0 ? '先排除短路或严重错误，再恢复训练。' : '未发现短路级危险。'
+    },
+    {
+      id: 'pro-rated-mismatch',
+      label: '过压负载',
+      value: `${mismatchedLoads.length} 个`,
+      passed: mismatchedLoads.length === 0,
+      severity: mismatchedLoads.length === 0 ? 'success' : 'danger',
+      detail: mismatchedLoads.length === 0 ? '负载额定电压未发现明显过压。' : `${mismatchedLoads.map((device) => device.label).join('、')} 需要重新匹配额定电压。`
+    }
+  ]
+}
+
+function getActiveLoadEffects(loadDevices: CircuitDevice[], simulation: SimulationResult) {
+  return loadDevices
+    .map((device) => ({ device, effect: simulation.effects[device.id] }))
+    .filter((item): item is { device: CircuitDevice; effect: DeviceEffect } =>
+      Boolean(item.effect?.active)
+    )
+}
+
+function getVoltageSpread(activeEffects: Array<{ effect: DeviceEffect }>) {
+  if (activeEffects.length < 2) return 0
+  const voltages = activeEffects.map((item) => item.effect.voltage)
+  return Math.max(...voltages) - Math.min(...voltages)
+}
+
+function getMeasurementStatus(items: KnowledgeMeasurementItem[], simulation: SimulationResult): KnowledgeMeasurementStatus {
+  if (simulation.shortCircuit || items.some((item) => item.severity === 'danger' && !item.passed)) return '风险'
+  return items.every((item) => item.passed) ? '可测量' : '待接线'
+}
+
+function formatMeasurement(value: number) {
+  return Number.isFinite(value) ? value.toFixed(2) : '0.00'
 }
 
 export function buildKnowledgeSimulationChecks(

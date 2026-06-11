@@ -181,6 +181,10 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.knowledge-board')).toContainText('高中基础')
     await expect(page.locator('.knowledge-board')).toContainText('欧姆定律与电功率')
     const reviewNotebook = page.locator('.review-notebook-panel')
+    const measurementPanel = page.locator('.measurement-panel')
+    await expect(measurementPanel).toContainText('测量证据')
+    await expect(measurementPanel).toContainText('可测量')
+    await expect(measurementPanel).toContainText('照明灯电流')
     await expect(reviewNotebook).toContainText('错题复训')
     await expect(reviewNotebook).toContainText('已清空')
 
@@ -200,6 +204,7 @@ test.describe('electric workbench e2e', () => {
     await page.locator('.knowledge-track-tab').filter({ hasText: '大学电路' }).click()
     await expect(page.locator('.knowledge-board')).toContainText('节点法与线性电路')
     await expect(page.locator('.simulation-check-list')).toContainText('KCL 电流守恒')
+    await expect(measurementPanel).toContainText('KCL 误差')
     const kclQuestion = page.locator('.knowledge-question').filter({ hasText: 'KCL 节点电流' })
     await kclQuestion.locator('.choice-button').filter({ hasText: '1.0A' }).click()
     await expect(kclQuestion).toContainText('回答正确')
@@ -207,6 +212,8 @@ test.describe('electric workbench e2e', () => {
     await page.locator('.knowledge-track-tab').filter({ hasText: '电工实操' }).click()
     await expect(page.locator('.knowledge-board')).toContainText('低压控制与安全排障')
     await expect(page.locator('.simulation-check-list')).toContainText('低压训练电源')
+    await expect(measurementPanel).toContainText('训练电源')
+    await expect(measurementPanel).toContainText('保护器件')
 
     await expectHealthyRuntime(runtimeProblems)
   })

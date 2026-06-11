@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createInitialCircuit } from '../../src/core/circuitFactory'
 import {
   KNOWLEDGE_TRACKS,
+  buildKnowledgeMeasurementWorksheet,
   buildKnowledgeReviewNotebook,
   buildKnowledgeSimulationChecks,
   buildKnowledgeTrackProgress,
@@ -73,5 +74,22 @@ describe('knowledge verification library', () => {
     expect(buildKnowledgeSimulationChecks('high-school', model, result).every((check) => check.passed)).toBe(true)
     expect(buildKnowledgeSimulationChecks('university', model, result).some((check) => check.id === 'kcl-balance')).toBe(true)
     expect(buildKnowledgeSimulationChecks('electrician', model, result).find((check) => check.id === 'no-danger')?.passed).toBe(true)
+  })
+
+  it('builds measurement worksheets from live simulation results', () => {
+    const model = createInitialCircuit(12)
+    const result = simulateCircuit(model)
+    const highSchool = buildKnowledgeMeasurementWorksheet('high-school', model, result)
+    const university = buildKnowledgeMeasurementWorksheet('university', model, result)
+    const proModel = createInitialCircuit(48)
+    const pro = buildKnowledgeMeasurementWorksheet('electrician', proModel, simulateCircuit(proModel))
+
+    expect(highSchool.status).toBe('可测量')
+    expect(highSchool.items.find((item) => item.id === 'hs-load-current')?.value).toContain('A')
+    expect(highSchool.passed).toBe(highSchool.total)
+    expect(university.items.find((item) => item.id === 'uni-kcl-gap')?.passed).toBe(true)
+    expect(pro.status).toBe('风险')
+    expect(pro.items.find((item) => item.id === 'pro-safe-voltage')?.passed).toBe(false)
+    expect(pro.nextActions.some((action) => action.includes('36V'))).toBe(true)
   })
 })
