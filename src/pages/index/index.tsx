@@ -14,6 +14,7 @@ import {
   COMMERCIAL_API_CONTRACT,
   DEFAULT_AUTH_SESSION,
   DOMAIN_PROFILES,
+  buildCommercialAccessSnapshot,
   canUseCatalogEntry,
   createAuthenticatedSession,
   getCatalogEntries,
@@ -76,6 +77,7 @@ import type { MaterialFamily } from '@/core/materials'
 import type {
   AuthSession,
   BillingPlan,
+  CommercialAccessSnapshot,
   ComponentCatalogEntry,
   SubscriptionTier,
   WorkbenchDomain
@@ -223,17 +225,17 @@ function DomainSwitcher({
 }
 
 function CommercialDashboard({
+  access,
   activeDomain,
-  session,
   onChangeDomain
 }: {
+  access: CommercialAccessSnapshot
   activeDomain: WorkbenchDomain
-  session: AuthSession
   onChangeDomain: (domain: WorkbenchDomain) => void
 }) {
   const profile = getDomainProfile(activeDomain)
   const summary = getCatalogSummary(activeDomain)
-  const plan = BILLING_PLANS.find((item) => item.id === profile.recommendedTier) ?? BILLING_PLANS[0]
+  const plan = access.recommendedPlan
 
   return (
     <View className='commercial-dashboard'>
@@ -250,16 +252,16 @@ function CommercialDashboard({
             <Text className='metric-value'>{summary.total}</Text>
           </View>
           <View>
-            <Text className='metric-label'>建议电压</Text>
-            <Text className='metric-value'>{profile.recommendedVoltage}V</Text>
+            <Text className='metric-label'>已解锁</Text>
+            <Text className='metric-value'>{access.catalog.available}/{access.catalog.total}</Text>
           </View>
           <View>
-            <Text className='metric-label'>账号档位</Text>
-            <Text className='metric-value'>{tierLabel(session.tier)}</Text>
+            <Text className='metric-label'>待解锁</Text>
+            <Text className='metric-value'>{access.catalog.locked}</Text>
           </View>
         </View>
         <Text className='commercial-plan'>
-          推荐套餐：{plan.name} · 高级元件 {summary.proCount} 个
+          推荐套餐：{plan.name} · {profile.recommendedVoltage}V · 下一步：{access.primaryAction.label}
         </Text>
       </View>
     </View>
@@ -351,18 +353,29 @@ function CatalogEntryRow({
 }
 
 function CommercePanel({
+  access,
   session,
   selectedPlanId,
   onSignIn,
   onSignOut,
   onSelectPlan
 }: {
+  access: CommercialAccessSnapshot
   session: AuthSession
   selectedPlanId: SubscriptionTier
-  onSignIn: () => void
+  onSignIn: (tier?: SubscriptionTier) => void
   onSignOut: () => void
   onSelectPlan: (tier: SubscriptionTier) => void
 }) {
+  function runPrimaryAction() {
+    if (access.primaryAction.kind === 'sign-in') {
+      onSignIn(access.primaryAction.targetTier)
+      return
+    }
+
+    onSelectPlan(access.primaryAction.targetTier)
+  }
+
   return (
     <View className='commerce-panel'>
       <View className='training-card-head'>
@@ -373,14 +386,48 @@ function CommercePanel({
         <Text className={`tier-badge tier-${session.tier}`}>{tierLabel(session.tier)}</Text>
       </View>
       <View className='commerce-actions-row'>
-        {session.status === 'authenticated' ? (
+        <Button className='small-action commerce-primary-action' onClick={runPrimaryAction}>
+          {access.primaryAction.label}
+        </Button>
+        {session.status === 'authenticated' && (
           <Button className='small-action' onClick={onSignOut}>退出演示</Button>
-        ) : (
-          <Button className='small-action' onClick={onSignIn}>模拟登录</Button>
         )}
         <Text className='commerce-status'>
-          {session.status === 'authenticated' ? '已连接账号接口' : '等待接入真实登录'}
+          {session.status === 'authenticated' ? '已连接账号接口' : '等待接入真实登录'} · {access.primaryAction.endpoint}
         </Text>
+      </View>
+      <Text className='commerce-status'>{access.primaryAction.detail}</Text>
+
+      <View className='access-summary'>
+        <View>
+          <Text className='metric-label'>目录权限</Text>
+          <Text className='metric-value'>{access.catalog.available}/{access.catalog.total}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>被锁元件</Text>
+          <Text className='metric-value'>{access.catalog.locked}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>推荐套餐</Text>
+          <Text className='metric-value'>{access.recommendedPlan.name}</Text>
+        </View>
+      </View>
+      {access.catalog.lockedPreview.length > 0 && (
+        <Text className='locked-preview'>待解锁：{access.catalog.lockedPreview.join('、')}</Text>
+      )}
+
+      <View className='feature-gate-list'>
+        {access.features.map((feature) => (
+          <View key={feature.id} className={`feature-gate-row ${feature.available ? 'is-open' : 'is-locked'}`}>
+            <View>
+              <Text className='feature-gate-title'>{feature.label}</Text>
+              <Text className='feature-gate-detail'>{feature.description}</Text>
+            </View>
+            <Text className={`tier-badge tier-${feature.requiredTier}`}>
+              {feature.available ? '已解锁' : `${tierLabel(feature.requiredTier)}版`}
+            </Text>
+          </View>
+        ))}
       </View>
 
       <View className='plan-list'>
@@ -1374,19 +1421,24 @@ export default function Index() {
 
   function openPlan(tier: SubscriptionTier) {
     setSelectedPlanId(tier)
+    setActiveMobileTab('account')
   }
 
-  function simulateSignIn() {
-    setAuthSession(createAuthenticatedSession(selectedPlanId))
+  function simulateSignIn(tier = selectedPlanId) {
+    setSelectedPlanId(tier)
+    setAuthSession(createAuthenticatedSession(tier))
+    setActiveMobileTab('account')
   }
 
   function simulateSignOut() {
     setAuthSession(DEFAULT_AUTH_SESSION)
+    setActiveMobileTab('account')
   }
 
   function selectPlan(tier: SubscriptionTier) {
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
+    setActiveMobileTab('account')
   }
 
   function answerKnowledgeQuestion(questionId: string, answerId: string) {
@@ -1426,6 +1478,10 @@ export default function Index() {
     : simulation.closedCircuit
       ? '回路接通'
       : '等待接通'
+  const commercialAccess = useMemo(
+    () => buildCommercialAccessSnapshot(authSession, activeDomain, selectedPlanId),
+    [authSession, activeDomain, selectedPlanId]
+  )
 
   return (
     <View className={`app-shell mobile-focus-${activeMobileTab}`}>
@@ -1465,8 +1521,8 @@ export default function Index() {
       />
 
       <CommercialDashboard
+        access={commercialAccess}
         activeDomain={activeDomain}
-        session={authSession}
         onChangeDomain={changeDomain}
       />
 
@@ -1526,7 +1582,7 @@ export default function Index() {
             </View>
             <Text className='note-title extension-title'>商业化扩展接口</Text>
             <Text className='note-copy'>
-              元件目录、套餐门槛和行业分类已拆到商业配置层，后续可直接接入账号、支付和项目模板服务。
+              当前账号已解锁 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐门槛和分类已拆到商业配置层。
             </Text>
           </View>
           <MaterialSpecPanel selectedKind={selectedDevice?.kind} activeDomain={activeDomain} />
@@ -1697,6 +1753,7 @@ export default function Index() {
           <TrainingScoreCard challenge={activeChallenge} evaluation={challengeEvaluation} />
           <SafetyDiagnosticsCard diagnostics={safetyDiagnostics} />
           <CommercePanel
+            access={commercialAccess}
             session={authSession}
             selectedPlanId={selectedPlanId}
             onSignIn={simulateSignIn}
