@@ -41,6 +41,7 @@ import {
 } from '@/core/knowledge'
 import {
   ASSESSMENT_BLUEPRINTS,
+  buildAssessmentPracticeReport,
   buildAssessmentSession,
   evaluateAssessmentSimulationReadiness,
   getAssessmentBlueprint,
@@ -66,6 +67,7 @@ import type {
 } from '@/core/knowledge'
 import type {
   AssessmentBlueprintId,
+  AssessmentPracticeReport,
   AssessmentScore,
   AssessmentSession,
   AssessmentSimulationReadiness
@@ -695,6 +697,7 @@ function AssessmentBoard({
   const blueprint = getAssessmentBlueprint(activeBlueprintId)
   const session = buildAssessmentSession(activeBlueprintId)
   const score = scoreAssessmentSession(session, answers)
+  const report = buildAssessmentPracticeReport(session, answers, readiness)
   const scoreClass = score.passed ? 'passed' : score.answered > 0 ? 'needs-work' : 'ready'
 
   return (
@@ -768,6 +771,7 @@ function AssessmentBoard({
           <AssessmentRequirements
             blueprintId={activeBlueprintId}
             readiness={readiness}
+            report={report}
             session={session}
             score={score}
           />
@@ -835,11 +839,13 @@ function AssessmentQuestionRow({
 function AssessmentRequirements({
   blueprintId,
   readiness,
+  report,
   session,
   score
 }: {
   blueprintId: AssessmentBlueprintId
   readiness: AssessmentSimulationReadiness
+  report: AssessmentPracticeReport
   session: AssessmentSession
   score: AssessmentScore
 }) {
@@ -901,7 +907,53 @@ function AssessmentRequirements({
           ))}
         </View>
       </View>
+
+      <PracticeReportPanel report={report} />
     </>
+  )
+}
+
+function PracticeReportPanel({ report }: { report: AssessmentPracticeReport }) {
+  const statusClass = report.passed
+    ? 'is-passed'
+    : report.status === '待补仿真' || report.status === '未通过'
+      ? 'needs-work'
+      : 'is-progress'
+
+  return (
+    <View className='practice-report-panel'>
+      <View className='assessment-panel-head'>
+        <Text className='note-title'>练习复盘</Text>
+        <Text className={`practice-status ${statusClass}`}>{report.status}</Text>
+      </View>
+      <View className='practice-metrics'>
+        <View>
+          <Text className='metric-label'>完成</Text>
+          <Text className='metric-value'>{report.completionPercent}%</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>正确</Text>
+          <Text className='metric-value'>{report.accuracyPercent}%</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>仿真</Text>
+          <Text className='metric-value'>{report.readinessPercent}%</Text>
+        </View>
+      </View>
+      <View className='practice-focus-list'>
+        {report.focus.map((item) => (
+          <View key={item.id} className={`practice-focus focus-${item.severity}`}>
+            <Text className='practice-focus-title'>{item.title}</Text>
+            <Text className='practice-focus-detail'>{item.detail}</Text>
+          </View>
+        ))}
+      </View>
+      <View className='practice-next-list'>
+        {report.nextActions.map((item) => (
+          <Text key={item}>{item}</Text>
+        ))}
+      </View>
+    </View>
   )
 }
 

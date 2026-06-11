@@ -187,6 +187,8 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.material-spec-panel')).toContainText('PLC 控制器')
     await expect(page.locator('.assessment-board')).toContainText('仿真准备度')
     await expect(page.locator('.assessment-board')).toContainText('3/3')
+    await expect(page.locator('.assessment-board')).toContainText('练习复盘')
+    await expect(page.locator('.assessment-board')).toContainText('未开始')
 
     await page.locator('.toolbar .tool-button.primary').click()
     await expect(page.locator('.assessment-board')).toContainText('当前没有形成可测工作电流')
@@ -204,6 +206,9 @@ test.describe('electric workbench e2e', () => {
     await lockoutQuestion.locator('.choice-button').filter({ hasText: '先断电并确认无危险' }).click()
     await expect(lockoutQuestion).toContainText('计分通过')
     await expect(page.locator('.assessment-metrics')).toContainText('25/110')
+    await expect(page.locator('.practice-report-panel')).toContainText('进行中')
+    await expect(page.locator('.practice-report-panel')).toContainText('完成20%')
+    await expect(page.locator('.practice-report-panel')).toContainText('正确100%')
 
     await page.locator('.domain-tab').filter({ hasText: '装修工控' }).click()
     await expect(page.locator('.material-spec-panel')).toContainText('智能网关')
