@@ -1250,6 +1250,10 @@ $ink: #1f2937;
   display: none;
 }
 
+.mobile-section {
+  display: block;
+}
+
 .tool-button,
 .step-button,
 .small-action,
@@ -4159,6 +4163,42 @@ $ink: #1f2937;
 
   .mobile-status-value.is-warning {
     color: #b45309;
+  }
+
+  .mobile-section {
+    display: none;
+  }
+
+  .mobile-focus-learn .mobile-section-learn,
+  .mobile-focus-bank .mobile-section-bank,
+  .mobile-focus-simulate .mobile-section-workspace,
+  .mobile-focus-simulate .mobile-section-effects,
+  .mobile-focus-library .mobile-section-workspace,
+  .mobile-focus-account .mobile-section-workspace {
+    display: block;
+  }
+
+  .mobile-focus-simulate .palette-panel,
+  .mobile-focus-simulate .commerce-panel,
+  .mobile-focus-library .canvas-panel,
+  .mobile-focus-library .inspector-panel,
+  .mobile-focus-account .palette-panel,
+  .mobile-focus-account .canvas-panel {
+    display: none;
+  }
+
+  .mobile-focus-account .inspector-panel {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .mobile-focus-account .inspector-panel > :not(.commerce-panel) {
+    display: none;
+  }
+
+  .mobile-focus-account .commerce-panel {
+    margin-top: 0;
   }
 
   .training-summary,
