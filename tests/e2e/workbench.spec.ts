@@ -106,9 +106,21 @@ async function isMobileViewport(page: Page) {
 }
 
 async function openMobileTab(page: Page, label: string) {
-  if (!(await isMobileViewport(page))) return
+  const moduleIdByLabel: Record<string, string> = {
+    学习: 'learn',
+    仿真: 'simulate',
+    题库: 'bank',
+    素材: 'library',
+    账号: 'account'
+  }
+  const moduleId = moduleIdByLabel[label]
+  if (!moduleId) {
+    throw new Error(`Unknown app module: ${label}`)
+  }
 
-  const button = page.locator('.mobile-nav-button').filter({ hasText: label })
+  const button = (await isMobileViewport(page))
+    ? page.locator(`.mobile-nav-button.nav-${moduleId}`)
+    : page.locator(`.app-module-tab.module-${moduleId}`)
   await button.click()
   await expect(button).toHaveClass(/is-active/)
 }
@@ -232,6 +244,7 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
+    await openMobileTab(page, '学习')
     await expect(page.locator('.fault-scenario-panel')).toContainText('故障场景库')
     await expect(page.locator('.fault-scenario-panel')).toContainText('低压模块过压样本')
     await page.locator('.challenge-card').filter({ hasText: '照明支路排障' }).locator('.challenge-action').click()
@@ -249,6 +262,7 @@ test.describe('electric workbench e2e', () => {
     await openMobileTab(page, '学习')
     await page.locator('.fault-scenario-card').filter({ hasText: '低压模块过压样本' }).locator('.scenario-action').click()
     await expect(page.locator('.safety-card')).toContainText('可能过压')
+    await openMobileTab(page, '题库')
     await expect(page.locator('.knowledge-board')).toContainText('电工实操')
 
     await expectHealthyRuntime(runtimeProblems)
@@ -373,7 +387,7 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.practice-report-panel')).toContainText('正确100%')
 
     await openMobileTab(page, '学习')
-    await page.locator('.domain-tab').filter({ hasText: '装修工控' }).click()
+    await page.locator('.mobile-section-learn .domain-tab').filter({ hasText: '装修工控' }).click()
     await openMobileTab(page, '素材')
     await expect(page.locator('.material-spec-panel')).toContainText('智能网关')
     await expect(page.locator('.material-kit-panel')).toContainText('装修智能联动包')
@@ -386,9 +400,10 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
-    await expect(page.locator('.commercial-dashboard')).toContainText('工程工控')
-    await expect(page.locator('.commercial-dashboard')).toContainText('已解锁')
-    await expect(page.locator('.commercial-dashboard')).toContainText('待解锁')
+    await openMobileTab(page, '学习')
+    await expect(page.locator('.mobile-section-learn .commercial-dashboard')).toContainText('工程工控')
+    await expect(page.locator('.mobile-section-learn .commercial-dashboard')).toContainText('已解锁')
+    await expect(page.locator('.mobile-section-learn .commercial-dashboard')).toContainText('待解锁')
     await openMobileTab(page, '素材')
     await expect(page.locator('.palette-panel')).toContainText('PLC 控制器')
     await openMobileTab(page, '账号')
@@ -401,7 +416,7 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.commerce-panel')).toContainText('/api/billing/webhook')
 
     await openMobileTab(page, '学习')
-    await page.locator('.domain-tab').filter({ hasText: '装修工控' }).click()
+    await page.locator('.mobile-section-learn .domain-tab').filter({ hasText: '装修工控' }).click()
     await openMobileTab(page, '素材')
     await expect(page.locator('.palette-panel')).toContainText('装修工控元件库')
     await expect(page.locator('.palette-item').filter({ hasText: '智能开关面板' })).toHaveCount(1)
@@ -423,15 +438,15 @@ test.describe('electric workbench e2e', () => {
     if (testInfo.project.name.includes('mobile')) {
       await expect(page.locator('.mobile-status-strip')).toBeVisible()
       await expect(page.locator('.mobile-bottom-nav')).toBeVisible()
-      await expect(page.locator('.learning-dashboard')).toBeVisible()
-      await expect(page.locator('.canvas-panel')).not.toBeVisible()
-
-      await openMobileTab(page, '仿真')
       await expect(page.locator('.canvas-panel')).toBeVisible()
       await expect(page.locator('.inspector-panel')).toBeVisible()
       await expect(page.locator('.meter-panel')).toBeVisible()
       await expect(page.locator('.palette-panel')).not.toBeVisible()
       await expectDevicesInsideBoard(page)
+
+      await openMobileTab(page, '学习')
+      await expect(page.locator('.learning-dashboard')).toBeVisible()
+      await expect(page.locator('.canvas-panel')).not.toBeVisible()
 
       await openMobileTab(page, '素材')
       await expect(page.locator('.palette-panel')).toBeVisible()
@@ -449,12 +464,19 @@ test.describe('electric workbench e2e', () => {
       await expect(page.locator('.commerce-panel')).toBeVisible()
       await expect(page.locator('.canvas-panel')).not.toBeVisible()
     } else {
-      await expect(page.locator('.palette-panel')).toBeVisible()
+      await expect(page.locator('.app-module-nav')).toBeVisible()
+      await expect(page.locator('.app-module-tab.module-simulate')).toHaveClass(/is-active/)
       await expect(page.locator('.canvas-panel')).toBeVisible()
       await expect(page.locator('.inspector-panel')).toBeVisible()
+      await expect(page.locator('.palette-panel')).not.toBeVisible()
+      await expectDevicesInsideBoard(page)
+
+      await openMobileTab(page, '素材')
+      await expect(page.locator('.palette-panel')).toBeVisible()
+      await expect(page.locator('.material-spec-panel')).toBeVisible()
+      await expect(page.locator('.canvas-panel')).not.toBeVisible()
       await expect(page.locator('.palette-item').filter({ hasText: '超声波测距' })).toHaveCount(1)
       await expect(page.locator('.palette-item').filter({ hasText: '温湿度传感器' })).toHaveCount(1)
-      await expectDevicesInsideBoard(page)
     }
     await expectNoIconText(page)
 

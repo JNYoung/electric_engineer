@@ -14,6 +14,7 @@
     "android:sync:googleplay": "npm run build:android:googleplay && npx cap sync android",
     "android:apk:googleplay:release": "npm run android:sync:googleplay && cd android && ./gradlew -Pandroid.aapt2FromMavenOverride=${ANDROID_HOME:-$HOME/Library/Android/sdk}/build-tools/35.0.0/aapt2 assembleGooglePlayRelease",
     "android:aab:googleplay:release": "npm run android:sync:googleplay && cd android && ./gradlew -Pandroid.aapt2FromMavenOverride=${ANDROID_HOME:-$HOME/Library/Android/sdk}/build-tools/35.0.0/aapt2 bundleGooglePlayRelease",
+    "brand:assets": "swift scripts/generate-brand-assets.swift",
     "dev:weapp": "taro build --type weapp --watch",
     "build:weapp": "TELEMETRY_REGION=domestic TELEMETRY_CHANNEL=weapp taro build --type weapp",
     "typecheck": "tsc --noEmit",

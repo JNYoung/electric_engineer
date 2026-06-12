@@ -69,6 +69,13 @@ import {
 import { buildVirtualMeterWorksheet } from '@/core/instruments'
 import { createTelemetryClient } from '@/core/telemetry'
 import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@/core/googlePlayNative'
+import {
+  AppModuleNav,
+  MobileBottomNav,
+  MobileStatusStrip,
+  getAdPlacementForModule,
+  type AppModuleId
+} from './appShell'
 import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire, WirePathMode } from '@/core/types'
 import type {
   ChallengeEvaluation,
@@ -83,8 +90,7 @@ import type {
   KnowledgeReviewNotebook,
   KnowledgeMeasurementWorksheet,
   KnowledgeSimulationCheck,
-  KnowledgeTrackId,
-  KnowledgeTrackProgress
+  KnowledgeTrackId
 } from '@/core/knowledge'
 import type {
   AssessmentBlueprintId,
@@ -108,7 +114,6 @@ import type {
 } from '@/core/commercial'
 
 const visualParts = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
-type MobileTabId = 'learn' | 'simulate' | 'bank' | 'library' | 'account'
 const MATERIAL_QUERY_PRESETS = ['额定电压', 'NPN', '回线', '过压', '安全链']
 const NODE_WIDTH = 136
 const NODE_HEIGHT = 74
@@ -146,14 +151,6 @@ interface PointerLikeEvent {
   changedTouches?: Array<Partial<Point> & { clientX?: number; clientY?: number; pageX?: number; pageY?: number }>
 }
 
-const MOBILE_NAV_ITEMS: Array<{ id: MobileTabId; label: string }> = [
-  { id: 'learn', label: '学习' },
-  { id: 'simulate', label: '仿真' },
-  { id: 'bank', label: '题库' },
-  { id: 'library', label: '素材' },
-  { id: 'account', label: '账号' }
-]
-
 function ComponentIllustration({ kind, compact = false }: { kind: DeviceKind; compact?: boolean }) {
   return (
     <View className={['component-visual', `visual-${kind}`, compact ? 'is-compact' : ''].filter(Boolean).join(' ')}>
@@ -181,12 +178,6 @@ function getRuntimeLocale() {
     return navigator.language
   }
   return 'zh-CN'
-}
-
-function getAdPlacementForMobileTab(tabId: MobileTabId) {
-  if (tabId === 'library') return 'library_banner'
-  if (tabId === 'account') return 'account_banner'
-  return 'hidden'
 }
 
 function terminalPoint(device: CircuitDevice, terminalId: string) {
@@ -2053,70 +2044,6 @@ function WireLayer({
   )
 }
 
-function MobileStatusStrip({
-  progress,
-  voltage,
-  simulation,
-  diagnostics
-}: {
-  progress: KnowledgeTrackProgress
-  voltage: number
-  simulation: SimulationResult
-  diagnostics: SafetyDiagnostic[]
-}) {
-  const urgentCount = diagnostics.filter((item) => item.severity === 'danger' || item.severity === 'warning').length
-
-  return (
-    <View className='mobile-status-strip'>
-      <View>
-        <Text className='mobile-status-label'>题库掌握</Text>
-        <Text className='mobile-status-value'>{progress.percent}%</Text>
-      </View>
-      <View>
-        <Text className='mobile-status-label'>电源</Text>
-        <Text className='mobile-status-value'>{voltage}V</Text>
-      </View>
-      <View>
-        <Text className='mobile-status-label'>电流</Text>
-        <Text className='mobile-status-value'>{formatNumber(simulation.totalCurrent)}A</Text>
-      </View>
-      <View>
-        <Text className='mobile-status-label'>安全</Text>
-        <Text className={`mobile-status-value ${urgentCount > 0 ? 'is-warning' : 'is-safe'}`}>
-          {urgentCount > 0 ? `${urgentCount} 项` : '正常'}
-        </Text>
-      </View>
-    </View>
-  )
-}
-
-function MobileBottomNav({
-  activeTab,
-  onChange
-}: {
-  activeTab: MobileTabId
-  onChange: (tabId: MobileTabId) => void
-}) {
-  return (
-    <View className='mobile-bottom-nav'>
-      {MOBILE_NAV_ITEMS.map((item) => (
-        <Button
-          key={item.id}
-          className={`mobile-nav-button nav-${item.id} ${activeTab === item.id ? 'is-active' : ''}`}
-          onClick={() => onChange(item.id)}
-        >
-          <View className='mobile-nav-icon'>
-            <View className='icon-part part-a' />
-            <View className='icon-part part-b' />
-            <View className='icon-part part-c' />
-          </View>
-          <Text>{item.label}</Text>
-        </Button>
-      ))}
-    </View>
-  )
-}
-
 export default function Index() {
   const [model, setModel] = useState(() => createInitialCircuit(12))
   const [selectedId, setSelectedId] = useState('l1')
@@ -2131,7 +2058,7 @@ export default function Index() {
   const [activeAssessmentId, setActiveAssessmentId] = useState<AssessmentBlueprintId>('high-school-foundation-check')
   const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, string>>({})
   const [materialQuery, setMaterialQuery] = useState('')
-  const [activeMobileTab, setActiveMobileTab] = useState<MobileTabId>('learn')
+  const [activeModule, setActiveModule] = useState<AppModuleId>('simulate')
   const [draggingDeviceId, setDraggingDeviceId] = useState<string | null>(null)
   const [boardSize, setBoardSize] = useState({ width: DEFAULT_BOARD_WIDTH, height: 500 })
   const dragRef = useRef<DragState | null>(null)
@@ -2211,7 +2138,7 @@ export default function Index() {
 
   useEffect(() => {
     trackTelemetryEvent('app_open', {
-      active_tab: activeMobileTab,
+      active_tab: activeModule,
       active_domain: activeDomain,
       device_count: model.devices.length,
       wire_count: model.wires.length
@@ -2219,8 +2146,8 @@ export default function Index() {
   }, [])
 
   useEffect(() => {
-    syncGooglePlayAdPlacement(getAdPlacementForMobileTab(activeMobileTab))
-  }, [activeMobileTab])
+    syncGooglePlayAdPlacement(getAdPlacementForModule(activeModule))
+  }, [activeModule])
 
   useEffect(() => {
     Taro.nextTick(() => {
@@ -2240,7 +2167,7 @@ export default function Index() {
         })
         .exec()
     })
-  }, [activeMobileTab, boardHeight, model.devices.length])
+  }, [activeModule, boardHeight, model.devices.length])
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return undefined
@@ -2282,10 +2209,10 @@ export default function Index() {
     telemetry.track(name, properties)
   }
 
-  function changeMobileTab(tabId: MobileTabId, source = 'bottom_nav') {
-    setActiveMobileTab(tabId)
-    trackTelemetryEvent('mobile_tab_changed', {
-      tab_id: tabId,
+  function changeAppModule(moduleId: AppModuleId, source = 'bottom_nav') {
+    setActiveModule(moduleId)
+    trackTelemetryEvent('app_module_changed', {
+      module_id: moduleId,
       source
     })
   }
@@ -2336,7 +2263,7 @@ export default function Index() {
       wires: [...current.wires, ...wires]
     }))
     setSelectedId(device.id)
-    changeMobileTab('simulate', 'component_added')
+    changeAppModule('simulate', 'component_added')
   }
 
   function startDeviceDrag(event: PointerLikeEvent, deviceId: string) {
@@ -2413,7 +2340,7 @@ export default function Index() {
     setActiveLessonId(challenge.lessonId)
     setSelectedId(challenge.id === 'sensor-io' ? 'x1' : 'l1')
     setModel(createTrainingCircuit(challenge.id))
-    changeMobileTab('simulate', 'training_started')
+    changeAppModule('simulate', 'training_started')
   }
 
   function startFaultScenario(scenarioId: string) {
@@ -2431,7 +2358,7 @@ export default function Index() {
     setActiveKnowledgeTrackId(scenario.level)
     setSelectedId(scenario.id === 'source-short-protection' ? 'w-training-short' : 'l1')
     setModel(createFaultScenarioCircuit(scenario.id))
-    changeMobileTab('simulate', 'fault_scenario_started')
+    changeAppModule('simulate', 'fault_scenario_started')
   }
 
   function changeDomain(domain: WorkbenchDomain) {
@@ -2468,7 +2395,7 @@ export default function Index() {
       source
     })
     setSelectedPlanId(tier)
-    changeMobileTab('account', 'paywall_viewed')
+    changeAppModule('account', 'paywall_viewed')
   }
 
   function openLockedComponentPlan(entry: ComponentCatalogEntry) {
@@ -2489,7 +2416,7 @@ export default function Index() {
     })
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
-    changeMobileTab('account', 'auth_changed')
+    changeAppModule('account', 'auth_changed')
   }
 
   function simulateSignOut() {
@@ -2499,7 +2426,7 @@ export default function Index() {
       source: 'demo_sign_out'
     })
     setAuthSession(DEFAULT_AUTH_SESSION)
-    changeMobileTab('account', 'auth_changed')
+    changeAppModule('account', 'auth_changed')
   }
 
   function selectPlan(tier: SubscriptionTier) {
@@ -2510,7 +2437,7 @@ export default function Index() {
     })
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
-    changeMobileTab('account', 'purchase_intent')
+    changeAppModule('account', 'purchase_intent')
   }
 
   function answerKnowledgeQuestion(questionId: string, answerId: string) {
@@ -2525,7 +2452,7 @@ export default function Index() {
       ...current,
       [questionId]: answerId
     }))
-    changeMobileTab('bank', 'knowledge_answered')
+    changeAppModule('bank', 'knowledge_answered')
   }
 
   function changeKnowledgeTrack(trackId: KnowledgeTrackId) {
@@ -2533,7 +2460,7 @@ export default function Index() {
       track_id: trackId
     })
     setActiveKnowledgeTrackId(trackId)
-    changeMobileTab('bank', 'knowledge_track_changed')
+    changeAppModule('bank', 'knowledge_track_changed')
   }
 
   function answerAssessmentQuestion(questionId: string, answerId: string) {
@@ -2552,7 +2479,7 @@ export default function Index() {
       ...current,
       [questionId]: answerId
     }))
-    changeMobileTab('bank', 'assessment_answered')
+    changeAppModule('bank', 'assessment_answered')
   }
 
   function changeAssessment(blueprintId: AssessmentBlueprintId) {
@@ -2561,7 +2488,7 @@ export default function Index() {
     })
     setActiveAssessmentId(blueprintId)
     setAssessmentAnswers({})
-    changeMobileTab('bank', 'assessment_changed')
+    changeAppModule('bank', 'assessment_changed')
   }
 
   function toggleWireConnection(wireId: string) {
@@ -2603,7 +2530,7 @@ export default function Index() {
   )
 
   return (
-    <View className={`app-shell mobile-focus-${activeMobileTab}`}>
+    <View className={`app-shell module-focus-${activeModule}`}>
       <View className='topbar'>
         <View className='brand-block'>
           <Text className='brand-mark'>电</Text>
@@ -2617,13 +2544,13 @@ export default function Index() {
             {model.devices.find((device) => device.id === 's1')?.isClosed ? '■ 断开' : '▶ 接通'}
           </Button>
           <Button className='tool-button' onClick={resetCircuit}>↺ 复位</Button>
-          <Button className='tool-button' onClick={() => setAllWiresConnected(true)}>
+          <Button className='tool-button desktop-action' onClick={() => setAllWiresConnected(true)}>
             全部连接
           </Button>
-          <Button className='tool-button' onClick={() => setAllWiresConnected(false)}>
+          <Button className='tool-button desktop-action' onClick={() => setAllWiresConnected(false)}>
             全部断开
           </Button>
-          <Button className='tool-button' onClick={() => startChallenge(activeChallenge.id)}>载入训练</Button>
+          <Button className='tool-button desktop-action' onClick={() => startChallenge(activeChallenge.id)}>载入训练</Button>
           <View className='voltage-control'>
             <Button className='step-button' onClick={() => setVoltage(voltage - 1)}>-</Button>
             <Text>{voltage}V DC</Text>
@@ -2631,6 +2558,8 @@ export default function Index() {
           </View>
         </View>
       </View>
+
+      <AppModuleNav activeModule={activeModule} onChange={changeAppModule} />
 
       <MobileStatusStrip
         progress={knowledgeProgress}
@@ -2678,49 +2607,7 @@ export default function Index() {
       </View>
 
       <View className='mobile-section mobile-section-workspace'>
-        <View className='workspace'>
-        <View className='palette-panel'>
-          <Text className='panel-title'>{activeDomainProfile.label}元件库</Text>
-          <Text className='panel-subtitle'>{activeDomainProfile.description}</Text>
-          <CategoryFilter
-            activeDomain={activeDomain}
-            activeCategoryId={activeCategoryId}
-            onSelect={changeCategory}
-          />
-          <ScrollView scrollY className='palette-scroll'>
-            {catalogEntries.map((entry) => (
-              <CatalogEntryRow
-                key={`${entry.domain}-${entry.categoryId}-${entry.kind}`}
-                entry={entry}
-                session={authSession}
-                onAdd={addDevice}
-                onLocked={openLockedComponentPlan}
-              />
-            ))}
-          </ScrollView>
-          <View className='interface-note'>
-            <Text className='note-title'>行业分类</Text>
-            <View className='category-chips'>
-              {activeDomainProfile.categories.map((category) => (
-                <View key={`${category.id}-chip`} className='category-chip'>
-                  <Text>{category.label}</Text>
-                  <Text>{getCatalogEntriesByCategory(activeDomain, category.id).length}</Text>
-                </View>
-              ))}
-            </View>
-            <Text className='note-title extension-title'>商业化扩展接口</Text>
-            <Text className='note-copy'>
-              当前账号已解锁 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐门槛和分类已拆到商业配置层。
-            </Text>
-          </View>
-          <MaterialSpecPanel
-            selectedKind={selectedDevice?.kind}
-            activeDomain={activeDomain}
-            activeTrackId={activeKnowledgeTrackId}
-            materialQuery={materialQuery}
-            onMaterialQueryChange={setMaterialQuery}
-          />
-        </View>
+        <View className='workspace simulation-workspace'>
 
         <View className='canvas-panel'>
           <View className='canvas-header'>
@@ -2919,6 +2806,65 @@ export default function Index() {
 
           <TrainingScoreCard challenge={activeChallenge} evaluation={challengeEvaluation} />
           <SafetyDiagnosticsCard diagnostics={safetyDiagnostics} />
+        </View>
+      </View>
+      </View>
+
+      <View className='mobile-section mobile-section-library'>
+        <View className='library-workspace'>
+          <View className='palette-panel'>
+            <Text className='panel-title'>{activeDomainProfile.label}元件库</Text>
+            <Text className='panel-subtitle'>{activeDomainProfile.description}</Text>
+            <CategoryFilter
+              activeDomain={activeDomain}
+              activeCategoryId={activeCategoryId}
+              onSelect={changeCategory}
+            />
+            <ScrollView scrollY className='palette-scroll'>
+              {catalogEntries.map((entry) => (
+                <CatalogEntryRow
+                  key={`${entry.domain}-${entry.categoryId}-${entry.kind}`}
+                  entry={entry}
+                  session={authSession}
+                  onAdd={addDevice}
+                  onLocked={openLockedComponentPlan}
+                />
+              ))}
+            </ScrollView>
+            <View className='interface-note'>
+              <Text className='note-title'>行业分类</Text>
+              <View className='category-chips'>
+                {activeDomainProfile.categories.map((category) => (
+                  <View key={`${category.id}-chip`} className='category-chip'>
+                    <Text>{category.label}</Text>
+                    <Text>{getCatalogEntriesByCategory(activeDomain, category.id).length}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text className='note-title extension-title'>商业化扩展接口</Text>
+              <Text className='note-copy'>
+                当前账号已解锁 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐门槛和分类已拆到商业配置层。
+              </Text>
+            </View>
+          </View>
+
+          <MaterialSpecPanel
+            selectedKind={selectedDevice?.kind}
+            activeDomain={activeDomain}
+            activeTrackId={activeKnowledgeTrackId}
+            materialQuery={materialQuery}
+            onMaterialQueryChange={setMaterialQuery}
+          />
+        </View>
+      </View>
+
+      <View className='mobile-section mobile-section-account'>
+        <View className='account-workspace'>
+          <CommercialDashboard
+            access={commercialAccess}
+            activeDomain={activeDomain}
+            onChangeDomain={changeDomain}
+          />
           <CommercePanel
             access={commercialAccess}
             session={authSession}
@@ -2928,7 +2874,6 @@ export default function Index() {
             onSelectPlan={selectPlan}
           />
         </View>
-      </View>
       </View>
 
       <View className='mobile-section mobile-section-effects'>
@@ -2945,7 +2890,7 @@ export default function Index() {
         </View>
       </View>
 
-      <MobileBottomNav activeTab={activeMobileTab} onChange={changeMobileTab} />
+      <MobileBottomNav activeModule={activeModule} onChange={changeAppModule} />
     </View>
   )
 }

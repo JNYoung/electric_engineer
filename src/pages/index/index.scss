@@ -19,11 +19,14 @@ $ink: #1f2937;
 }
 
 .topbar,
+.app-module-nav,
 .commercial-dashboard,
 .learning-dashboard,
 .knowledge-board,
 .assessment-board,
 .workspace,
+.library-workspace,
+.account-workspace,
 .mobile-status-strip,
 .effects-bar {
   max-width: 1440px;
@@ -70,7 +73,6 @@ $ink: #1f2937;
 .review-item-head,
 .measurement-item-head,
 .formula-card-head,
-.mobile-status-strip,
 .mobile-bottom-nav,
 .mobile-nav-button {
   display: flex;
@@ -1904,12 +1906,139 @@ $ink: #1f2937;
   text-align: right;
 }
 
-.mobile-status-strip,
+.app-module-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.app-module-tab {
+  min-height: 58px;
+  margin: 0;
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.app-module-tab::after {
+  border: none;
+}
+
+.app-module-tab.is-active {
+  border-color: #9fc3ff;
+  background: #eef6ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.app-module-tab-icon {
+  position: relative;
+  width: 24px;
+  height: 22px;
+  flex: 0 0 auto;
+  color: $blue;
+}
+
+.app-module-tab-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.app-module-tab-title,
+.app-module-tab-desc {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-module-tab-title {
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.app-module-tab-desc {
+  color: $muted;
+  font-size: 11px;
+  line-height: 15px;
+  font-weight: 700;
+}
+
+.mobile-status-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+}
+
+.mobile-status-strip > view,
+.mobile-status-strip > div {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 7px;
+  background: #f8fbff;
+}
+
+.mobile-status-label,
+.mobile-status-value {
+  display: block;
+  text-align: center;
+}
+
+.mobile-status-label {
+  color: $muted;
+  font-size: 11px;
+  line-height: 15px;
+  font-weight: 800;
+}
+
+.mobile-status-value {
+  color: $text;
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 900;
+}
+
+.mobile-status-value.is-safe {
+  color: #087c67;
+}
+
+.mobile-status-value.is-warning {
+  color: #b45309;
+}
+
 .mobile-bottom-nav {
   display: none;
 }
 
 .mobile-section {
+  display: none;
+}
+
+.module-focus-learn .mobile-section-learn,
+.module-focus-bank .mobile-section-bank,
+.module-focus-simulate .mobile-section-workspace,
+.module-focus-simulate .mobile-section-effects,
+.module-focus-library .mobile-section-library,
+.module-focus-account .mobile-section-account {
   display: block;
 }
 
@@ -1986,14 +2115,30 @@ $ink: #1f2937;
 
 .workspace {
   display: grid;
-  grid-template-columns: 260px minmax(680px, 1fr) 300px;
+  grid-template-columns: minmax(680px, 1fr) 320px;
   gap: 16px;
   margin-top: 16px;
 }
 
+.library-workspace {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.72fr) minmax(420px, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.account-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+
 .palette-panel,
 .canvas-panel,
-.inspector-panel {
+.inspector-panel,
+.account-workspace .commerce-panel {
   min-height: 650px;
   background: $surface;
   border: 1px solid $line;
@@ -2009,6 +2154,20 @@ $ink: #1f2937;
 .canvas-panel {
   padding: 14px;
   overflow: hidden;
+}
+
+.library-workspace .material-spec-panel {
+  margin-top: 0;
+}
+
+.account-workspace .commercial-dashboard {
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+}
+
+.account-workspace .commerce-panel {
+  margin-top: 0;
 }
 
 .panel-title {
@@ -4799,6 +4958,117 @@ $ink: #1f2937;
   background: currentColor;
 }
 
+.app-module-tab .part-a {
+  left: 4px;
+  top: 4px;
+  width: 15px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.app-module-tab .part-b {
+  left: 8px;
+  top: 8px;
+  width: 7px;
+  height: 2px;
+}
+
+.app-module-tab .part-c {
+  left: 8px;
+  top: 12px;
+  width: 7px;
+  height: 2px;
+}
+
+.module-simulate .part-a {
+  left: 2px;
+  top: 10px;
+  width: 18px;
+  height: 2px;
+  border: 0;
+  border-radius: 999px;
+}
+
+.module-simulate .part-b {
+  left: 3px;
+  top: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.module-simulate .part-c {
+  left: 14px;
+  top: 11px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.module-learn .part-a {
+  left: 4px;
+  top: 3px;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  background: transparent;
+}
+
+.module-learn .part-b,
+.module-learn .part-c {
+  left: 8px;
+  width: 8px;
+  height: 2px;
+}
+
+.module-learn .part-b { top: 8px; }
+.module-learn .part-c { top: 13px; }
+
+.module-library .part-a {
+  left: 4px;
+  top: 4px;
+  width: 15px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  background: transparent;
+}
+
+.module-library .part-b,
+.module-library .part-c {
+  top: 7px;
+  width: 2px;
+  height: 9px;
+}
+
+.module-library .part-b { left: 9px; }
+.module-library .part-c { left: 15px; }
+
+.module-account .part-a {
+  left: 8px;
+  top: 3px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.module-account .part-b {
+  left: 5px;
+  top: 14px;
+  width: 14px;
+  height: 6px;
+  border-radius: 8px 8px 2px 2px;
+}
+
+.module-account .part-c {
+  display: none;
+}
+
 .mobile-nav-button .part-a {
   left: 4px;
   top: 4px;
@@ -4930,7 +5200,9 @@ $ink: #1f2937;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .workspace {
+  .workspace,
+  .library-workspace,
+  .account-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -4993,9 +5265,17 @@ $ink: #1f2937;
     padding: 0 8px;
   }
 
+  .toolbar .desktop-action {
+    display: none;
+  }
+
   .toolbar .voltage-control {
     grid-column: span 2;
     justify-content: space-between;
+  }
+
+  .app-module-nav {
+    display: none;
   }
 
   .mobile-status-strip {
@@ -5054,36 +5334,13 @@ $ink: #1f2937;
     display: none;
   }
 
-  .mobile-focus-learn .mobile-section-learn,
-  .mobile-focus-bank .mobile-section-bank,
-  .mobile-focus-simulate .mobile-section-workspace,
-  .mobile-focus-simulate .mobile-section-effects,
-  .mobile-focus-library .mobile-section-workspace,
-  .mobile-focus-account .mobile-section-workspace {
+  .module-focus-learn .mobile-section-learn,
+  .module-focus-bank .mobile-section-bank,
+  .module-focus-simulate .mobile-section-workspace,
+  .module-focus-simulate .mobile-section-effects,
+  .module-focus-library .mobile-section-library,
+  .module-focus-account .mobile-section-account {
     display: block;
-  }
-
-  .mobile-focus-simulate .palette-panel,
-  .mobile-focus-simulate .commerce-panel,
-  .mobile-focus-library .canvas-panel,
-  .mobile-focus-library .inspector-panel,
-  .mobile-focus-account .palette-panel,
-  .mobile-focus-account .canvas-panel {
-    display: none;
-  }
-
-  .mobile-focus-account .inspector-panel {
-    padding: 0;
-    border: 0;
-    background: transparent;
-  }
-
-  .mobile-focus-account .inspector-panel > :not(.commerce-panel) {
-    display: none;
-  }
-
-  .mobile-focus-account .commerce-panel {
-    margin-top: 0;
   }
 
   .training-summary,
@@ -5098,6 +5355,8 @@ $ink: #1f2937;
   .knowledge-board,
   .assessment-board,
   .workspace,
+  .library-workspace,
+  .account-workspace,
   .effects-bar {
     margin-top: 10px;
   }
