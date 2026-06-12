@@ -52,14 +52,53 @@ async function expectDevicesInsideBoard(page: Page) {
       })
       .filter(
         (item) =>
-          item.left < -1 ||
-          item.top < -1 ||
-          item.right > item.boardWidth + 1 ||
-          item.bottom > item.boardHeight + 1
+          item.left < 0 ||
+          item.top < 0 ||
+          item.right > item.boardWidth ||
+          item.bottom > item.boardHeight
       )
   })
 
   expect(clippedDevices).toEqual([])
+}
+
+async function devicePosition(page: Page, selector: string) {
+  return page.locator(selector).evaluate((node) => {
+    const board = node.closest('.circuit-board')
+    if (!board) {
+      throw new Error('Device is not inside the circuit board')
+    }
+    const boardRect = board.getBoundingClientRect()
+    const rect = node.getBoundingClientRect()
+    return {
+      left: rect.left - boardRect.left,
+      top: rect.top - boardRect.top
+    }
+  })
+}
+
+async function dragDevice(page: Page, selector: string, deltaX: number, deltaY: number) {
+  await page.locator(selector).evaluate((node) => {
+    const panel = node.closest('.canvas-panel')
+    if (panel instanceof HTMLElement && node instanceof HTMLElement) {
+      panel.scrollLeft = Math.max(0, node.offsetLeft - 160)
+    }
+  })
+  await page.locator(selector).scrollIntoViewIfNeeded()
+  const box = await page.locator(selector).boundingBox()
+  if (!box) {
+    throw new Error(`Cannot drag missing device: ${selector}`)
+  }
+
+  const startX = box.x + box.width / 2
+  const startY = box.y + box.height / 2
+  const endX = startX + deltaX
+  const endY = startY + deltaY
+
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(endX, endY, { steps: 8 })
+  await page.mouse.up()
 }
 
 async function isMobileViewport(page: Page) {
@@ -83,8 +122,9 @@ async function addPaletteDevice(page: Page, name: string) {
 }
 
 async function gotoWorkbench(page: Page) {
-  await page.goto(route)
+  await page.goto(route, { waitUntil: 'domcontentloaded' })
   await expect(page).toHaveTitle(/电工大师/)
+  await expect(page.locator('.app-shell')).toBeVisible()
   await expect(page.locator('.app-shell')).toContainText('Web / 小程序电路模拟控制台')
   await expect(page.locator('.run-state')).toContainText('回路接通')
 }
@@ -114,6 +154,39 @@ test.describe('electric workbench e2e', () => {
     await page.locator('.toolbar .tool-button.primary').click()
     await expect(page.locator('.run-state')).toContainText('回路接通')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
+
+    await expectHealthyRuntime(runtimeProblems)
+  })
+
+  test('drags board components and switches a wire between smooth and orthogonal paths', async ({ page }) => {
+    const runtimeProblems = watchRuntimeHealth(page)
+
+    await gotoWorkbench(page)
+    await openMobileTab(page, '仿真')
+    const lampSelector = '.circuit-board .device-lamp'
+    await page.locator(lampSelector).scrollIntoViewIfNeeded()
+    const before = await devicePosition(page, lampSelector)
+    await dragDevice(page, lampSelector, 92, 44)
+
+    await expect.poll(async () => (await devicePosition(page, lampSelector)).left).toBeGreaterThan(before.left + 60)
+    const after = await devicePosition(page, lampSelector)
+    expect(after.top).toBeGreaterThan(before.top + 24)
+    await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
+    await expectDevicesInsideBoard(page)
+
+    const lampFeed = page.locator('.wire-toggle').filter({ hasText: '开关到灯泡' })
+    await lampFeed.locator('.wire-copy').click()
+    const styleControl = page.locator('.inspector-card').filter({ hasText: '开关到灯泡' }).locator('.segmented-control')
+    await expect(styleControl).toBeVisible()
+
+    await styleControl.locator('.style-button').filter({ hasText: '平滑' }).click()
+    await expect(styleControl.locator('.style-button.is-active')).toContainText('平滑')
+    await expect.poll(async () => page.locator('.wire-segment.is-smooth.is-selected').count()).toBeGreaterThan(0)
+
+    await styleControl.locator('.style-button').filter({ hasText: '折线' }).click()
+    await expect(styleControl.locator('.style-button.is-active')).toContainText('折线')
+    await expect.poll(async () => page.locator('.wire-segment.is-smooth.is-selected').count()).toBe(0)
+    await expect.poll(async () => page.locator('.wire-segment.is-orthogonal.is-selected').count()).toBeGreaterThan(0)
 
     await expectHealthyRuntime(runtimeProblems)
   })
@@ -181,12 +254,12 @@ test.describe('electric workbench e2e', () => {
     await expectHealthyRuntime(runtimeProblems)
   })
 
-  test('answers knowledge questions across school and professional tracks', async ({ page }) => {
+  test('answers knowledge questions across foundation and professional tracks', async ({ page }) => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
     await openMobileTab(page, '题库')
-    await expect(page.locator('.knowledge-board')).toContainText('高中基础')
+    await expect(page.locator('.knowledge-board')).toContainText('基础电学')
     await expect(page.locator('.knowledge-board')).toContainText('欧姆定律与电功率')
     const reviewNotebook = page.locator('.review-notebook-panel')
     const measurementPanel = page.locator('.measurement-panel')
@@ -254,7 +327,7 @@ test.describe('electric workbench e2e', () => {
 
     await openMobileTab(page, '题库')
     await expect(page.locator('.assessment-board')).toContainText('专业考试模拟')
-    await expect(page.locator('.assessment-board')).toContainText('高中电学基础测验')
+    await expect(page.locator('.assessment-board')).toContainText('基础电学能力测验')
     await expect(page.locator('.assessment-board')).toContainText('仿真准备度')
     await expect(page.locator('.assessment-board')).toContainText('3/3')
     await expect(page.locator('.assessment-board')).toContainText('练习复盘')
@@ -266,7 +339,7 @@ test.describe('electric workbench e2e', () => {
     await expect(stationPanel).toContainText('仪表证据')
     const certificationPanel = page.locator('.certification-panel')
     await expect(certificationPanel).toContainText('认证准入')
-    await expect(certificationPanel).toContainText('高中测验准入')
+    await expect(certificationPanel).toContainText('基础电学测验准入')
     await expect(certificationPanel).toContainText('待完成')
 
     await page.locator('.assessment-question').filter({ hasText: '欧姆定律计算' }).locator('.choice-button').filter({ hasText: '0.5A' }).click()

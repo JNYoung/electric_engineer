@@ -2,6 +2,13 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 import path from 'path'
 
 const outputRoot = process.env.TARO_ENV === 'weapp' ? 'dist/weapp' : 'dist/h5'
+const buildTarget = process.env.BUILD_TARGET ?? process.env.TARO_ENV ?? 'h5'
+const telemetryRegion = process.env.TELEMETRY_REGION === 'overseas' ? 'overseas' : 'domestic'
+const telemetryEndpoint =
+  process.env.TELEMETRY_ENDPOINT ??
+  (telemetryRegion === 'overseas' ? '/api/telemetry/global/events' : '/api/telemetry/cn/events')
+const telemetryChannel = process.env.TELEMETRY_CHANNEL ?? buildTarget
+const telemetryEnabled = process.env.TELEMETRY_ENABLED !== 'false'
 
 const config: UserConfigExport = {
   projectName: 'diangong-dashi',
@@ -22,12 +29,24 @@ const config: UserConfigExport = {
     }
   },
   alias: {
-    '@': path.resolve(__dirname, '..', 'src')
+    '@': path.resolve(__dirname, '..', 'src'),
+    ...(buildTarget === 'android-google-play'
+      ? {}
+      : {
+          '@capacitor/core': path.resolve(__dirname, '..', 'src/core/capacitorCoreShim.ts')
+        })
   },
   cache: {
-    enable: false
+    enable: true
   },
-  defineConstants: {},
+  defineConstants: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.1.0'),
+    __BUILD_TARGET__: JSON.stringify(buildTarget),
+    __TELEMETRY_REGION__: JSON.stringify(telemetryRegion),
+    __TELEMETRY_CHANNEL__: JSON.stringify(telemetryChannel),
+    __TELEMETRY_ENDPOINT__: JSON.stringify(telemetryEndpoint),
+    __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled)
+  },
   copy: {
     patterns: [],
     options: {}

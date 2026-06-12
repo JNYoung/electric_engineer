@@ -1787,6 +1787,30 @@ $ink: #1f2937;
   color: $muted;
 }
 
+.material-explain-card {
+  display: grid;
+  gap: 4px;
+  margin-top: 9px;
+  padding: 9px;
+  border: 1px solid #dce9f8;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.material-explain-title {
+  color: $blue;
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 900;
+}
+
+.material-explain-copy {
+  color: #344054;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
 .material-kit-scenario {
   display: block;
   margin-top: 7px;
@@ -2304,11 +2328,27 @@ $ink: #1f2937;
   border-radius: 999px;
   background: #a8b2c0;
   opacity: 0.95;
+  cursor: pointer;
+  transform-origin: 0 50%;
+  transition: background 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.wire-segment.is-selected {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18), 0 0 18px rgba(37, 99, 235, 0.22);
+  opacity: 1;
+}
+
+.wire-segment.is-smooth {
+  transform-origin: 0 50%;
 }
 
 .wire-segment.is-energized {
   background: $red;
   box-shadow: 0 0 0 2px rgba(229, 72, 77, 0.15), 0 0 14px rgba(229, 72, 77, 0.4);
+}
+
+.wire-segment.is-energized.is-selected {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18), 0 0 16px rgba(229, 72, 77, 0.42);
 }
 
 .wire-segment.is-return {
@@ -2341,11 +2381,20 @@ $ink: #1f2937;
   background: #ffffff;
   box-shadow: 0 8px 22px rgba(41, 55, 78, 0.08);
   box-sizing: border-box;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .device-node.is-selected {
   border-color: $blue;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14), 0 10px 24px rgba(41, 55, 78, 0.12);
+}
+
+.device-node.is-dragging {
+  z-index: 4;
+  cursor: grabbing;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18), 0 18px 32px rgba(41, 55, 78, 0.18);
 }
 
 .device-symbol {
@@ -4136,6 +4185,43 @@ $ink: #1f2937;
 
 .control-stack {
   margin-top: 10px;
+}
+
+.wire-style-control {
+  margin-top: 12px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.style-button {
+  min-height: 30px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: $muted;
+  font-size: 13px;
+  line-height: 28px;
+  font-weight: 800;
+}
+
+.style-button::after {
+  border: none;
+}
+
+.style-button.is-active {
+  border-color: #cfe0ff;
+  background: #edf4ff;
+  color: $blue;
 }
 
 .field-label {

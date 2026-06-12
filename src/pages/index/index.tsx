@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import './index.scss'
 import { createBranchWires, createDevice, createInitialCircuit } from '@/core/circuitFactory'
 import {
@@ -66,7 +67,9 @@ import {
   getMaterialTrainingKits
 } from '@/core/materials'
 import { buildVirtualMeterWorksheet } from '@/core/instruments'
-import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire } from '@/core/types'
+import { createTelemetryClient } from '@/core/telemetry'
+import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@/core/googlePlayNative'
+import type { CircuitDevice, CircuitModel, DeviceKind, SimulationResult, Wire, WirePathMode } from '@/core/types'
 import type {
   ChallengeEvaluation,
   FaultScenario,
@@ -94,6 +97,7 @@ import type {
 } from '@/core/assessment'
 import type { MaterialFamily, MaterialFinderResult, MaterialTrainingKitPlan } from '@/core/materials'
 import type { VirtualMeterWorksheet } from '@/core/instruments'
+import type { TelemetryEventName, TelemetryProperties } from '@/core/telemetry'
 import type {
   AuthSession,
   BillingPlan,
@@ -106,6 +110,41 @@ import type {
 const visualParts = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 type MobileTabId = 'learn' | 'simulate' | 'bank' | 'library' | 'account'
 const MATERIAL_QUERY_PRESETS = ['额定电压', 'NPN', '回线', '过压', '安全链']
+const NODE_WIDTH = 136
+const NODE_HEIGHT = 74
+const WIRE_THICKNESS = 6
+const DEFAULT_BOARD_WIDTH = 720
+const BOARD_DRAG_INSET = 2
+
+interface Point {
+  x: number
+  y: number
+}
+
+interface WireRenderSegment {
+  x: number
+  y: number
+  w: number
+  h: number
+  angle?: number
+}
+
+interface DragState {
+  deviceId: string
+  pointerStart: Point
+  deviceStart: Point
+}
+
+interface PointerLikeEvent {
+  stopPropagation?: () => void
+  preventDefault?: () => void
+  clientX?: number
+  clientY?: number
+  pageX?: number
+  pageY?: number
+  touches?: Array<Partial<Point> & { clientX?: number; clientY?: number; pageX?: number; pageY?: number }>
+  changedTouches?: Array<Partial<Point> & { clientX?: number; clientY?: number; pageX?: number; pageY?: number }>
+}
 
 const MOBILE_NAV_ITEMS: Array<{ id: MobileTabId; label: string }> = [
   { id: 'learn', label: '学习' },
@@ -129,24 +168,49 @@ function formatNumber(value: number, digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : '0.00'
 }
 
+function getRuntimeTelemetryPlatform() {
+  try {
+    return String(Taro.getEnv?.() ?? 'unknown').toLowerCase()
+  } catch {
+    return 'unknown'
+  }
+}
+
+function getRuntimeLocale() {
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return navigator.language
+  }
+  return 'zh-CN'
+}
+
+function getAdPlacementForMobileTab(tabId: MobileTabId) {
+  if (tabId === 'library') return 'library_banner'
+  if (tabId === 'account') return 'account_banner'
+  return 'hidden'
+}
+
 function terminalPoint(device: CircuitDevice, terminalId: string) {
-  const nodeWidth = 136
-  const nodeHeight = 74
-  const centerY = device.y + nodeHeight / 2
+  const centerY = device.y + NODE_HEIGHT / 2
 
   if (device.kind === 'power-positive') {
-    return { x: device.x + nodeWidth, y: centerY }
+    return { x: device.x + NODE_WIDTH, y: centerY }
   }
   if (device.kind === 'power-negative') {
-    return { x: device.x + nodeWidth, y: centerY }
+    return { x: device.x + NODE_WIDTH, y: centerY }
   }
   if (terminalId === 'out' || terminalId === 'b') {
-    return { x: device.x + nodeWidth, y: centerY }
+    return { x: device.x + NODE_WIDTH, y: centerY }
   }
   return { x: device.x, y: centerY }
 }
 
-function routeWire(wire: Wire, devicesById: Map<string, CircuitDevice>) {
+function routeWire(wire: Wire, devicesById: Map<string, CircuitDevice>): WireRenderSegment[] {
+  return wire.pathMode === 'smooth'
+    ? routeSmoothWire(wire, devicesById)
+    : routeOrthogonalWire(wire, devicesById)
+}
+
+function routeOrthogonalWire(wire: Wire, devicesById: Map<string, CircuitDevice>): WireRenderSegment[] {
   const fromDevice = devicesById.get(wire.from.deviceId)
   const toDevice = devicesById.get(wire.to.deviceId)
   if (!fromDevice || !toDevice) return []
@@ -162,22 +226,70 @@ function routeWire(wire: Wire, devicesById: Map<string, CircuitDevice>) {
   ].filter((segment) => segment.w > 0 && segment.h > 0)
 }
 
+function routeSmoothWire(wire: Wire, devicesById: Map<string, CircuitDevice>): WireRenderSegment[] {
+  const fromDevice = devicesById.get(wire.from.deviceId)
+  const toDevice = devicesById.get(wire.to.deviceId)
+  if (!fromDevice || !toDevice) return []
+
+  const from = terminalPoint(fromDevice, wire.from.terminalId)
+  const to = terminalPoint(toDevice, wire.to.terminalId)
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const direction = dx >= 0 ? 1 : -1
+  const tension = Math.max(72, Math.min(220, Math.abs(dx) * 0.55 + Math.abs(dy) * 0.18))
+  const controlA = { x: from.x + direction * tension, y: from.y }
+  const controlB = { x: to.x - direction * tension, y: to.y }
+  const points: Point[] = []
+
+  for (let index = 0; index <= 18; index += 1) {
+    points.push(cubicBezierPoint(from, controlA, controlB, to, index / 18))
+  }
+
+  return pointsToSegments(points)
+}
+
+function cubicBezierPoint(a: Point, b: Point, c: Point, d: Point, t: number): Point {
+  const mt = 1 - t
+  return {
+    x: mt ** 3 * a.x + 3 * mt ** 2 * t * b.x + 3 * mt * t ** 2 * c.x + t ** 3 * d.x,
+    y: mt ** 3 * a.y + 3 * mt ** 2 * t * b.y + 3 * mt * t ** 2 * c.y + t ** 3 * d.y
+  }
+}
+
+function pointsToSegments(points: Point[]) {
+  const segments: WireRenderSegment[] = []
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1]
+    const end = points[index]
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const length = Math.hypot(dx, dy)
+    if (length < 1) continue
+    segments.push({
+      x: start.x,
+      y: start.y - WIRE_THICKNESS / 2,
+      w: length,
+      h: WIRE_THICKNESS,
+      angle: Math.atan2(dy, dx) * (180 / Math.PI)
+    })
+  }
+  return segments
+}
+
 function horizontalSegment(x1: number, y: number, x2: number) {
-  const height = 6
   return {
     x: Math.min(x1, x2),
-    y: y - height / 2,
+    y: y - WIRE_THICKNESS / 2,
     w: Math.abs(x2 - x1),
-    h: height
+    h: WIRE_THICKNESS
   }
 }
 
 function verticalSegment(x: number, y1: number, y2: number) {
-  const width = 6
   return {
-    x: x - width / 2,
+    x: x - WIRE_THICKNESS / 2,
     y: Math.min(y1, y2),
-    w: width,
+    w: WIRE_THICKNESS,
     h: Math.abs(y2 - y1)
   }
 }
@@ -200,11 +312,41 @@ function updateWire(model: CircuitModel, id: string, connected: boolean): Circui
   }
 }
 
+function updateWirePathMode(model: CircuitModel, id: string, pathMode: WirePathMode): CircuitModel {
+  return {
+    ...model,
+    wires: model.wires.map((wire) =>
+      wire.id === id ? { ...wire, pathMode } : wire
+    )
+  }
+}
+
 function setAllWires(model: CircuitModel, connected: boolean): CircuitModel {
   return {
     ...model,
     wires: model.wires.map((wire) => ({ ...wire, connected }))
   }
+}
+
+function moveDevice(model: CircuitModel, id: string, next: Point): CircuitModel {
+  return {
+    ...model,
+    devices: model.devices.map((device) =>
+      device.id === id ? { ...device, x: Math.round(next.x), y: Math.round(next.y) } : device
+    )
+  }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value))
+}
+
+function eventPoint(event: PointerLikeEvent): Point | null {
+  const touch = event.touches?.[0] ?? event.changedTouches?.[0]
+  const x = touch?.clientX ?? touch?.pageX ?? event.clientX ?? event.pageX
+  const y = touch?.clientY ?? touch?.pageY ?? event.clientY ?? event.pageY
+  if (typeof x !== 'number' || typeof y !== 'number') return null
+  return { x, y }
 }
 
 function statusLabel(status: ChallengeEvaluation['status']) {
@@ -374,7 +516,7 @@ function CatalogEntryRow({
   entry: ComponentCatalogEntry
   session: AuthSession
   onAdd: (kind: DeviceKind) => void
-  onLocked: (tier: SubscriptionTier) => void
+  onLocked: (entry: ComponentCatalogEntry) => void
 }) {
   const definition = getDeviceDefinition(entry.kind)
   const accessible = canUseCatalogEntry(session, entry)
@@ -403,7 +545,7 @@ function CatalogEntryRow({
           if (accessible) {
             onAdd(entry.kind)
           } else {
-            onLocked(entry.tier)
+            onLocked(entry)
           }
         }}
       >
@@ -610,7 +752,7 @@ function FaultScenarioLibrary({
       </View>
       <View className='fault-summary-grid'>
         <View>
-          <Text className='metric-label'>高中</Text>
+          <Text className='metric-label'>基础</Text>
           <Text className='metric-value'>{summary.highSchool}</Text>
         </View>
         <View>
@@ -1483,7 +1625,7 @@ function MaterialSpecPanel({
       </View>
       <View className='material-summary-grid'>
         <View>
-          <Text className='metric-label'>高中</Text>
+          <Text className='metric-label'>基础</Text>
           <Text className='metric-value'>{summary.highSchool}</Text>
         </View>
         <View>
@@ -1514,7 +1656,19 @@ function MaterialSpecPanel({
           <Text>{primarySpec.currentRange}</Text>
         </View>
         <Text className='material-detail'>{primarySpec.simulationUse}</Text>
+        {primarySpec.careerUse && (
+          <View className='material-explain-card'>
+            <Text className='material-explain-title'>岗位用途</Text>
+            <Text className='material-explain-copy'>{primarySpec.careerUse}</Text>
+          </View>
+        )}
         <MaterialChipRow title='关键参数' items={primarySpec.keyParameters} />
+        {primarySpec.connectionGuide && primarySpec.connectionGuide.length > 0 && (
+          <MaterialChipRow title='接线要点' items={primarySpec.connectionGuide} />
+        )}
+        {primarySpec.certificationFocus && primarySpec.certificationFocus.length > 0 && (
+          <MaterialChipRow title='取证考点' items={primarySpec.certificationFocus} />
+        )}
         <MaterialChipRow title='考试标签' items={primarySpec.examTags} />
         <View className='spec-list'>
           {primarySpec.safetyNotes.slice(0, 2).map((item) => (
@@ -1643,7 +1797,7 @@ function MaterialFinderPanel({
                 <Text className='material-finder-name'>{item.displayName}</Text>
                 <Text className='material-family'>{item.family}</Text>
               </View>
-              <Text className='material-detail'>{item.simulationUse}</Text>
+              <Text className='material-detail'>{item.careerUse ?? item.simulationUse}</Text>
               <Text className='material-finder-meta'>{item.examTags.slice(0, 3).join(' / ')}</Text>
             </View>
           ))}
@@ -1787,14 +1941,18 @@ function VirtualMeterPanel({ worksheet }: { worksheet: VirtualMeterWorksheet }) 
 function BoardDevice({
   device,
   selected,
+  dragging,
   effect,
   onSelect,
+  onDragStart,
   onToggleSwitch
 }: {
   device: CircuitDevice
   selected: boolean
+  dragging: boolean
   effect?: SimulationResult['effects'][string]
   onSelect: (id: string) => void
+  onDragStart: (event: PointerLikeEvent, id: string) => void
   onToggleSwitch: (id: string) => void
 }) {
   const definition = getDeviceDefinition(device.kind)
@@ -1803,6 +1961,7 @@ function BoardDevice({
     'device-node',
     `device-${device.kind}`,
     selected ? 'is-selected' : '',
+    dragging ? 'is-dragging' : '',
     active ? 'is-active' : '',
     device.kind === 'switch' && device.isClosed ? 'is-closed' : ''
   ]
@@ -1812,8 +1971,10 @@ function BoardDevice({
   return (
     <View
       className={className}
+      data-device-id={device.id}
       style={{ left: `${device.x}px`, top: `${device.y}px` }}
       onClick={() => onSelect(device.id)}
+      onTouchStart={(event) => onDragStart(event, device.id)}
     >
       <View className='device-symbol'>
         <ComponentIllustration kind={device.kind} />
@@ -1831,6 +1992,7 @@ function BoardDevice({
       {isConductiveControlKind(device.kind) && (
         <Button
           className='inline-switch'
+          onTouchStart={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation()
             onToggleSwitch(device.id)
@@ -1847,11 +2009,13 @@ function WireLayer({
   wires,
   devices,
   simulation,
+  selectedWireId,
   onSelectWire
 }: {
   wires: Wire[]
   devices: CircuitDevice[]
   simulation: SimulationResult
+  selectedWireId?: string
   onSelectWire: (id: string) => void
 }) {
   const devicesById = new Map(devices.map((device) => [device.id, device]))
@@ -1866,9 +2030,11 @@ function WireLayer({
             key={`${wire.id}-${index}`}
             className={[
               'wire-segment',
+              wire.pathMode === 'smooth' ? 'is-smooth' : 'is-orthogonal',
               wire.connected ? 'is-connected' : 'is-disconnected',
               status?.energized ? 'is-energized' : '',
-              (status?.voltage ?? 0) <= 0.2 && wire.connected ? 'is-return' : ''
+              (status?.voltage ?? 0) <= 0.2 && wire.connected ? 'is-return' : '',
+              selectedWireId === wire.id ? 'is-selected' : ''
             ]
               .filter(Boolean)
               .join(' ')}
@@ -1876,7 +2042,8 @@ function WireLayer({
               left: `${segment.x}px`,
               top: `${segment.y}px`,
               width: `${segment.w}px`,
-              height: `${segment.h}px`
+              height: `${segment.h}px`,
+              transform: segment.angle === undefined ? undefined : `rotate(${segment.angle}deg)`
             }}
             onClick={() => onSelectWire(wire.id)}
           />
@@ -1965,6 +2132,23 @@ export default function Index() {
   const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, string>>({})
   const [materialQuery, setMaterialQuery] = useState('')
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTabId>('learn')
+  const [draggingDeviceId, setDraggingDeviceId] = useState<string | null>(null)
+  const [boardSize, setBoardSize] = useState({ width: DEFAULT_BOARD_WIDTH, height: 500 })
+  const dragRef = useRef<DragState | null>(null)
+  const modelRef = useRef(model)
+  const boardSizeRef = useRef(boardSize)
+  const boardHeightRef = useRef(500)
+  const telemetry = useMemo(
+    () =>
+      createTelemetryClient({
+        context: {
+          platform: getRuntimeTelemetryPlatform(),
+          locale: getRuntimeLocale()
+        },
+        transport: createGooglePlayTelemetryTransport()
+      }),
+    []
+  )
   const simulation = useMemo(() => simulateCircuit(model), [model])
   const activeLesson = getLessonById(activeLessonId)
   const activeChallenge = getChallengeById(activeChallengeId)
@@ -2013,8 +2197,105 @@ export default function Index() {
   const loadDevices = model.devices.filter((device) => isLoadKind(device.kind))
   const boardHeight = Math.max(500, ...model.devices.map((device) => device.y + 100))
 
-  function setVoltage(nextVoltage: number) {
+  useEffect(() => {
+    modelRef.current = model
+  }, [model])
+
+  useEffect(() => {
+    boardSizeRef.current = boardSize
+  }, [boardSize])
+
+  useEffect(() => {
+    boardHeightRef.current = boardHeight
+  }, [boardHeight])
+
+  useEffect(() => {
+    trackTelemetryEvent('app_open', {
+      active_tab: activeMobileTab,
+      active_domain: activeDomain,
+      device_count: model.devices.length,
+      wire_count: model.wires.length
+    })
+  }, [])
+
+  useEffect(() => {
+    syncGooglePlayAdPlacement(getAdPlacementForMobileTab(activeMobileTab))
+  }, [activeMobileTab])
+
+  useEffect(() => {
+    Taro.nextTick(() => {
+      Taro.createSelectorQuery()
+        .select('.circuit-board')
+        .boundingClientRect((rect) => {
+          const boardRect = Array.isArray(rect) ? rect[0] : rect
+          if (!boardRect || typeof boardRect.width !== 'number' || typeof boardRect.height !== 'number') return
+          const boardElement =
+            typeof document === 'undefined'
+              ? null
+              : document.querySelector<HTMLElement>('.circuit-board')
+          setBoardSize({
+            width: Math.max(boardRect.width, boardElement?.scrollWidth ?? 0),
+            height: Math.max(boardRect.height, boardElement?.scrollHeight ?? 0)
+          })
+        })
+        .exec()
+    })
+  }, [activeMobileTab, boardHeight, model.devices.length])
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return undefined
+
+    const board = document.querySelector<HTMLElement>('.circuit-board')
+    if (!board) return undefined
+    const boardElement = board
+
+    function handleMouseDown(event: MouseEvent) {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('.inline-switch')) return
+
+      const node = target.closest<HTMLElement>('.device-node')
+      if (!node || !boardElement.contains(node)) return
+
+      const deviceId = node.dataset.deviceId
+      if (deviceId) {
+        startDeviceDrag(event, deviceId)
+      }
+    }
+
+    function handleMouseMove(event: MouseEvent) {
+      dragDevice(event)
+    }
+
+    boardElement.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', stopDeviceDrag)
+
+    return () => {
+      boardElement.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', stopDeviceDrag)
+    }
+  }, [])
+
+  function trackTelemetryEvent(name: TelemetryEventName, properties?: TelemetryProperties) {
+    telemetry.track(name, properties)
+  }
+
+  function changeMobileTab(tabId: MobileTabId, source = 'bottom_nav') {
+    setActiveMobileTab(tabId)
+    trackTelemetryEvent('mobile_tab_changed', {
+      tab_id: tabId,
+      source
+    })
+  }
+
+  function setVoltage(nextVoltage: number, source = 'voltage_control') {
     const voltage = Math.max(1, Math.min(48, nextVoltage))
+    trackTelemetryEvent('circuit_voltage_changed', {
+      voltage,
+      source
+    })
     setModel((current) =>
       updateDevice(current, 'p1', {
         sourceVoltage: voltage
@@ -2023,6 +2304,12 @@ export default function Index() {
   }
 
   function toggleSwitch(deviceId = 's1') {
+    const device = modelRef.current.devices.find((item) => item.id === deviceId)
+    trackTelemetryEvent('circuit_switch_toggled', {
+      device_id: deviceId,
+      kind: device?.kind ?? 'unknown',
+      closed: !device?.isClosed
+    })
     setModel((current) => {
       const device = current.devices.find((item) => item.id === deviceId)
       return updateDevice(current, deviceId, { isClosed: !device?.isClosed })
@@ -2030,38 +2317,113 @@ export default function Index() {
   }
 
   function addDevice(kind: DeviceKind) {
-    setModel((current) => {
-      const nextIndex = current.devices.filter((device) => device.id.startsWith('x')).length + 1
-      const sameKindIndex = current.devices.filter((device) => device.kind === kind).length + 1
-      const device = createDevice(kind, nextIndex, sameKindIndex)
-      const wires = canAutoConnect(kind)
-        ? createBranchWires(device.id, nextIndex, device.label)
-        : []
-      setSelectedId(device.id)
-      return {
-        devices: [...current.devices, device],
-        wires: [...current.wires, ...wires]
-      }
+    const currentModel = modelRef.current
+    const nextIndex = currentModel.devices.filter((device) => device.id.startsWith('x')).length + 1
+    const sameKindIndex = currentModel.devices.filter((device) => device.kind === kind).length + 1
+    const device = createDevice(kind, nextIndex, sameKindIndex)
+    const wires = canAutoConnect(kind)
+      ? createBranchWires(device.id, nextIndex, device.label)
+      : []
+
+    trackTelemetryEvent('component_added', {
+      kind,
+      device_id: device.id,
+      domain: activeDomain,
+      auto_connected: wires.length > 0
     })
-    setActiveMobileTab('simulate')
+    setModel((current) => ({
+      devices: [...current.devices, device],
+      wires: [...current.wires, ...wires]
+    }))
+    setSelectedId(device.id)
+    changeMobileTab('simulate', 'component_added')
+  }
+
+  function startDeviceDrag(event: PointerLikeEvent, deviceId: string) {
+    const point = eventPoint(event)
+    const device = modelRef.current.devices.find((item) => item.id === deviceId)
+    if (!point || !device) return
+
+    event.stopPropagation?.()
+    event.preventDefault?.()
+    setSelectedId(deviceId)
+    dragRef.current = {
+      deviceId,
+      pointerStart: point,
+      deviceStart: { x: device.x, y: device.y }
+    }
+    setDraggingDeviceId(deviceId)
+  }
+
+  function dragDevice(event: PointerLikeEvent) {
+    const activeDrag = dragRef.current
+    if (!activeDrag) return
+
+    const point = eventPoint(event)
+    if (!point) return
+
+    event.preventDefault?.()
+    const currentBoardSize = boardSizeRef.current
+    const currentBoardHeight = boardHeightRef.current
+    const maxX = Math.max(0, currentBoardSize.width - NODE_WIDTH - BOARD_DRAG_INSET * 2)
+    const maxY = Math.max(0, Math.max(currentBoardSize.height, currentBoardHeight) - NODE_HEIGHT - BOARD_DRAG_INSET * 2)
+    const next = {
+      x: clamp(activeDrag.deviceStart.x + point.x - activeDrag.pointerStart.x, 0, maxX),
+      y: clamp(activeDrag.deviceStart.y + point.y - activeDrag.pointerStart.y, 0, maxY)
+    }
+
+    setModel((current) => moveDevice(current, activeDrag.deviceId, next))
+  }
+
+  function stopDeviceDrag() {
+    const activeDrag = dragRef.current
+    if (!activeDrag) return
+    const device = modelRef.current.devices.find((item) => item.id === activeDrag.deviceId)
+    if (device) {
+      trackTelemetryEvent('canvas_device_dragged', {
+        device_id: activeDrag.deviceId,
+        from_x: activeDrag.deviceStart.x,
+        from_y: activeDrag.deviceStart.y,
+        to_x: device.x,
+        to_y: device.y
+      })
+    }
+    dragRef.current = null
+    setDraggingDeviceId(null)
   }
 
   function resetCircuit() {
+    trackTelemetryEvent('circuit_reset', {
+      voltage,
+      device_count: modelRef.current.devices.length,
+      wire_count: modelRef.current.wires.length
+    })
     setSelectedId('l1')
     setModel(createInitialCircuit(model.devices.find((item) => item.id === 'p1')?.sourceVoltage ?? 12))
   }
 
   function startChallenge(challengeId: string) {
     const challenge = getChallengeById(challengeId)
+    trackTelemetryEvent('training_started', {
+      challenge_id: challenge.id,
+      lesson_id: challenge.lessonId,
+      source: 'challenge'
+    })
     setActiveChallengeId(challenge.id)
     setActiveLessonId(challenge.lessonId)
     setSelectedId(challenge.id === 'sensor-io' ? 'x1' : 'l1')
     setModel(createTrainingCircuit(challenge.id))
-    setActiveMobileTab('simulate')
+    changeMobileTab('simulate', 'training_started')
   }
 
   function startFaultScenario(scenarioId: string) {
     const scenario = getFaultScenarioById(scenarioId)
+    trackTelemetryEvent('fault_scenario_started', {
+      scenario_id: scenario.id,
+      lesson_id: scenario.lessonId,
+      level: scenario.level,
+      mode: scenario.mode
+    })
     setActiveLessonId(scenario.lessonId)
     if (scenario.challengeId) {
       setActiveChallengeId(scenario.challengeId)
@@ -2069,52 +2431,119 @@ export default function Index() {
     setActiveKnowledgeTrackId(scenario.level)
     setSelectedId(scenario.id === 'source-short-protection' ? 'w-training-short' : 'l1')
     setModel(createFaultScenarioCircuit(scenario.id))
-    setActiveMobileTab('simulate')
+    changeMobileTab('simulate', 'fault_scenario_started')
   }
 
   function changeDomain(domain: WorkbenchDomain) {
     const profile = getDomainProfile(domain)
+    trackTelemetryEvent('domain_changed', {
+      domain,
+      recommended_voltage: profile.recommendedVoltage,
+      recommended_tier: profile.recommendedTier
+    })
     setActiveDomain(domain)
     setActiveCategoryId('all')
-    setVoltage(profile.recommendedVoltage)
+    setVoltage(profile.recommendedVoltage, 'domain_changed')
   }
 
-  function openPlan(tier: SubscriptionTier) {
+  function changeCategory(categoryId: string) {
+    trackTelemetryEvent('category_changed', {
+      domain: activeDomain,
+      category_id: categoryId
+    })
+    setActiveCategoryId(categoryId)
+  }
+
+  function selectLesson(lessonId: string) {
+    trackTelemetryEvent('lesson_selected', {
+      lesson_id: lessonId
+    })
+    setActiveLessonId(lessonId)
+  }
+
+  function openPlan(tier: SubscriptionTier, source = 'manual') {
+    trackTelemetryEvent('paywall_viewed', {
+      target_tier: tier,
+      current_tier: authSession.tier,
+      source
+    })
     setSelectedPlanId(tier)
-    setActiveMobileTab('account')
+    changeMobileTab('account', 'paywall_viewed')
+  }
+
+  function openLockedComponentPlan(entry: ComponentCatalogEntry) {
+    trackTelemetryEvent('locked_component_clicked', {
+      kind: entry.kind,
+      domain: entry.domain,
+      category_id: entry.categoryId,
+      required_tier: entry.tier
+    })
+    openPlan(entry.tier, 'locked_component')
   }
 
   function simulateSignIn(tier = selectedPlanId) {
+    trackTelemetryEvent('auth_changed', {
+      status: 'authenticated',
+      tier,
+      source: 'demo_sign_in'
+    })
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
-    setActiveMobileTab('account')
+    changeMobileTab('account', 'auth_changed')
   }
 
   function simulateSignOut() {
+    trackTelemetryEvent('auth_changed', {
+      status: 'anonymous',
+      tier: 'free',
+      source: 'demo_sign_out'
+    })
     setAuthSession(DEFAULT_AUTH_SESSION)
-    setActiveMobileTab('account')
+    changeMobileTab('account', 'auth_changed')
   }
 
   function selectPlan(tier: SubscriptionTier) {
+    trackTelemetryEvent('purchase_intent', {
+      target_tier: tier,
+      current_tier: authSession.tier,
+      source: 'plan_card'
+    })
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
-    setActiveMobileTab('account')
+    changeMobileTab('account', 'purchase_intent')
   }
 
   function answerKnowledgeQuestion(questionId: string, answerId: string) {
+    const result = evaluateKnowledgeAnswer(questionId, answerId)
+    trackTelemetryEvent('knowledge_answered', {
+      question_id: questionId,
+      answer_id: answerId,
+      track_id: activeKnowledgeTrackId,
+      correct: result.correct
+    })
     setKnowledgeAnswers((current) => ({
       ...current,
       [questionId]: answerId
     }))
-    setActiveMobileTab('bank')
+    changeMobileTab('bank', 'knowledge_answered')
   }
 
   function changeKnowledgeTrack(trackId: KnowledgeTrackId) {
+    trackTelemetryEvent('knowledge_track_changed', {
+      track_id: trackId
+    })
     setActiveKnowledgeTrackId(trackId)
-    setActiveMobileTab('bank')
+    changeMobileTab('bank', 'knowledge_track_changed')
   }
 
   function answerAssessmentQuestion(questionId: string, answerId: string) {
+    const result = evaluateKnowledgeAnswer(questionId, answerId)
+    trackTelemetryEvent('assessment_answered', {
+      blueprint_id: activeAssessmentId,
+      question_id: questionId,
+      answer_id: answerId,
+      correct: result.correct
+    })
     setAssessmentAnswers((current) => ({
       ...current,
       [questionId]: answerId
@@ -2123,13 +2552,43 @@ export default function Index() {
       ...current,
       [questionId]: answerId
     }))
-    setActiveMobileTab('bank')
+    changeMobileTab('bank', 'assessment_answered')
   }
 
   function changeAssessment(blueprintId: AssessmentBlueprintId) {
+    trackTelemetryEvent('assessment_changed', {
+      blueprint_id: blueprintId
+    })
     setActiveAssessmentId(blueprintId)
     setAssessmentAnswers({})
-    setActiveMobileTab('bank')
+    changeMobileTab('bank', 'assessment_changed')
+  }
+
+  function toggleWireConnection(wireId: string) {
+    const wire = modelRef.current.wires.find((item) => item.id === wireId)
+    const connected = !wire?.connected
+    trackTelemetryEvent('wire_connection_changed', {
+      wire_id: wireId,
+      connected,
+      source: 'wire_toggle'
+    })
+    setModel((current) => updateWire(current, wireId, connected))
+  }
+
+  function changeWirePathMode(wireId: string, mode: WirePathMode) {
+    trackTelemetryEvent('wire_path_changed', {
+      wire_id: wireId,
+      path_mode: mode
+    })
+    setModel((current) => updateWirePathMode(current, wireId, mode))
+  }
+
+  function setAllWiresConnected(connected: boolean) {
+    trackTelemetryEvent('all_wires_changed', {
+      connected,
+      wire_count: modelRef.current.wires.length
+    })
+    setModel((current) => setAllWires(current, connected))
   }
 
   const voltage = model.devices.find((device) => device.id === 'p1')?.sourceVoltage ?? 12
@@ -2158,10 +2617,10 @@ export default function Index() {
             {model.devices.find((device) => device.id === 's1')?.isClosed ? '■ 断开' : '▶ 接通'}
           </Button>
           <Button className='tool-button' onClick={resetCircuit}>↺ 复位</Button>
-          <Button className='tool-button' onClick={() => setModel((current) => setAllWires(current, true))}>
+          <Button className='tool-button' onClick={() => setAllWiresConnected(true)}>
             全部连接
           </Button>
-          <Button className='tool-button' onClick={() => setModel((current) => setAllWires(current, false))}>
+          <Button className='tool-button' onClick={() => setAllWiresConnected(false)}>
             全部断开
           </Button>
           <Button className='tool-button' onClick={() => startChallenge(activeChallenge.id)}>载入训练</Button>
@@ -2191,7 +2650,7 @@ export default function Index() {
           lesson={activeLesson}
           challenge={activeChallenge}
           evaluation={challengeEvaluation}
-          onSelectLesson={setActiveLessonId}
+          onSelectLesson={selectLesson}
           onStartChallenge={startChallenge}
           onStartScenario={startFaultScenario}
         />
@@ -2226,7 +2685,7 @@ export default function Index() {
           <CategoryFilter
             activeDomain={activeDomain}
             activeCategoryId={activeCategoryId}
-            onSelect={setActiveCategoryId}
+            onSelect={changeCategory}
           />
           <ScrollView scrollY className='palette-scroll'>
             {catalogEntries.map((entry) => (
@@ -2235,7 +2694,7 @@ export default function Index() {
                 entry={entry}
                 session={authSession}
                 onAdd={addDevice}
-                onLocked={openPlan}
+                onLocked={openLockedComponentPlan}
               />
             ))}
           </ScrollView>
@@ -2276,12 +2735,19 @@ export default function Index() {
             </View>
           </View>
 
-          <View className='circuit-board' style={{ height: `${boardHeight}px` }}>
+          <View
+            className='circuit-board'
+            style={{ height: `${boardHeight}px` }}
+            onTouchMove={dragDevice}
+            onTouchEnd={stopDeviceDrag}
+            onTouchCancel={stopDeviceDrag}
+          >
             <View className='grid-bg' />
-            <WireLayer
-              wires={model.wires}
-              devices={model.devices}
-              simulation={simulation}
+              <WireLayer
+                wires={model.wires}
+                devices={model.devices}
+                simulation={simulation}
+                selectedWireId={selectedWire?.id}
               onSelectWire={setSelectedId}
             />
             {model.devices.map((device) => (
@@ -2289,8 +2755,10 @@ export default function Index() {
                 key={device.id}
                 device={device}
                 selected={selectedId === device.id}
+                dragging={draggingDeviceId === device.id}
                 effect={simulation.effects[device.id]}
                 onSelect={setSelectedId}
+                onDragStart={startDeviceDrag}
                 onToggleSwitch={toggleSwitch}
               />
             ))}
@@ -2315,7 +2783,7 @@ export default function Index() {
                   </View>
                   <Button
                     className={`toggle-button ${wire.connected ? 'is-on' : ''}`}
-                    onClick={() => setModel((current) => updateWire(current, wire.id, !wire.connected))}
+                    onClick={() => toggleWireConnection(wire.id)}
                   >
                     {wire.connected ? '断开' : '接入'}
                   </Button>
@@ -2392,9 +2860,31 @@ export default function Index() {
               <Text className='wire-detail'>
                 {selectedWire.from.deviceId}.{selectedWire.from.terminalId} → {selectedWire.to.deviceId}.{selectedWire.to.terminalId}
               </Text>
+              <View className='wire-style-control'>
+                <Text className='field-label'>线型</Text>
+                <View className='segmented-control'>
+                  {([
+                    ['orthogonal', '折线'],
+                    ['smooth', '平滑']
+                  ] as const).map(([mode, label]) => (
+                    <Button
+                      key={mode}
+                      className={[
+                        'style-button',
+                        selectedWire.pathMode === mode ? 'is-active' : ''
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => changeWirePathMode(selectedWire.id, mode)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </View>
+              </View>
               <Button
                 className='full-button'
-                onClick={() => setModel((current) => updateWire(current, selectedWire.id, !selectedWire.connected))}
+                onClick={() => toggleWireConnection(selectedWire.id)}
               >
                 {selectedWire.connected ? '断开这根导线' : '接入这根导线'}
               </Button>
@@ -2455,7 +2945,7 @@ export default function Index() {
         </View>
       </View>
 
-      <MobileBottomNav activeTab={activeMobileTab} onChange={setActiveMobileTab} />
+      <MobileBottomNav activeTab={activeMobileTab} onChange={changeMobileTab} />
     </View>
   )
 }

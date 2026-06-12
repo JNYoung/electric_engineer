@@ -6,7 +6,7 @@ import {
 import type { CircuitDevice, DeviceEffect, CircuitModel, SimulationResult } from './types'
 
 export type KnowledgeTrackId = 'high-school' | 'university' | 'electrician'
-export type KnowledgeLevel = '高中基础' | '大学电路' | '电工实操'
+export type KnowledgeLevel = '基础电学' | '大学电路' | '电工实操'
 
 export interface KnowledgeChoice {
   id: string
@@ -149,10 +149,10 @@ export interface KnowledgeReviewNotebookOptions {
 export const KNOWLEDGE_TRACKS: KnowledgeTrack[] = [
   {
     id: 'high-school',
-    level: '高中基础',
+    level: '基础电学',
     title: '欧姆定律与电功率',
-    target: '面向高中物理电学基础',
-    summary: '训练电压、电流、电阻、电功率和并联支路的常用判断。',
+    target: '面向已有电学基础的取证前置复盘',
+    summary: '复盘电压、电流、电阻、电功率和并联支路的常用判断，服务后续低压排障。',
     requiredIdeas: ['欧姆定律', '并联电压相等', '电功率 P=UI', '短路风险'],
     labFocus: ['读取负载端电压', '比较支路电流', '改变电源电压观察亮度'],
     questionIds: ['hs-ohm-current', 'hs-parallel-voltage', 'hs-power']
@@ -161,7 +161,7 @@ export const KNOWLEDGE_TRACKS: KnowledgeTrack[] = [
     id: 'university',
     level: '大学电路',
     title: '节点法与线性电路',
-    target: '面向大学电路分析入门',
+    target: '面向电路分析能力强化',
     summary: '把 KCL、支路电流、等效负载和电源约束映射到实时仿真结果。',
     requiredIdeas: ['KCL 节点电流', 'KVL 电压约束', '等效电阻', '稳态模型边界'],
     labFocus: ['验证总电流等于各支路电流之和', '观察并联节点电压', '识别模型不覆盖暂态过程'],

@@ -1,5 +1,5 @@
 import { DEVICE_REGISTRY } from './registry'
-import type { CircuitDevice, CircuitModel, DeviceKind, Wire } from './types'
+import type { CircuitDevice, CircuitModel, DeviceKind, Wire, WirePathMode } from './types'
 
 export function createInitialCircuit(voltage = 12): CircuitModel {
   return {
@@ -62,14 +62,16 @@ export function wire(
   fromTerminalId: string,
   toDeviceId: string,
   toTerminalId: string,
-  label: string
+  label: string,
+  pathMode: WirePathMode = 'orthogonal'
 ): Wire {
   return {
     id,
     from: { deviceId: fromDeviceId, terminalId: fromTerminalId },
     to: { deviceId: toDeviceId, terminalId: toTerminalId },
     connected: true,
-    label
+    label,
+    pathMode
   }
 }
 

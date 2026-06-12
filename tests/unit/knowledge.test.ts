@@ -13,7 +13,7 @@ import {
 import { simulateCircuit } from '../../src/core/simulator'
 
 describe('knowledge verification library', () => {
-  it('covers high school, university, and professional electrician tracks', () => {
+  it('covers foundation, university, and professional electrician tracks', () => {
     expect(KNOWLEDGE_TRACKS.map((track) => track.id)).toEqual([
       'high-school',
       'university',
