@@ -701,9 +701,11 @@ function getProtectionDevices(model: CircuitModel) {
     if (device.enabled === false) return false
     return (
       isConductiveControlKind(device.kind) ||
+      device.kind === 'circuit-breaker' ||
       device.kind === 'fuse' ||
       device.kind === 'emergency-stop' ||
-      device.kind === 'thermal-overload'
+      device.kind === 'thermal-overload' ||
+      device.kind === 'pe-terminal'
     )
   })
 }

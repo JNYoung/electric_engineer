@@ -4,6 +4,37 @@ import { DEVICE_PALETTE } from '../../src/core/registry'
 import { simulateCircuit } from '../../src/core/simulator'
 import type { CircuitDevice, CircuitModel, DeviceKind, Wire } from '../../src/core/types'
 
+const DEVICE_LIST_KINDS: DeviceKind[] = [
+  'circuit-breaker',
+  'fuse',
+  'ac-contactor',
+  'dc-contactor',
+  'auxiliary-contact',
+  'thermal-overload',
+  'ac-time-relay',
+  'dc-time-relay',
+  'ac-intermediate-relay',
+  'dc-intermediate-relay',
+  'switching-power-supply',
+  'self-reset-button',
+  'self-lock-button',
+  'emergency-stop',
+  'rotary-switch',
+  'pilot-light',
+  'buzzer',
+  'proximity-sensor',
+  'limit-switch',
+  'diode',
+  'capacitor',
+  'voltmeter',
+  'ammeter',
+  'potentiometer',
+  'gray-terminal',
+  'pe-terminal',
+  'three-phase-motor',
+  'heating-tube'
+]
+
 function patchDevice(
   model: CircuitModel,
   deviceId: string,
@@ -138,6 +169,16 @@ describe('simulateCircuit electrical physics', () => {
       expect(definition.terminals.map((terminal) => terminal.id)).toEqual(['in', 'out'])
       expect(definition.defaultRatedVoltage).toBeGreaterThan(0)
       expect(definition.defaultResistance).toBeGreaterThan(0)
+    })
+  })
+
+  it('covers every component from the imported cabinet device list', () => {
+    DEVICE_LIST_KINDS.forEach((kind) => {
+      const definition = DEVICE_PALETTE.find((item) => item.kind === kind)
+
+      expect(definition, kind).toBeTruthy()
+      expect(definition?.terminals.map((terminal) => terminal.id)).toEqual(['in', 'out'])
+      expect(definition?.description.length).toBeGreaterThan(10)
     })
   })
 })

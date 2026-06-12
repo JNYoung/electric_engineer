@@ -406,6 +406,9 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.mobile-section-learn .commercial-dashboard')).toContainText('待解锁')
     await openMobileTab(page, '素材')
     await expect(page.locator('.palette-panel')).toContainText('PLC 控制器')
+    await expect(page.locator('.palette-panel')).toContainText('断路器')
+    await expect(page.locator('.palette-panel')).toContainText('开关电源')
+    await expect(page.locator('.palette-panel')).toContainText('三相异步电动机')
     await openMobileTab(page, '账号')
     await expect(page.locator('.commerce-panel')).toContainText('登录后开通专业版')
     await expect(page.locator('.commerce-panel')).toContainText('待解锁：PLC 控制器')
@@ -454,6 +457,8 @@ test.describe('electric workbench e2e', () => {
       await expect(page.locator('.canvas-panel')).not.toBeVisible()
       await expect(page.locator('.palette-item').filter({ hasText: '超声波测距' })).toHaveCount(1)
       await expect(page.locator('.palette-item').filter({ hasText: '温湿度传感器' })).toHaveCount(1)
+      await expect(page.locator('.palette-item').filter({ hasText: '断路器' })).toHaveCount(1)
+      await expect(page.locator('.palette-item').filter({ hasText: '三相异步电动机' })).toHaveCount(1)
 
       await openMobileTab(page, '题库')
       await expect(page.locator('.knowledge-board')).toBeVisible()
@@ -477,6 +482,8 @@ test.describe('electric workbench e2e', () => {
       await expect(page.locator('.canvas-panel')).not.toBeVisible()
       await expect(page.locator('.palette-item').filter({ hasText: '超声波测距' })).toHaveCount(1)
       await expect(page.locator('.palette-item').filter({ hasText: '温湿度传感器' })).toHaveCount(1)
+      await expect(page.locator('.palette-item').filter({ hasText: '断路器' })).toHaveCount(1)
+      await expect(page.locator('.palette-item').filter({ hasText: '三相异步电动机' })).toHaveCount(1)
     }
     await expectNoIconText(page)
 
