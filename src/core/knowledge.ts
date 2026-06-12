@@ -81,6 +81,31 @@ export interface KnowledgeMeasurementWorksheet {
   nextActions: string[]
 }
 
+export type FormulaVerificationStatus = '可验算' | '待补读数' | '风险'
+export type FormulaVerificationSeverity = 'success' | 'warning' | 'danger'
+
+export interface FormulaVerificationCard {
+  id: string
+  label: string
+  formula: string
+  knownValues: string[]
+  expected: string
+  observed: string
+  tolerance: string
+  passed: boolean
+  severity: FormulaVerificationSeverity
+  detail: string
+}
+
+export interface FormulaVerificationWorksheet {
+  trackId: KnowledgeTrackId
+  status: FormulaVerificationStatus
+  passed: number
+  total: number
+  cards: FormulaVerificationCard[]
+  nextActions: string[]
+}
+
 export type ReviewReason = 'wrong' | 'unanswered'
 export type ReviewSeverity = 'danger' | 'warning'
 
@@ -460,6 +485,239 @@ export function buildKnowledgeMeasurementWorksheet(
   }
 }
 
+export function buildFormulaVerificationWorksheet(
+  trackId: KnowledgeTrackId,
+  model: CircuitModel,
+  simulation: SimulationResult
+): FormulaVerificationWorksheet {
+  const loadDevices = model.devices.filter((device) => device.enabled !== false && isLoadKind(device.kind))
+  const activeEffects = getActiveLoadEffects(loadDevices, simulation)
+  const cards =
+    trackId === 'university'
+      ? buildUniversityFormulaCards(activeEffects, simulation)
+      : trackId === 'electrician'
+        ? buildElectricianFormulaCards(model, loadDevices, simulation)
+        : buildHighSchoolFormulaCards(activeEffects, simulation)
+  const passed = cards.filter((card) => card.passed).length
+
+  return {
+    trackId,
+    status: getFormulaStatus(cards, simulation),
+    passed,
+    total: cards.length,
+    cards,
+    nextActions: uniqueReviewText(cards.filter((card) => !card.passed).map((card) => card.detail)).slice(0, 3)
+  }
+}
+
+function buildHighSchoolFormulaCards(
+  activeEffects: Array<{ device: CircuitDevice; effect: DeviceEffect }>,
+  simulation: SimulationResult
+): FormulaVerificationCard[] {
+  const first = activeEffects[0]
+  const second = activeEffects[1]
+  const resistance = first ? getDeviceResistance(first.device) : 0
+  const expectedCurrent = first && resistance > 0 ? first.effect.voltage / resistance : 0
+  const currentGap = first ? Math.abs(first.effect.current - expectedCurrent) : Number.POSITIVE_INFINITY
+  const currentPassed = Boolean(first && currentGap <= Math.max(0.02, expectedCurrent * 0.15))
+  const expectedPower = first ? first.effect.voltage * first.effect.current : 0
+  const powerGap = first ? Math.abs(first.effect.power - expectedPower) : Number.POSITIVE_INFINITY
+  const powerPassed = Boolean(first && powerGap <= Math.max(0.02, expectedPower * 0.08))
+  const voltageSpread = getVoltageSpread(activeEffects)
+  const parallelPassed = activeEffects.length >= 2 && voltageSpread <= 0.3
+
+  return [
+    {
+      id: 'formula-ohm-current',
+      label: first ? `${first.device.label}欧姆定律` : '欧姆定律',
+      formula: 'I = U / R',
+      knownValues: first
+        ? [`U=${formatFormulaNumber(first.effect.voltage)}V`, `R=${formatFormulaNumber(resistance)}Ω`]
+        : [`U=${formatFormulaNumber(simulation.supplyVoltage)}V`, 'R=待测'],
+      expected: first ? `${formatFormulaNumber(expectedCurrent)}A` : '待测',
+      observed: first ? `${formatFormulaNumber(first.effect.current)}A` : '0.00A',
+      tolerance: '±15%',
+      passed: currentPassed,
+      severity: currentPassed ? 'success' : 'warning',
+      detail: currentPassed ? '电流读数与 I=U/R 一致。' : '闭合回路并确认负载阻值后再验算欧姆定律。'
+    },
+    {
+      id: 'formula-power',
+      label: first ? `${first.device.label}功率` : '电功率',
+      formula: 'P = U × I',
+      knownValues: first
+        ? [`U=${formatFormulaNumber(first.effect.voltage)}V`, `I=${formatFormulaNumber(first.effect.current)}A`]
+        : ['U=待测', 'I=待测'],
+      expected: first ? `${formatFormulaNumber(expectedPower)}W` : '待测',
+      observed: first ? `${formatFormulaNumber(first.effect.power)}W` : '0.00W',
+      tolerance: '±8%',
+      passed: powerPassed,
+      severity: powerPassed ? 'success' : 'warning',
+      detail: powerPassed ? '功率读数可用于高中电功率判断。' : '先形成可测电压和电流，再用 P=UI 复算。'
+    },
+    {
+      id: 'formula-parallel-voltage',
+      label: '并联端电压',
+      formula: 'U1 ≈ U2',
+      knownValues: [
+        first ? `U1=${formatFormulaNumber(first.effect.voltage)}V` : 'U1=待测',
+        second ? `U2=${formatFormulaNumber(second.effect.voltage)}V` : 'U2=待测'
+      ],
+      expected: `压差 ≤ 0.30V`,
+      observed: activeEffects.length >= 2 ? `${formatFormulaNumber(voltageSpread)}V` : '待测',
+      tolerance: '0.30V',
+      passed: parallelPassed,
+      severity: parallelPassed ? 'success' : 'warning',
+      detail: parallelPassed ? '并联支路端电压在训练容差内。' : '接通两个并联负载后再比较端电压。'
+    }
+  ]
+}
+
+function buildUniversityFormulaCards(
+  activeEffects: Array<{ device: CircuitDevice; effect: DeviceEffect }>,
+  simulation: SimulationResult
+): FormulaVerificationCard[] {
+  const branchCurrentSum = activeEffects.reduce((total, item) => total + item.effect.current, 0)
+  const currentGap = Math.abs(branchCurrentSum - simulation.totalCurrent)
+  const kclPassed = activeEffects.length >= 2 && currentGap <= 0.03 && !simulation.shortCircuit
+  const equivalentResistance = getParallelResistance(activeEffects.map((item) => getDeviceResistance(item.device)))
+  const observedResistance = simulation.totalCurrent > 0 ? simulation.supplyVoltage / simulation.totalCurrent : 0
+  const resistanceGap = Math.abs(observedResistance - equivalentResistance)
+  const resistancePassed = activeEffects.length >= 1 &&
+    simulation.totalCurrent > 0 &&
+    resistanceGap <= Math.max(0.5, equivalentResistance * 0.15)
+  const voltageSpread = getVoltageSpread(activeEffects)
+  const voltagePassed = activeEffects.length >= 2 && voltageSpread <= 0.3
+
+  return [
+    {
+      id: 'formula-kcl',
+      label: 'KCL 节点电流',
+      formula: 'ΣI支路 = I总',
+      knownValues: activeEffects.length > 0
+        ? activeEffects.slice(0, 4).map((item) => `${item.device.label}:${formatFormulaNumber(item.effect.current)}A`)
+        : ['支路电流=待测'],
+      expected: `${formatFormulaNumber(simulation.totalCurrent)}A`,
+      observed: `${formatFormulaNumber(branchCurrentSum)}A`,
+      tolerance: '0.03A',
+      passed: kclPassed,
+      severity: kclPassed ? 'success' : 'warning',
+      detail: kclPassed ? '支路电流和与总电流一致。' : '恢复至少两个工作的并联支路后再验算 KCL。'
+    },
+    {
+      id: 'formula-equivalent-resistance',
+      label: '并联等效电阻',
+      formula: 'Req = U / I总',
+      knownValues: [
+        `U=${formatFormulaNumber(simulation.supplyVoltage)}V`,
+        `I总=${formatFormulaNumber(simulation.totalCurrent)}A`
+      ],
+      expected: activeEffects.length > 0 ? `${formatFormulaNumber(equivalentResistance)}Ω` : '待测',
+      observed: simulation.totalCurrent > 0 ? `${formatFormulaNumber(observedResistance)}Ω` : '待测',
+      tolerance: '±15%',
+      passed: resistancePassed,
+      severity: resistancePassed ? 'success' : 'warning',
+      detail: resistancePassed ? '等效电阻与并联负载模型一致。' : '需要可测总电流和至少一个工作负载后再计算 Req。'
+    },
+    {
+      id: 'formula-node-voltage',
+      label: '并联节点电压',
+      formula: 'ΔU节点 ≈ 0',
+      knownValues: activeEffects.slice(0, 4).map((item) => `${item.device.label}:${formatFormulaNumber(item.effect.voltage)}V`),
+      expected: '≤ 0.30V',
+      observed: activeEffects.length >= 2 ? `${formatFormulaNumber(voltageSpread)}V` : '待测',
+      tolerance: '0.30V',
+      passed: voltagePassed,
+      severity: voltagePassed ? 'success' : 'warning',
+      detail: voltagePassed ? '节点电压差可作为大学电路校核证据。' : '恢复两个并联负载后再观察节点电压。'
+    }
+  ]
+}
+
+function buildElectricianFormulaCards(
+  model: CircuitModel,
+  loadDevices: CircuitDevice[],
+  simulation: SimulationResult
+): FormulaVerificationCard[] {
+  const activeEffects = getActiveLoadEffects(loadDevices, simulation)
+  const protectionCount = model.devices.filter((device) =>
+    device.enabled !== false &&
+    (isConductiveControlKind(device.kind) ||
+      ['fuse', 'thermal-overload', 'emergency-stop'].includes(device.kind))
+  ).length
+  const ratedMargins = activeEffects.map((item) => {
+    const ratedVoltage = getDeviceRatedVoltage(item.device)
+    return {
+      label: item.device.label,
+      ratedVoltage,
+      voltage: item.effect.voltage,
+      margin: ratedVoltage - item.effect.voltage
+    }
+  }).filter((item) => item.ratedVoltage > 0)
+  const worstMargin = ratedMargins.sort((left, right) => left.margin - right.margin)[0]
+  const ratedPassed = ratedMargins.length > 0 && ratedMargins.every((item) => item.voltage <= item.ratedVoltage * 1.25)
+  const safeVoltagePassed = simulation.hasSource && simulation.supplyVoltage > 0 && simulation.supplyVoltage <= 36 && !simulation.shortCircuit
+  const currentBudgetPassed = simulation.hasSource && !simulation.shortCircuit && simulation.totalCurrent > 0 && simulation.totalCurrent <= 5
+  const totalPower = simulation.supplyVoltage * simulation.totalCurrent
+  const protectionPassed = protectionCount > 0 && !simulation.shortCircuit
+
+  return [
+    {
+      id: 'formula-safe-voltage',
+      label: '低压训练电源',
+      formula: 'U电源 ≤ 36V',
+      knownValues: [`U=${formatFormulaNumber(simulation.supplyVoltage)}V`],
+      expected: '≤ 36V',
+      observed: `${formatFormulaNumber(simulation.supplyVoltage)}V`,
+      tolerance: '36V',
+      passed: safeVoltagePassed,
+      severity: safeVoltagePassed ? 'success' : simulation.shortCircuit ? 'danger' : 'warning',
+      detail: safeVoltagePassed ? '电源满足低压训练验算。' : '把电源控制在 36V 内并排除短路后再做实操。'
+    },
+    {
+      id: 'formula-rated-margin',
+      label: '额定电压余量',
+      formula: 'U实测 ≤ 1.25 × U额定',
+      knownValues: worstMargin
+        ? [`${worstMargin.label}: ${formatFormulaNumber(worstMargin.voltage)}V/${formatFormulaNumber(worstMargin.ratedVoltage)}V`]
+        : ['负载=待测'],
+      expected: '不过压',
+      observed: worstMargin ? `${formatFormulaNumber(worstMargin.margin)}V 余量` : '待测',
+      tolerance: '25%',
+      passed: ratedPassed,
+      severity: ratedPassed ? 'success' : ratedMargins.length === 0 ? 'warning' : 'danger',
+      detail: ratedPassed ? '接入负载未发现额定电压越界。' : '检查过压负载并重新匹配电源或额定规格。'
+    },
+    {
+      id: 'formula-current-budget',
+      label: '训练电流预算',
+      formula: 'P总 = U × I总',
+      knownValues: [
+        `U=${formatFormulaNumber(simulation.supplyVoltage)}V`,
+        `I总=${formatFormulaNumber(simulation.totalCurrent)}A`
+      ],
+      expected: 'I总 ≤ 5A',
+      observed: `${formatFormulaNumber(totalPower)}W`,
+      tolerance: '5A',
+      passed: currentBudgetPassed,
+      severity: currentBudgetPassed ? 'success' : simulation.shortCircuit ? 'danger' : 'warning',
+      detail: currentBudgetPassed ? '总电流处于训练预算内。' : '先恢复可测工作电流，并控制总电流在训练预算内。'
+    },
+    {
+      id: 'formula-protection-chain',
+      label: '保护链计数',
+      formula: '保护链 ≥ 1',
+      knownValues: [`保护/控制器件=${protectionCount}`],
+      expected: '≥ 1',
+      observed: `${protectionCount}`,
+      tolerance: '无短路',
+      passed: protectionPassed,
+      severity: protectionPassed ? 'success' : simulation.shortCircuit ? 'danger' : 'warning',
+      detail: protectionPassed ? '回路具备可验收的保护/控制链。' : '加入开关、保险、热继或急停，并先排除短路。'
+    }
+  ]
+}
+
 function buildHighSchoolMeasurements(
   activeEffects: Array<{ device: CircuitDevice; effect: DeviceEffect }>,
   simulation: SimulationResult
@@ -602,12 +860,36 @@ function getVoltageSpread(activeEffects: Array<{ effect: DeviceEffect }>) {
   return Math.max(...voltages) - Math.min(...voltages)
 }
 
+function getDeviceResistance(device: CircuitDevice) {
+  return Math.max(0.1, device.resistance ?? getDeviceDefinition(device.kind).defaultResistance ?? 0.1)
+}
+
+function getDeviceRatedVoltage(device: CircuitDevice) {
+  return Math.max(0, device.ratedVoltage ?? getDeviceDefinition(device.kind).defaultRatedVoltage ?? 0)
+}
+
+function getParallelResistance(resistances: number[]) {
+  const conductance = resistances
+    .filter((value) => value > 0)
+    .reduce((total, value) => total + 1 / value, 0)
+  return conductance > 0 ? 1 / conductance : 0
+}
+
 function getMeasurementStatus(items: KnowledgeMeasurementItem[], simulation: SimulationResult): KnowledgeMeasurementStatus {
   if (simulation.shortCircuit || items.some((item) => item.severity === 'danger' && !item.passed)) return '风险'
   return items.every((item) => item.passed) ? '可测量' : '待接线'
 }
 
+function getFormulaStatus(cards: FormulaVerificationCard[], simulation: SimulationResult): FormulaVerificationStatus {
+  if (simulation.shortCircuit || cards.some((card) => card.severity === 'danger' && !card.passed)) return '风险'
+  return cards.every((card) => card.passed) ? '可验算' : '待补读数'
+}
+
 function formatMeasurement(value: number) {
+  return Number.isFinite(value) ? value.toFixed(2) : '0.00'
+}
+
+function formatFormulaNumber(value: number) {
   return Number.isFinite(value) ? value.toFixed(2) : '0.00'
 }
 

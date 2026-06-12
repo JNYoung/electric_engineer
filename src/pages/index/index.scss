@@ -69,6 +69,7 @@ $ink: #1f2937;
 .material-query-row,
 .review-item-head,
 .measurement-item-head,
+.formula-card-head,
 .mobile-status-strip,
 .mobile-bottom-nav,
 .mobile-nav-button {
@@ -655,6 +656,7 @@ $ink: #1f2937;
 .knowledge-question-list,
 .simulation-check-list,
 .measurement-item-list,
+.formula-card-list,
 .review-item-list {
   display: grid;
   gap: 10px;
@@ -665,6 +667,7 @@ $ink: #1f2937;
 .simulation-knowledge,
 .lab-focus,
 .measurement-panel,
+.formula-panel,
 .review-notebook-panel {
   border: 1px solid #e3e9f2;
   border-radius: 8px;
@@ -813,6 +816,12 @@ $ink: #1f2937;
   background: #ffffff;
 }
 
+.formula-panel {
+  margin-top: 10px;
+  padding: 10px;
+  background: #ffffff;
+}
+
 .measurement-status {
   flex: 0 0 auto;
   min-height: 22px;
@@ -856,6 +865,25 @@ $ink: #1f2937;
   background: #f8fbff;
 }
 
+.formula-summary-grid,
+.formula-value-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.formula-summary-grid > view,
+.formula-summary-grid > div,
+.formula-value-grid > view,
+.formula-value-grid > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
 .measurement-item {
   min-width: 0;
   padding: 9px;
@@ -864,7 +892,20 @@ $ink: #1f2937;
   background: #f8fbff;
 }
 
+.formula-card {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 .measurement-item.is-passed {
+  border-color: #bdebdc;
+  background: #f0fdf9;
+}
+
+.formula-card.is-passed {
   border-color: #bdebdc;
   background: #f0fdf9;
 }
@@ -874,7 +915,17 @@ $ink: #1f2937;
   background: #fff7f8;
 }
 
+.formula-card.severity-danger {
+  border-color: #ffc2c2;
+  background: #fff7f8;
+}
+
 .measurement-item.severity-warning {
+  border-color: #ffdca8;
+  background: #fffaf1;
+}
+
+.formula-card.severity-warning {
   border-color: #ffdca8;
   background: #fffaf1;
 }
@@ -884,7 +935,22 @@ $ink: #1f2937;
   gap: 8px;
 }
 
+.formula-card-head {
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .measurement-label {
+  display: block;
+  min-width: 0;
+  color: $text;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.formula-card-title {
   display: block;
   min-width: 0;
   color: $text;
@@ -909,12 +975,58 @@ $ink: #1f2937;
   word-break: break-word;
 }
 
+.formula-value {
+  display: block;
+  color: #172033;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.formula-known-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.formula-known-row text,
+.formula-known-row span {
+  min-height: 22px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: #ffffff;
+  border: 1px solid #edf1f6;
+  color: #344054;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.formula-detail {
+  margin-top: 7px;
+  color: #344054;
+  font-size: 12px;
+  line-height: 18px;
+  word-break: break-word;
+}
+
 .measurement-detail {
   margin-top: 5px;
   word-break: break-word;
 }
 
 .measurement-next-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #edf1f6;
+}
+
+.formula-next-list {
   display: grid;
   gap: 4px;
   margin-top: 10px;
