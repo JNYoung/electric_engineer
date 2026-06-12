@@ -5,6 +5,7 @@ export type TelemetryProperties = Record<string, TelemetryPrimitive | undefined>
 
 export type TelemetryEventName =
   | 'app_open'
+  | 'app_module_changed'
   | 'mobile_tab_changed'
   | 'domain_changed'
   | 'category_changed'

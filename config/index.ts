@@ -48,7 +48,12 @@ const config: UserConfigExport = {
     __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled)
   },
   copy: {
-    patterns: [],
+    patterns: [
+      {
+        from: path.resolve(__dirname, '..', 'src/static'),
+        to: path.resolve(__dirname, '..', outputRoot, 'static')
+      }
+    ],
     options: {}
   },
   mini: {
