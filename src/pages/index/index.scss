@@ -18,7 +18,6 @@ $ink: #1f2937;
   box-sizing: border-box;
 }
 
-.topbar,
 .app-module-nav,
 .commercial-dashboard,
 .learning-dashboard,
@@ -27,27 +26,11 @@ $ink: #1f2937;
 .workspace,
 .library-workspace,
 .account-workspace,
-.mobile-status-strip,
 .effects-bar {
   max-width: 1440px;
   margin: 0 auto;
 }
 
-.topbar {
-  min-height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
-  background: $surface;
-  border: 1px solid $line;
-  border-radius: 8px;
-  box-sizing: border-box;
-}
-
-.brand-block,
-.toolbar,
 .inspector-head,
 .canvas-header,
 .metric-row,
@@ -80,33 +63,6 @@ $ink: #1f2937;
   align-items: center;
 }
 
-.brand-block {
-  gap: 12px;
-  min-width: 220px;
-}
-
-.brand-mark {
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: #132238;
-  color: #ffffff;
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.brand-title {
-  display: block;
-  font-size: 20px;
-  line-height: 26px;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.brand-subtitle,
 .panel-subtitle,
 .palette-desc,
 .device-meta,
@@ -120,12 +76,6 @@ $ink: #1f2937;
   color: $muted;
   font-size: 12px;
   line-height: 18px;
-}
-
-.toolbar {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 .commercial-dashboard {
@@ -2034,55 +1984,6 @@ $ink: #1f2937;
   font-weight: 700;
 }
 
-.mobile-status-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-  padding: 8px;
-  border: 1px solid $line;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
-  box-sizing: border-box;
-}
-
-.mobile-status-strip > view,
-.mobile-status-strip > div {
-  min-width: 0;
-  padding: 8px;
-  border-radius: 7px;
-  background: #f8fbff;
-}
-
-.mobile-status-label,
-.mobile-status-value {
-  display: block;
-  text-align: center;
-}
-
-.mobile-status-label {
-  color: $muted;
-  font-size: 11px;
-  line-height: 15px;
-  font-weight: 800;
-}
-
-.mobile-status-value {
-  color: $text;
-  font-size: 14px;
-  line-height: 19px;
-  font-weight: 900;
-}
-
-.mobile-status-value.is-safe {
-  color: #087c67;
-}
-
-.mobile-status-value.is-warning {
-  color: #b45309;
-}
-
 .mobile-bottom-nav {
   display: none;
 }
@@ -2100,8 +2001,8 @@ $ink: #1f2937;
   display: block;
 }
 
-.tool-button,
 .step-button,
+.node-step-button,
 .small-action,
 .inline-switch,
 .toggle-button,
@@ -2123,8 +2024,8 @@ $ink: #1f2937;
   box-sizing: border-box;
 }
 
-.tool-button::after,
 .step-button::after,
+.node-step-button::after,
 .small-action::after,
 .inline-switch::after,
 .toggle-button::after,
@@ -2132,19 +2033,10 @@ $ink: #1f2937;
   border: none;
 }
 
-.tool-button.primary,
 .full-button {
   background: $blue;
   border-color: $blue;
   color: #ffffff;
-}
-
-.tool-button {
-  min-width: 84px;
-}
-
-.tool-button.primary {
-  min-width: 108px;
 }
 
 .voltage-control {
@@ -2169,6 +2061,17 @@ $ink: #1f2937;
   min-height: 26px;
   padding: 0;
   line-height: 24px;
+}
+
+.node-step-button {
+  width: 26px;
+  min-height: 24px;
+  padding: 0;
+  border-color: #cdd7e5;
+  background: #ffffff;
+  color: $text;
+  line-height: 22px;
+  font-weight: 900;
 }
 
 .workspace {
@@ -2526,21 +2429,6 @@ $ink: #1f2937;
   font-weight: 900;
 }
 
-.run-state {
-  flex: 0 0 auto;
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: #fff7ed;
-  color: #9a4b00;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.run-state.is-running {
-  background: #e8fbf5;
-  color: #087c67;
-}
-
 .canvas-board-viewport {
   position: relative;
   width: 100%;
@@ -2636,6 +2524,10 @@ $ink: #1f2937;
   cursor: grab;
   touch-action: none;
   user-select: none;
+}
+
+.device-power-positive {
+  width: 150px;
 }
 
 .device-node.is-selected {
@@ -4274,6 +4166,48 @@ $ink: #1f2937;
   background: #f8fbff;
 }
 
+.device-switch .inline-switch,
+.device-push-button .inline-switch,
+.device-dip-switch .inline-switch {
+  background: #e8fbf5;
+  border-color: #bdebdc;
+  color: #087c67;
+  font-weight: 900;
+}
+
+.device-switch.is-closed .inline-switch,
+.device-push-button.is-closed .inline-switch,
+.device-dip-switch.is-closed .inline-switch {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a4b00;
+}
+
+.node-voltage-control {
+  grid-column: 1 / -1;
+  min-width: 0;
+  height: 30px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 26px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid #f2c7c7;
+  border-radius: 8px;
+  background: #fff7f7;
+  box-sizing: border-box;
+}
+
+.node-voltage-value {
+  display: block;
+  min-width: 0;
+  color: $red;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
 .lamp-core {
   width: 26px;
   height: 26px;
@@ -4370,6 +4304,58 @@ $ink: #1f2937;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 12px;
+}
+
+.canvas-status-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #f8fbff;
+  box-sizing: border-box;
+}
+
+.canvas-status-cell {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.canvas-status-label,
+.canvas-status-value {
+  display: block;
+  text-align: center;
+}
+
+.canvas-status-label {
+  color: $muted;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 800;
+}
+
+.canvas-status-value {
+  color: $text;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 900;
+}
+
+.canvas-status-value.is-safe {
+  color: #087c67;
+}
+
+.canvas-status-value.is-idle {
+  color: #9a4b00;
+}
+
+.canvas-status-value.is-danger {
+  color: $red;
 }
 
 .wire-toggle {
@@ -5094,9 +5080,7 @@ $ink: #1f2937;
   background: #0f172a;
 }
 
-.app-shell.is-canvas-focus-mode .topbar,
 .app-shell.is-canvas-focus-mode .app-module-nav,
-.app-shell.is-canvas-focus-mode .mobile-status-strip,
 .app-shell.is-canvas-focus-mode .mobile-bottom-nav,
 .app-shell.is-canvas-focus-mode .mobile-section-learn,
 .app-shell.is-canvas-focus-mode .mobile-section-bank,
@@ -5140,7 +5124,7 @@ $ink: #1f2937;
 }
 
 .app-shell.is-canvas-focus-mode .canvas-board-viewport {
-  height: calc(100vh - 82px) !important;
+  height: calc(100vh - 150px) !important;
   margin-top: 8px;
 }
 
@@ -5472,110 +5456,8 @@ $ink: #1f2937;
     padding-bottom: 148px;
   }
 
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 10px;
-    padding: 11px;
-  }
-
-  .brand-block {
-    min-width: 0;
-  }
-
-  .brand-mark {
-    width: 38px;
-    height: 38px;
-    font-size: 20px;
-  }
-
-  .brand-title {
-    font-size: 18px;
-    line-height: 24px;
-  }
-
-  .brand-subtitle {
-    font-size: 11px;
-    line-height: 16px;
-  }
-
-  .toolbar {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    justify-content: stretch;
-    gap: 7px;
-  }
-
-  .tool-button {
-    width: 100%;
-    min-width: 0;
-    padding: 0 8px;
-  }
-
-  .toolbar .desktop-action {
-    display: none;
-  }
-
-  .toolbar .voltage-control {
-    grid-column: span 2;
-    justify-content: space-between;
-  }
-
   .app-module-nav {
     display: none;
-  }
-
-  .mobile-status-strip {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
-    margin-top: 8px;
-    padding: 8px;
-    border: 1px solid $line;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-    backdrop-filter: blur(8px);
-  }
-
-  .mobile-status-strip > view,
-  .mobile-status-strip > div {
-    min-width: 0;
-    padding: 6px;
-    border-radius: 7px;
-    background: #f8fbff;
-  }
-
-  .mobile-status-label,
-  .mobile-status-value {
-    display: block;
-    text-align: center;
-  }
-
-  .mobile-status-label {
-    color: $muted;
-    font-size: 10px;
-    line-height: 14px;
-    font-weight: 800;
-  }
-
-  .mobile-status-value {
-    color: $text;
-    font-size: 13px;
-    line-height: 18px;
-    font-weight: 900;
-  }
-
-  .mobile-status-value.is-safe {
-    color: #087c67;
-  }
-
-  .mobile-status-value.is-warning {
-    color: #b45309;
   }
 
   .mobile-section {

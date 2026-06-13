@@ -1,7 +1,4 @@
 import { Button, Text, View } from '@tarojs/components'
-import type { SimulationResult } from '@/core/types'
-import type { SafetyDiagnostic } from '@/core/training'
-import type { KnowledgeTrackProgress } from '@/core/knowledge'
 
 export type AppModuleId = 'learn' | 'simulate' | 'bank' | 'library' | 'account'
 
@@ -48,10 +45,6 @@ export function getAdPlacementForModule(moduleId: AppModuleId) {
   return 'hidden'
 }
 
-function formatStatNumber(value: number, digits = 2) {
-  return Number.isFinite(value) ? value.toFixed(digits) : '0.00'
-}
-
 export function AppModuleNav({
   activeModule,
   onChange
@@ -78,43 +71,6 @@ export function AppModuleNav({
           </View>
         </Button>
       ))}
-    </View>
-  )
-}
-
-export function MobileStatusStrip({
-  progress,
-  voltage,
-  simulation,
-  diagnostics
-}: {
-  progress: KnowledgeTrackProgress
-  voltage: number
-  simulation: SimulationResult
-  diagnostics: SafetyDiagnostic[]
-}) {
-  const urgentCount = diagnostics.filter((item) => item.severity === 'danger' || item.severity === 'warning').length
-
-  return (
-    <View className='mobile-status-strip'>
-      <View>
-        <Text className='mobile-status-label'>题库掌握</Text>
-        <Text className='mobile-status-value'>{progress.percent}%</Text>
-      </View>
-      <View>
-        <Text className='mobile-status-label'>电源</Text>
-        <Text className='mobile-status-value'>{voltage}V</Text>
-      </View>
-      <View>
-        <Text className='mobile-status-label'>电流</Text>
-        <Text className='mobile-status-value'>{formatStatNumber(simulation.totalCurrent)}A</Text>
-      </View>
-      <View>
-        <Text className='mobile-status-label'>安全</Text>
-        <Text className={`mobile-status-value ${urgentCount > 0 ? 'is-warning' : 'is-safe'}`}>
-          {urgentCount > 0 ? `${urgentCount} 项` : '正常'}
-        </Text>
-      </View>
     </View>
   )
 }
