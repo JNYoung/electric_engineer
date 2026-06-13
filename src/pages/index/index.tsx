@@ -71,6 +71,7 @@ import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@
 import { enterNativeLandscapeCheck, exitNativeLandscapeCheck } from '@/core/nativeDisplay'
 import {
   getRuntimeAuthConfig,
+  requestInternalTestUnlock,
   requestAuthLink,
   requestAuthOtp,
   requestAuthSignIn
@@ -250,16 +251,6 @@ function getAuthProviderMark(providerId: AuthProviderConfig['id']) {
     'phone-otp': '码',
     'email-password': '@'
   }[providerId]
-}
-
-function getAuthProviderShortLabel(providerId: AuthProviderConfig['id'], label: string) {
-  return {
-    wechat: '微信',
-    facebook: 'Facebook',
-    google: 'Google',
-    'phone-otp': '手机号',
-    'email-password': '邮箱'
-  }[providerId] ?? label
 }
 
 function getFullscreenElement() {
@@ -600,7 +591,7 @@ function CommercialDashboard({
     ? '行业权益概览'
     : variant === 'library'
       ? '行业元件概览'
-      : '商业化行业工作台'
+      : '行业控制台'
   const planPrefix = variant === 'account'
     ? '权益建议'
     : variant === 'library'
@@ -1096,7 +1087,6 @@ function AuthLoginDialog({
               <Text className={`auth-provider-icon provider-${provider.id}`}>
                 {getAuthProviderMark(provider.id)}
               </Text>
-              <Text>{getAuthProviderShortLabel(provider.id, provider.label)}</Text>
             </Button>
           ))}
         </View>
@@ -1342,8 +1332,43 @@ function PlanCard({
       <Text className='plan-target'>{plan.target}</Text>
       <Text className='plan-feature'>{plan.features[0]}</Text>
       <Button className={`small-action plan-action ${owned ? 'is-owned' : ''}`} onClick={() => onSelect(plan.id)}>
-        {owned ? '已具备' : '模拟开通'}
+        {owned ? '已具备' : '开通'}
       </Button>
+    </View>
+  )
+}
+
+function InternalTestUnlockPanel({
+  enabled,
+  session,
+  message,
+  onUnlock
+}: {
+  enabled: boolean
+  session: AuthSession
+  message: string
+  onUnlock: () => void
+}) {
+  if (!enabled) {
+    return null
+  }
+
+  const isUnlocked = session.tier === 'team'
+
+  return (
+    <View className='internal-test-card'>
+      <View>
+        <Text className='internal-test-title'>内部测试</Text>
+        <Text className='internal-test-copy'>
+          {isUnlocked ? '全部付费内容已解锁' : '用于验收专业版、团队版和受限元件'}
+        </Text>
+      </View>
+      <Button className='small-action internal-test-action' onClick={onUnlock}>
+        {isUnlocked ? '已解锁' : '解锁全部'}
+      </Button>
+      {message && (
+        <Text className='internal-test-message'>{message}</Text>
+      )}
     </View>
   )
 }
@@ -3115,6 +3140,7 @@ export default function Index() {
   const [questionBankHomeMode, setQuestionBankHomeMode] = useState<QuestionBankHomeMode>('create')
   const [questionBankPracticeMode, setQuestionBankPracticeMode] = useState<QuestionBankPracticeMode>('question-bank')
   const [materialQuery, setMaterialQuery] = useState('')
+  const [internalUnlockMessage, setInternalUnlockMessage] = useState('')
   const [activeModule, setActiveModule] = useState<AppModuleId>('simulate')
   const [draggingDeviceId, setDraggingDeviceId] = useState<string | null>(null)
   const [boardSize, setBoardSize] = useState({ width: DEFAULT_BOARD_WIDTH, height: 500 })
@@ -3971,6 +3997,22 @@ export default function Index() {
     changeAppModule('account', 'purchase_intent')
   }
 
+  async function unlockInternalTestEntitlements() {
+    if (!authConfig.internalTestUnlock) return
+
+    trackTelemetryEvent('auth_changed', {
+      status: 'authenticated',
+      tier: 'team',
+      source: 'internal_test_unlock',
+      auth_region: authConfig.region
+    })
+    const session = await requestInternalTestUnlock(authConfig, authSession)
+    setSelectedPlanId('team')
+    setAuthSession(session)
+    setInternalUnlockMessage('内部测试权益已解锁。')
+    changeAppModule('account', 'internal_test_unlock')
+  }
+
   async function signInWithAuthProvider(provider: AuthProviderConfig, credential: AuthCredentialDraft) {
     const dialogSource = authDialog.source
     const targetTier = authDialog.targetTier
@@ -4179,9 +4221,6 @@ export default function Index() {
             <View className='canvas-header'>
               <View>
                 <Text className='panel-title'>模拟连接画布</Text>
-                <Text className='panel-subtitle'>
-                  点击元件或导线查看状态，导线可独立接入或断开。当前训练：{activeChallenge.title}
-                </Text>
               </View>
               <View className='canvas-actions'>
                 <Button className='small-action landscape-action' onClick={toggleCanvasFocusMode}>
@@ -4277,7 +4316,6 @@ export default function Index() {
         <View className='library-workspace'>
           <View className='palette-panel'>
             <Text className='panel-title'>{activeDomainProfile.label}元件库</Text>
-            <Text className='panel-subtitle'>{activeDomainProfile.description}</Text>
             <CategoryFilter
               activeDomain={activeDomain}
               activeCategoryId={activeCategoryId}
@@ -4304,7 +4342,7 @@ export default function Index() {
                   </View>
                 ))}
               </View>
-              <Text className='note-title extension-title'>商业化扩展</Text>
+              <Text className='note-title extension-title'>功能扩展</Text>
               <Text className='note-copy'>
                 当前账号可使用 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐权限会按当前账号实时生效。
               </Text>
@@ -4337,6 +4375,12 @@ export default function Index() {
             activeDomain={activeDomain}
             onChangeDomain={changeDomain}
             variant='account'
+          />
+          <InternalTestUnlockPanel
+            enabled={authConfig.internalTestUnlock}
+            session={authSession}
+            message={internalUnlockMessage}
+            onUnlock={unlockInternalTestEntitlements}
           />
         </View>
       </View>

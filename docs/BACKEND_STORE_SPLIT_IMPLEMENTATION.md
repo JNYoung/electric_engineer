@@ -7,6 +7,7 @@
 - 后台接口覆盖账号、绑定、账号删除、进度同步、题库、权益、付费订阅和合规 manifest。
 - 前台登录入口改为弹窗，不再暴露 API 地址、端口、接口路径、测试码和原生插件说明。
 - Google Play 包与国内包继续使用 flavor-scoped 依赖。
+- Android 新增正式/内测包拆分：正式包不外显内部解锁入口，内测包在账号页底部显示内部测试解锁。
 
 ## 后台接口
 
@@ -53,13 +54,35 @@
 
 ## 内部测试解锁
 
-正式包前台不外显测试入口。后台只保留受环境变量保护的接口：
+正式包前台不外显测试入口。内测包通过 `INTERNAL_TEST_UNLOCK=true` 构建常量显示账号页底部入口，并调用受环境变量保护的后台接口：
 
 ```bash
 ENABLE_TEST_UNLOCK=true npm run dev:backend:overseas
 ```
 
-未启用时 `POST /api/entitlements/test-unlock` 返回 `403`。
+未启用时 `POST /api/entitlements/test-unlock` 返回 `403`。正式构建即使误调用前端解锁函数也会拒绝。
+
+Android 内测包：
+
+```bash
+npm run android:apk:domestic:internal:debug
+npm run android:apk:googleplay:internal:debug
+npm run android:apk:domestic:internal:release
+npm run android:apk:googleplay:internal:release
+npm run android:aab:googleplay:internal:release
+```
+
+Android 正式/常规包仍使用原命令：
+
+```bash
+npm run android:apk:domestic:debug
+npm run android:apk:googleplay:debug
+npm run android:apk:domestic:release
+npm run android:apk:googleplay:release
+npm run android:aab:googleplay:release
+```
+
+内测 flavor 使用 `.internal` applicationId suffix，可与正式包并存安装。
 
 ## 后续替换点
 

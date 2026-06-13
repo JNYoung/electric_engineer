@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildInternalTestSession,
   buildProviderSession,
   getAuthProviders,
   getDefaultAuthServerPort,
   linkProviderToSession,
+  requestInternalTestUnlock,
   requestAuthLink,
   requestAuthOtp,
   requestAuthSignIn
@@ -14,11 +16,14 @@ const overseasConfig: RuntimeAuthConfig = {
   region: 'overseas',
   apiBaseUrl: 'http://auth.test',
   serverPort: 4318,
+  appDistribution: 'production',
+  internalTestUnlock: false,
   providers: getAuthProviders('overseas'),
   signInEndpoint: 'http://auth.test/api/auth/sign-in',
   linkEndpoint: 'http://auth.test/api/auth/link',
   otpEndpoint: 'http://auth.test/api/auth/otp/send',
-  profileEndpoint: 'http://auth.test/api/auth/profile'
+  profileEndpoint: 'http://auth.test/api/auth/profile',
+  internalUnlockEndpoint: 'http://auth.test/api/entitlements/test-unlock'
 }
 
 describe('auth flavor matrix', () => {
@@ -118,5 +123,41 @@ describe('auth flavor matrix', () => {
 
     expect(linked.linkedProviders).toEqual(['google', 'phone-otp'])
     expect(otp).toEqual({ ok: true, devCode: '123456' })
+  })
+
+  it('builds and requests internal test unlock sessions only for internal builds', async () => {
+    const internalConfig: RuntimeAuthConfig = {
+      ...overseasConfig,
+      appDistribution: 'internal',
+      internalTestUnlock: true
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        userId: 'qa-user',
+        tier: 'team'
+      })
+    } as Response)
+
+    const fallback = buildInternalTestSession('overseas')
+    const unlocked = await requestInternalTestUnlock(internalConfig, fallback)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://auth.test/api/entitlements/test-unlock',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          region: 'overseas',
+          userId: fallback.userId
+        })
+      })
+    )
+    expect(unlocked.userId).toBe('qa-user')
+    expect(unlocked.tier).toBe('team')
+    expect(unlocked.displayName).toBe('内测权益账号')
+  })
+
+  it('rejects internal test unlock when the build is production', async () => {
+    await expect(requestInternalTestUnlock(overseasConfig)).rejects.toThrow('internal_test_unlock_disabled')
   })
 })

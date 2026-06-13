@@ -6153,25 +6153,27 @@ $ink: #1f2937;
 
 .auth-provider-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, 42px);
   gap: 8px;
+  justify-content: start;
   margin-top: 10px;
 }
 
 .auth-provider-button {
-  min-width: 0;
-  min-height: 62px;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 9px;
+  justify-content: center;
   margin: 0;
-  padding: 9px;
+  padding: 0;
   border: 1px solid #e3e9f2;
   border-radius: 8px;
   background: #ffffff;
   color: $text;
-  text-align: left;
+  text-align: center;
 }
 
 .auth-provider-button::after {
@@ -6217,14 +6219,6 @@ $ink: #1f2937;
 .auth-provider-icon.provider-email-password {
   background: #f3f4f6;
   color: $text;
-}
-
-.auth-provider-button text:last-child,
-.auth-provider-button span:last-child {
-  color: $text;
-  font-size: 13px;
-  line-height: 18px;
-  font-weight: 900;
 }
 
 .auth-provider-card,
@@ -6432,6 +6426,45 @@ $ink: #1f2937;
 .plan-action.is-owned {
   border-color: #bdebdc;
   background: #e8fbf5;
+  color: #087c67;
+}
+
+.internal-test-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px dashed #a7b5c8;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.internal-test-title {
+  display: block;
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.internal-test-copy,
+.internal-test-message {
+  display: block;
+  margin-top: 3px;
+  color: $muted;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 800;
+}
+
+.internal-test-action {
+  margin: 0;
+}
+
+.internal-test-message {
+  grid-column: 1 / -1;
   color: #087c67;
 }
 

@@ -20,11 +20,14 @@ export interface RuntimeAuthConfig {
   region: AuthRegion
   apiBaseUrl: string
   serverPort: number
+  appDistribution: 'internal' | 'production'
+  internalTestUnlock: boolean
   providers: AuthProviderConfig[]
   signInEndpoint: string
   linkEndpoint: string
   otpEndpoint: string
   profileEndpoint: string
+  internalUnlockEndpoint: string
 }
 
 export interface AuthCredentialDraft {
@@ -50,8 +53,15 @@ interface AuthLinkResponse {
   linkedProviders?: AuthProviderId[]
 }
 
+interface InternalUnlockResponse {
+  tier?: SubscriptionTier
+  userId?: string
+}
+
 declare const __AUTH_REGION__: string | undefined
 declare const __AUTH_API_BASE_URL__: string | undefined
+declare const __INTERNAL_TEST_UNLOCK__: boolean | undefined
+declare const __APP_DISTRIBUTION__: string | undefined
 
 const domesticProviders: AuthProviderConfig[] = [
   {
@@ -129,16 +139,23 @@ export function getRuntimeAuthConfig(): RuntimeAuthConfig {
   const apiBaseUrl = typeof __AUTH_API_BASE_URL__ === 'undefined' || !__AUTH_API_BASE_URL__
     ? getDefaultAuthApiBaseUrl(region)
     : __AUTH_API_BASE_URL__
+  const internalTestUnlock = typeof __INTERNAL_TEST_UNLOCK__ !== 'undefined' && __INTERNAL_TEST_UNLOCK__
+  const appDistribution = typeof __APP_DISTRIBUTION__ !== 'undefined' && __APP_DISTRIBUTION__ === 'internal'
+    ? 'internal'
+    : 'production'
 
   return {
     region,
     apiBaseUrl,
     serverPort: getDefaultAuthServerPort(region),
+    appDistribution,
+    internalTestUnlock,
     providers: getAuthProviders(region),
     signInEndpoint: `${apiBaseUrl}/api/auth/sign-in`,
     linkEndpoint: `${apiBaseUrl}/api/auth/link`,
     otpEndpoint: `${apiBaseUrl}/api/auth/otp/send`,
-    profileEndpoint: `${apiBaseUrl}/api/auth/profile`
+    profileEndpoint: `${apiBaseUrl}/api/auth/profile`,
+    internalUnlockEndpoint: `${apiBaseUrl}/api/entitlements/test-unlock`
   }
 }
 
@@ -166,6 +183,43 @@ export function linkProviderToSession(session: AuthSession, providerId: AuthProv
     linkedProviders: linkedProviders.includes(providerId)
       ? linkedProviders
       : [...linkedProviders, providerId]
+  }
+}
+
+export function buildInternalTestSession(region: AuthRegion, userId = `${region}-internal-test-user`): AuthSession {
+  return {
+    status: 'authenticated',
+    userId,
+    displayName: '内测权益账号',
+    tier: 'team',
+    authRegion: region,
+    linkedProviders: []
+  }
+}
+
+export async function requestInternalTestUnlock(
+  config: RuntimeAuthConfig,
+  session?: AuthSession
+): Promise<AuthSession> {
+  const fallback = buildInternalTestSession(config.region, session?.userId)
+
+  if (!config.internalTestUnlock) {
+    throw new Error('internal_test_unlock_disabled')
+  }
+
+  try {
+    const response = await postJson<InternalUnlockResponse>(config.internalUnlockEndpoint, {
+      region: config.region,
+      userId: session?.userId ?? fallback.userId
+    })
+
+    return {
+      ...fallback,
+      userId: response.userId ?? fallback.userId,
+      tier: response.tier ?? fallback.tier
+    }
+  } catch {
+    return fallback
   }
 }
 
