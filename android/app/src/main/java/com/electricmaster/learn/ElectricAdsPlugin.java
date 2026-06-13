@@ -58,6 +58,7 @@ public class ElectricAdsPlugin extends Plugin {
             params.bottomMargin = dpToPx(marginBottomDp);
 
             root.addView(bannerView, params);
+            bannerView.bringToFront();
             bannerView.loadAd(new AdRequest.Builder().build());
             call.resolve();
         });

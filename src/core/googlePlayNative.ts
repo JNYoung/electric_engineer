@@ -2,7 +2,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 
 import type { TelemetryEnvelope, TelemetryTransport } from './telemetry'
 
-export type GooglePlayAdPlacement = 'hidden' | 'library_banner' | 'account_banner'
+export type GooglePlayAdPlacement = 'hidden' | 'account_banner'
 
 interface ElectricAnalyticsPlugin {
   logEvent(options: { name: string; params?: Record<string, string | number | boolean> }): Promise<void>
@@ -62,8 +62,8 @@ export function syncGooglePlayAdPlacement(placement: GooglePlayAdPlacement) {
 
   void ElectricAds.showBanner({
     adUnitId: TEST_BANNER_AD_UNIT_ID,
-    position: 'bottom',
-    marginBottomDp: 82
+    position: 'top',
+    marginTopDp: 0
   }).catch(() => undefined)
 
   void ElectricAnalytics.logEvent({
