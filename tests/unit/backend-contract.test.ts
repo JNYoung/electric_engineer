@@ -117,4 +117,103 @@ describe('app backend contract', () => {
     expect(deletion.slaDays).toBe(30)
     expect(unlock.error).toBe('internal_test_unlock_disabled')
   })
+
+  it('creates billing checkout, restores purchases, and exposes billing portal', async () => {
+    const server = await startBackend({ region: 'overseas' })
+    servers.push(server)
+
+    const signIn = await postJson<{ session: { userId: string }; token: string }>(
+      `${server.url}/api/auth/sign-in`,
+      {
+        region: 'overseas',
+        provider: 'google',
+        credential: { idToken: 'google-user-1' }
+      }
+    )
+    const products = await fetch(`${server.url}/api/billing/products?region=overseas`).then((response) => response.json())
+    const checkout = await postJson<{
+      transaction: { status: string; provider: string; sku: string; tier: string }
+      clientAction: string
+    }>(
+      `${server.url}/api/billing/checkout`,
+      { region: 'overseas', tier: 'pro' },
+      signIn.token
+    )
+    const restore = await postJson<{
+      entitlement: { tier: string; source: string }
+      restoredTransactions: Array<{ status: string; purchaseToken: string }>
+    }>(
+      `${server.url}/api/billing/restore`,
+      {
+        region: 'overseas',
+        purchases: [
+          {
+            sku: 'googleplay_dg_pro_month',
+            purchaseToken: 'purchase-token-1',
+            transactionId: 'gpa.1234'
+          }
+        ]
+      },
+      signIn.token
+    )
+    const portal = await fetch(`${server.url}/api/billing/portal?region=overseas`, {
+      headers: { authorization: `Bearer ${signIn.token}` }
+    }).then((response) => response.json())
+
+    expect(products.provider).toBe('google_play')
+    expect(products.products.map((product: { sku: string }) => product.sku)).toContain('googleplay_dg_pro_month')
+    expect(checkout.transaction.status).toBe('pending')
+    expect(checkout.transaction.provider).toBe('google_play')
+    expect(checkout.clientAction).toBe('start_google_play_billing')
+    expect(restore.entitlement.tier).toBe('pro')
+    expect(restore.entitlement.source).toBe('purchase_restore')
+    expect(restore.restoredTransactions[0].status).toBe('paid')
+    expect(restore.restoredTransactions[0].purchaseToken).not.toBe('purchase-token-1')
+    expect(portal.entitlement.tier).toBe('pro')
+    expect(portal.transactions[0].sku).toBe('googleplay_dg_pro_month')
+  })
+
+  it('applies billing webhook events idempotently', async () => {
+    const server = await startBackend({ region: 'domestic' })
+    servers.push(server)
+
+    const paid = await postJson<{
+      duplicate?: boolean
+      entitlement: { tier: string; source: string }
+    }>(
+      `${server.url}/api/billing/webhook`,
+      {
+        eventId: 'evt-paid-1',
+        region: 'domestic',
+        userId: 'u-billing',
+        sku: 'cn_dg_team_month',
+        status: 'active'
+      }
+    )
+    const duplicate = await postJson<{ duplicate?: boolean }>(
+      `${server.url}/api/billing/webhook`,
+      {
+        eventId: 'evt-paid-1',
+        region: 'domestic',
+        userId: 'u-billing',
+        sku: 'cn_dg_team_month',
+        status: 'active'
+      }
+    )
+    const revoked = await postJson<{ entitlement: { tier: string; source: string } }>(
+      `${server.url}/api/billing/webhook`,
+      {
+        eventId: 'evt-revoke-1',
+        region: 'domestic',
+        userId: 'u-billing',
+        sku: 'cn_dg_team_month',
+        status: 'refunded'
+      }
+    )
+
+    expect(paid.entitlement.tier).toBe('team')
+    expect(paid.entitlement.source).toBe('billing_webhook')
+    expect(duplicate.duplicate).toBe(true)
+    expect(revoked.entitlement.tier).toBe('free')
+  })
 })
