@@ -166,13 +166,30 @@ export function buildProviderSession(
 ): AuthSession {
   return {
     status: 'authenticated',
-    userId: `${region}-${provider.id}-demo-user`,
-    displayName: `${provider.label}用户`,
+    userId: `${region}-${provider.id}-local-user`,
+    displayName: getProviderDisplayName(region, provider.id),
     tier,
     authRegion: region,
     provider: provider.id,
     linkedProviders: [provider.id]
   }
+}
+
+function getProviderDisplayName(region: AuthRegion, providerId: AuthProviderId) {
+  const domesticNames: Partial<Record<AuthProviderId, string>> = {
+    wechat: '微信用户',
+    'phone-otp': '手机号用户',
+    'email-password': '邮箱用户'
+  }
+  const overseasNames: Partial<Record<AuthProviderId, string>> = {
+    wechat: 'WeChat user',
+    facebook: 'Facebook user',
+    google: 'Google user',
+    'phone-otp': 'Phone user',
+    'email-password': 'Email user'
+  }
+
+  return (region === 'overseas' ? overseasNames : domesticNames)[providerId] ?? 'User'
 }
 
 export function linkProviderToSession(session: AuthSession, providerId: AuthProviderId): AuthSession {

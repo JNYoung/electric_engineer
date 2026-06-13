@@ -16,13 +16,13 @@ import {
   DOMAIN_PROFILES,
   buildCommercialAccessSnapshot,
   canUseCatalogEntry,
-  createAuthenticatedSession,
   getCatalogEntries,
   getCatalogEntriesByCategory,
   getCatalogSummary,
   getDomainProfile,
   hasTierAccess
 } from '@/core/commercial'
+import { requestBillingCheckout, requestBillingPortal } from '@/core/billing'
 import {
   FAULT_SCENARIOS,
   buildSafetyDiagnostics,
@@ -1184,6 +1184,7 @@ function CommercePanel({
   access,
   session,
   selectedPlanId,
+  billingMessage,
   authConfig,
   onSignOut,
   onOpenAuthDialog,
@@ -1192,6 +1193,7 @@ function CommercePanel({
   access: CommercialAccessSnapshot
   session: AuthSession
   selectedPlanId: SubscriptionTier
+  billingMessage: string
   authConfig: RuntimeAuthConfig
   onSignOut: () => void
   onOpenAuthDialog: (mode: AuthDialogMode, source: AuthDialogSource, targetTier?: SubscriptionTier) => void
@@ -1253,6 +1255,9 @@ function CommercePanel({
           <Button className='small-action' onClick={onSignOut}>退出登录</Button>
         )}
       </View>
+      {billingMessage && (
+        <Text className='account-billing-message'>{billingMessage}</Text>
+      )}
 
       <AccountAuthEntryCard
         authConfig={authConfig}
@@ -3132,6 +3137,7 @@ export default function Index() {
     source: 'account'
   })
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionTier>('pro')
+  const [billingMessage, setBillingMessage] = useState('')
   const [activeKnowledgeTrackId, setActiveKnowledgeTrackId] = useState<KnowledgeTrackId>('high-school')
   const [knowledgeAnswers, setKnowledgeAnswers] = useState<Record<string, string>>({})
   const [activeAssessmentId, setActiveAssessmentId] = useState<AssessmentBlueprintId>('high-school-foundation-check')
@@ -3976,9 +3982,10 @@ export default function Index() {
     trackTelemetryEvent('auth_changed', {
       status: 'anonymous',
       tier: 'free',
-      source: 'demo_sign_out'
+      source: 'sign_out'
     })
     setAuthSession(DEFAULT_AUTH_SESSION)
+    setBillingMessage('')
     setQuestionBankView('progress')
     setQuestionBankHomeMode('create')
     setQuestionBankPracticeMode('question-bank')
@@ -3986,14 +3993,38 @@ export default function Index() {
     changeAppModule('account', 'auth_changed')
   }
 
-  function selectPlan(tier: SubscriptionTier) {
+  async function selectPlan(tier: SubscriptionTier) {
     trackTelemetryEvent('purchase_intent', {
       target_tier: tier,
       current_tier: authSession.tier,
       source: 'plan_card'
     })
     setSelectedPlanId(tier)
-    setAuthSession(createAuthenticatedSession(tier))
+
+    if (authSession.status === 'anonymous') {
+      setBillingMessage('')
+      openAuthDialog('sign-in', 'paywall', tier)
+      return
+    }
+
+    if (hasTierAccess(authSession.tier, tier)) {
+      if (tier === 'free') {
+        setBillingMessage('已具备体验版权益。')
+        return
+      }
+
+      if (tier === authSession.tier) {
+        const portal = await requestBillingPortal(authConfig, authSession)
+        setBillingMessage(portal.ok ? '订阅管理已准备就绪。' : '暂时无法打开订阅管理，请稍后再试。')
+        return
+      }
+
+      setBillingMessage(`已具备${tierLabel(tier)}权益。`)
+      return
+    }
+
+    const checkout = await requestBillingCheckout(authConfig, authSession, tier)
+    setBillingMessage(checkout.ok ? '已进入开通流程，请按系统提示完成支付。' : '暂时无法开通，请稍后再试。')
     changeAppModule('account', 'purchase_intent')
   }
 
@@ -4365,6 +4396,7 @@ export default function Index() {
             access={commercialAccess}
             session={authSession}
             selectedPlanId={selectedPlanId}
+            billingMessage={billingMessage}
             authConfig={authConfig}
             onSignOut={simulateSignOut}
             onOpenAuthDialog={openAuthDialog}

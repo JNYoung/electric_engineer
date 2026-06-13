@@ -595,7 +595,7 @@ function upsertUserSession(state, region, provider, credential = {}) {
   const session = {
     status: 'authenticated',
     userId,
-    displayName: getDisplayName(provider, credential),
+    displayName: getDisplayName(region, provider, credential),
     tier: existing?.tier ?? 'free',
     authRegion: region,
     provider,
@@ -626,16 +626,26 @@ function getCredentialKey(provider, credential) {
   return String(raw).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'user'
 }
 
-function getDisplayName(provider, credential) {
+function getDisplayName(region, provider, credential) {
   if (credential.email) return String(credential.email).split('@')[0]
-  if (credential.phone) return `user_${String(credential.phone).slice(-4)}`
-  return {
+  if (credential.phone) return region === 'overseas'
+    ? `Phone user ${String(credential.phone).slice(-4)}`
+    : `手机用户${String(credential.phone).slice(-4)}`
+
+  const domesticNames = {
+    wechat: '微信用户',
+    'phone-otp': '手机号用户',
+    'email-password': '邮箱用户'
+  }
+  const overseasNames = {
     wechat: 'WeChat user',
     facebook: 'Facebook user',
     google: 'Google user',
     'phone-otp': 'Phone user',
     'email-password': 'Email user'
-  }[provider] ?? 'User'
+  }
+
+  return (region === 'overseas' ? overseasNames : domesticNames)[provider] ?? 'User'
 }
 
 function issueToken(state, userId) {

@@ -2,7 +2,7 @@
 
 ## 已落地
 
-- `server/auth-dev-server.mjs` 从单一 auth mock 扩展为 app backend 骨架。
+- `server/auth-dev-server.mjs` 从账号原型扩展为本地 app backend 骨架。
 - 国内默认端口 `4317`，海外默认端口 `4318`。
 - 后台接口覆盖账号、绑定、账号删除、进度同步、题库、权益、付费订阅和合规 manifest。
 - 前台登录入口改为弹窗，不再暴露 API 地址、端口、接口路径、测试码和原生插件说明。

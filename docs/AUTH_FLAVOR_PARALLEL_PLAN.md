@@ -7,7 +7,7 @@
 - 国内包：微信、手机号+验证码、邮箱+密码登录，支持绑定账户。
 - 海外包：Facebook、Google、手机号+验证码、邮箱登录，支持绑定账户。
 - App 根据 flavor 动态展示登录方式、动态接入原生依赖、动态连接服务端端口。
-- 服务端先以本地 mock API 并行开发，后续替换真实短信、邮箱、OAuth 和账号绑定。
+- 服务端先以内置本地 backend API 并行开发，后续替换真实短信、邮箱、OAuth、账号绑定和支付 adapter。
 
 ## Git 并行拆分
 
@@ -44,7 +44,7 @@ AUTH_API_BASE_URL=http://192.168.x.x:4318 npm run android:sync:googleplay
 
 ## 服务端端口和 API
 
-本地 mock 服务：
+本地 backend 服务：
 
 ```bash
 npm run dev:auth:domestic
@@ -84,8 +84,8 @@ API：
 {
   "session": {
     "status": "authenticated",
-    "userId": "overseas-google-demo-user",
-    "displayName": "Google 用户",
+    "userId": "overseas_google_user",
+    "displayName": "Google user",
     "tier": "free",
     "authRegion": "overseas",
     "provider": "google",
@@ -125,4 +125,3 @@ App 端只关心：
 - Sign in with Google for Android: `https://developer.android.com/identity/sign-in/credential-manager-siwg`
 - Facebook Login for Android: `https://developers.facebook.com/docs/facebook-login/android/`
 - WeChat Open Platform mobile app login: `https://developers.weixin.qq.com/doc/oplatform/Mobile_App/WeChat_Login/Development_Guide.html`
-

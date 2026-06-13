@@ -685,7 +685,7 @@ export function createAuthenticatedSession(tier: SubscriptionTier): AuthSession 
   const plan = getBillingPlan(tier)
   return {
     status: 'authenticated',
-    userId: `demo-${tier}-user`,
+    userId: `local-${tier}-user`,
     displayName: `${plan.name}账号`,
     tier,
     linkedProviders: []

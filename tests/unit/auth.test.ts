@@ -57,7 +57,11 @@ describe('auth flavor matrix', () => {
     const session = buildProviderSession(google!, 'overseas')
     expect(session.authRegion).toBe('overseas')
     expect(session.provider).toBe('google')
+    expect(session.displayName).toBe('Google user')
     expect(session.linkedProviders).toEqual(['google'])
+
+    const wechat = getAuthProviders('domestic').find((provider) => provider.id === 'wechat')!
+    expect(buildProviderSession(wechat, 'domestic').displayName).toBe('微信用户')
 
     const linked = linkProviderToSession(session, 'phone-otp')
     expect(linked.linkedProviders).toEqual(['google', 'phone-otp'])
