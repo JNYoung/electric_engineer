@@ -8,6 +8,8 @@
 - 后台支持可选文件持久化，便于本地内测、审核账号和真机验证跨重启保留数据。
 - 后台新增受 token 保护的运营/审核接口，可查看用户、进度、题库、删除队列、付费流水，并可创建审核账号或手动补发权益。
 - 后台新增国内/海外 telemetry 接收接口，按 flavor schema 入库，并在运营接口中支持按区域和事件名查询。
+- 后台新增公开合规页面骨架，国内/海外分别提供隐私政策、服务条款、客服支持、账号删除和订阅说明页面。
+- 后台新增公开网页账号删除表单，表单进入删除队列并只保存联系方式 hash。
 - 前台登录入口改为弹窗，不再暴露 API 地址、端口、接口路径、测试码和原生插件说明。
 - 账号页新增账号删除入口，已登录用户可提交删除队列，国内/海外按各自 SLA 返回处理时限。
 - Google Play 包与国内包继续使用 flavor-scoped 依赖：Google/Facebook/Firebase/Ads 只进 Google Play 变体，国内包只保留国内登录依赖占位。
@@ -17,6 +19,17 @@
 ## 后台接口
 
 - `GET /health`
+- `GET /legal/privacy-cn`
+- `GET /legal/privacy-us`
+- `GET /legal/terms-cn`
+- `GET /legal/terms-us`
+- `GET /support-cn`
+- `GET /support-us`
+- `GET /account/delete-cn`
+- `GET /account/delete-us`
+- `POST /account/delete-request`
+- `GET /billing-cn`
+- `GET /billing-us`
 - `GET /api/app/config?region=domestic|overseas`
 - `GET /api/compliance/manifest?region=domestic|overseas`
 - `GET /api/auth/config?region=domestic|overseas`
@@ -83,6 +96,36 @@ Telemetry 接收按 flavor 分流：
 - App 端使用 `AUTH_API_BASE_URL + telemetry endpoint` 做 fire-and-forget 上报；真机联调需要把 `AUTH_API_BASE_URL` 指到可访问的局域网或生产后台地址。
 - 服务端只保存短 hash 后的 anonymous/session 标识，运营接口不返回原始客户端 ID。
 - 本地 JSON 持久化会保留最近 1000 条事件，正式环境需替换为可查询的数据仓库或埋点平台。
+
+## 公开合规页面
+
+`GET /api/compliance/manifest?region=...` 会返回当前包对应的页面路径：
+
+- `publicPages.privacy`
+- `publicPages.terms`
+- `publicPages.support`
+- `publicPages.accountDeletion`
+- `publicPages.billing`
+
+国内包默认页面：
+
+- `/legal/privacy-cn`
+- `/legal/terms-cn`
+- `/support-cn`
+- `/account/delete-cn`
+- `/billing-cn`
+
+Google Play/海外包默认页面：
+
+- `/legal/privacy-us`
+- `/legal/terms-us`
+- `/support-us`
+- `/account/delete-us`
+- `/billing-us`
+
+通用别名 `/privacy`、`/terms`、`/support`、`/account/delete`、`/billing` 会按 `region` 查询参数或当前服务默认 region 返回对应版本。账号删除页面提供公开表单，提交到 `POST /account/delete-request` 后进入删除队列；后台只保存联系方式 hash，便于客服核验但不落明文。
+
+正式上架前需要把这些路径部署到生产 HTTPS 域名，并将 App Store Connect、Google Play Console 和国内渠道后台填写为同一批正式 URL。
 
 ## 中国包
 

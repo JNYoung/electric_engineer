@@ -4,6 +4,8 @@
 目标：评估当前项目内容距离国内外教育类付费 App 上架还缺哪些工作，并形成可执行清单。  
 范围：Web H5、微信小程序、iOS App Store、Google Play、国内安卓渠道、海外官网/支付承接页。
 
+> 2026-06-14 更新：本分支已经补入 Android/Capacitor 工程、国内/Google Play flavor、后台账号/权益/题库/付费骨架、公开合规页面骨架和真机打包验证流程。本文保留发布前差距分析视角；“缺失”类条目需按当前分支最新实现重新判定，正式上架仍需要生产 HTTPS 域名、真实商店账号、正式支付凭据和法务终审。
+
 ## 总体结论
 
 当前项目已经具备“教育产品核心内容雏形”：电路仿真、视觉化元件、移动端工作台、训练挑战、题库、考试模拟、虚拟万用表、商业化门禁模型、国内/海外埋点抽象和海外发行方案文档。
@@ -25,12 +27,12 @@
 | --- | --- | --- |
 | Web/H5 构建 | `package.json` 有 `build:h5`、`build:h5:domestic`、`build:h5:overseas` | H5 可作为 App 壳内容基础 |
 | 微信小程序构建 | `package.json` 有 `build:weapp` | 国内小程序方向已有构建入口 |
-| 原生工程 | 未发现 `ios/`、`android/` 目录 | iOS/Android 不能上架 |
+| 原生工程 | 当前分支已具备 `android/` Capacitor 工程；仍未见 `ios/` 工程 | Android 可继续内测验证，iOS 仍不能上架 |
 | 发布自动化 | 未发现 `fastlane/`、`.github/`、`scripts/release/` | 缺少商店发布流水线 |
 | 账号/支付 | `src/core/commercial.ts` 只有套餐、门禁和 API 契约占位 | 缺少真实支付和权益同步 |
 | 埋点 | `src/core/telemetry.ts` 已有国内/海外抽象层 | 还缺真实 SDK/请求 transport、同意管理和数据字典 |
 | 多语言 | 现有 UI 与内容仍以中文为主 | 海外上架缺 `en-US` 等本地化 |
-| 公开政策页 | 仓库未见 privacy/terms/support/account deletion 站点 | 商店审核必缺 |
+| 公开政策页 | 后台已提供 privacy/terms/support/account deletion/billing 页面骨架 | 本地/内测可用；正式审核需部署 HTTPS 域名并法务终审 |
 | Store 素材 | 未见截图、图标、商店描述、隐私表单答案 | 无法提交审核 |
 
 ## 平台 Go/No-Go
@@ -92,15 +94,15 @@
 
 ### P0：公开合规页面
 
-商店审核需要可访问的公开页面。当前仓库没有对应站点或 URL。
+商店审核需要可访问的公开页面。当前分支已在本地后台提供页面骨架；正式上架仍需要部署到稳定 HTTPS 域名，并完成法务与商店后台同步。
 
 需要完成：
 
-- `https://.../privacy` 隐私政策。
-- `https://.../terms` 服务条款。
-- `https://.../support` 支持页面。
-- `https://.../account/delete` 账号删除说明和入口。
-- `https://.../billing` 订阅、退款和恢复购买说明。
+- `https://.../privacy` 或当前后台 `/legal/privacy-cn|us` 隐私政策。
+- `https://.../terms` 或当前后台 `/legal/terms-cn|us` 服务条款。
+- `https://.../support` 或当前后台 `/support-cn|us` 支持页面。
+- `https://.../account/delete` 或当前后台 `/account/delete-cn|us` 账号删除说明和入口。
+- `https://.../billing` 或当前后台 `/billing-cn|us` 订阅、退款和恢复购买说明。
 - 如果未来接广告，根域还需要 `app-ads.txt`。
 
 验收标准：
@@ -320,7 +322,7 @@
 | 优先级 | 工作 | 负责人角色 | 验收 |
 | --- | --- | --- | --- |
 | P0 | 接入 Capacitor，生成 `ios/`、`android/` | 客户端 | 真机可安装 |
-| P0 | 建立 privacy/terms/support/account deletion 页面 | 后端/产品/法务 | HTTPS 200，App 内可访问 |
+| P0 | 部署 privacy/terms/support/account deletion/billing 页面 | 后端/产品/法务 | 生产 HTTPS 200，App 内和商店后台可访问 |
 | P0 | 账号、权益、购买后端 | 后端 | 权益可跨设备恢复 |
 | P0 | iOS IAP 和 Play Billing | 客户端/后端 | 沙盒购买全流程通过 |
 | P0 | 商店账号、包名、证书、签名 | 发布工程 | TestFlight / Internal testing 可上传 |
@@ -378,6 +380,6 @@
 
 1. 接入 Capacitor 并生成 `ios/`、`android/`。
 2. 增加 `app:sync`、`build:android:aab`、`app:open:ios`、`app:open:android` 脚本。
-3. 增加隐私/条款/支持/删除账号静态页面或官网目录。
+3. 将已落地的隐私/条款/支持/删除账号/订阅页面部署到生产 HTTPS 域名。
 4. 定义后端 API schema：auth、entitlements、billing、progress。
 5. 建立 `en-US` i18n 框架和首批英文 UI 文案。

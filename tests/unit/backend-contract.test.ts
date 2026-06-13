@@ -67,7 +67,51 @@ describe('app backend contract', () => {
     expect(config.features.accountDeletion).toBe(true)
     expect(config.features.internalTestUnlock).toBe(true)
     expect(manifest.store.market).toBe('us')
+    expect(manifest.publicPages.privacy).toBe('/legal/privacy-us')
+    expect(manifest.publicPages.support).toBe('/support-us')
     expect(manifest.accountDeletion.endpoint).toBe('/api/auth/account/delete')
+    expect(manifest.accountDeletion.publicPath).toBe('/account/delete-us')
+    expect(manifest.billing.policyPath).toBe('/billing-us')
+  })
+
+  it('serves store compliance pages and queues public deletion requests', async () => {
+    const adminToken = 'admin-secret'
+    const server = await startBackend({ region: 'overseas', adminToken })
+    servers.push(server)
+
+    const privacy = await fetch(`${server.url}/legal/privacy-us`)
+    const terms = await fetch(`${server.url}/legal/terms-cn`)
+    const support = await fetch(`${server.url}/support?region=domestic`)
+    const deletionPage = await fetch(`${server.url}/account/delete?region=overseas`)
+    const billing = await fetch(`${server.url}/billing-us`)
+    const deletionSubmit = await fetch(`${server.url}/account/delete-request`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        region: 'overseas',
+        userId: 'review-user',
+        contact: 'reviewer@example.com'
+      })
+    })
+    const deletionConfirmation = await deletionSubmit.text()
+    const deletionRequests = await fetch(`${server.url}/api/admin/deletion-requests`, {
+      headers: { authorization: `Bearer ${adminToken}` }
+    }).then((response) => response.json())
+
+    expect(privacy.status).toBe(200)
+    expect(privacy.headers.get('content-type')).toContain('text/html')
+    expect(await privacy.text()).toContain('Electric Master Privacy Policy')
+    expect(terms.status).toBe(200)
+    expect(await terms.text()).toContain('电工大师服务条款')
+    expect(await support.text()).toContain('电工大师客服支持')
+    expect(await deletionPage.text()).toContain('30 days')
+    expect(await billing.text()).toContain('Google Play Billing')
+    expect(deletionSubmit.status).toBe(200)
+    expect(deletionConfirmation).toContain('Deletion Request Submitted')
+    expect(deletionRequests.requests[0].source).toBe('public_web')
+    expect(deletionRequests.requests[0].userId).toBe('review-user')
+    expect(deletionRequests.requests[0].contactHash).toHaveLength(24)
+    expect(JSON.stringify(deletionRequests)).not.toContain('reviewer@example.com')
   })
 
   it('signs in, reads profile, syncs progress, and creates question banks', async () => {

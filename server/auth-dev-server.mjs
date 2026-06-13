@@ -16,6 +16,9 @@ const storeProfiles = {
     billingProvider: 'domestic_channel',
     privacyPolicyPath: '/legal/privacy-cn',
     termsPath: '/legal/terms-cn',
+    supportPath: '/support-cn',
+    accountDeletionPath: '/account/delete-cn',
+    billingPolicyPath: '/billing-cn',
     accountDeletionSlaDays: 15,
     requiredDisclosures: ['privacy-policy', 'sdk-list', 'permission-list', 'account-deletion']
   },
@@ -25,6 +28,9 @@ const storeProfiles = {
     billingProvider: 'google_play',
     privacyPolicyPath: '/legal/privacy-us',
     termsPath: '/legal/terms-us',
+    supportPath: '/support-us',
+    accountDeletionPath: '/account/delete-us',
+    billingPolicyPath: '/billing-us',
     accountDeletionSlaDays: 30,
     requiredDisclosures: ['privacy-policy', 'data-safety', 'account-deletion']
   }
@@ -88,6 +94,14 @@ export function createAppBackendServer(options = {}) {
       return
     }
 
+    if (req.method === 'GET') {
+      const page = buildPublicCompliancePage(url.pathname, getRequestRegion(url, defaultRegion))
+      if (page) {
+        html(res, 200, page)
+        return
+      }
+    }
+
     if (req.method === 'GET' && url.pathname === '/health') {
       json(res, 200, {
         ok: true,
@@ -124,9 +138,17 @@ export function createAppBackendServer(options = {}) {
         store: storeProfiles[region],
         sdkDisclosures: buildSdkDisclosures(region),
         dataCategories: ['account', 'course_progress', 'question_bank', 'purchase_status', 'billing_event', 'product_analytics'],
+        publicPages: buildPublicPageManifest(region),
         accountDeletion: {
           endpoint: '/api/auth/account/delete',
+          publicPath: storeProfiles[region].accountDeletionPath,
           slaDays: storeProfiles[region].accountDeletionSlaDays
+        },
+        support: {
+          path: storeProfiles[region].supportPath
+        },
+        billing: {
+          policyPath: storeProfiles[region].billingPolicyPath
         }
       })
       return
@@ -227,18 +249,27 @@ export function createAppBackendServer(options = {}) {
       const body = await readBody(req)
       const userId = getAuthorizedUserId(req, state) ?? body.userId ?? 'anonymous-delete-request'
       const region = normalizeRegion(body.region ?? defaultRegion)
-      const requestId = `del_${crypto.randomUUID()}`
-      const request = {
-        requestId,
+      const request = queueAccountDeletionRequest(state, {
         userId,
         region,
-        status: 'queued',
-        requestedAt: new Date().toISOString(),
-        slaDays: storeProfiles[region].accountDeletionSlaDays
-      }
-      state.deletionRequests.set(requestId, request)
+        source: 'api'
+      })
       persistState(state)
       json(res, 200, request)
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/account/delete-request') {
+      const body = await readBody(req)
+      const region = normalizeRegion(body.region ?? defaultRegion)
+      const request = queueAccountDeletionRequest(state, {
+        userId: body.userId || 'web-delete-request',
+        region,
+        source: 'public_web',
+        contact: body.contact
+      })
+      persistState(state)
+      html(res, 200, buildAccountDeletionConfirmationPage(region, request))
       return
     }
 
@@ -512,6 +543,18 @@ function json(res, status, payload) {
   res.end(body)
 }
 
+function html(res, status, body) {
+  res.writeHead(status, {
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
+    'access-control-allow-headers': 'content-type,authorization,x-admin-token',
+    'content-type': 'text/html; charset=utf-8',
+    'content-length': Buffer.byteLength(body),
+    'cache-control': 'no-store'
+  })
+  res.end(body)
+}
+
 function readBody(req) {
   return new Promise((resolve) => {
     let body = ''
@@ -520,12 +563,436 @@ function readBody(req) {
     })
     req.on('end', () => {
       try {
-        resolve(body ? JSON.parse(body) : {})
+        if (!body) {
+          resolve({})
+          return
+        }
+
+        const contentType = String(req.headers['content-type'] ?? '')
+        if (contentType.includes('application/x-www-form-urlencoded')) {
+          resolve(Object.fromEntries(new URLSearchParams(body)))
+          return
+        }
+
+        resolve(JSON.parse(body))
       } catch {
         resolve({})
       }
     })
   })
+}
+
+function buildPublicPageManifest(region) {
+  const profile = storeProfiles[region]
+  return {
+    privacy: profile.privacyPolicyPath,
+    terms: profile.termsPath,
+    support: profile.supportPath,
+    accountDeletion: profile.accountDeletionPath,
+    billing: profile.billingPolicyPath
+  }
+}
+
+function buildPublicCompliancePage(pathname, fallbackRegion) {
+  const route = resolvePublicComplianceRoute(pathname, fallbackRegion)
+  if (!route) return null
+
+  if (route.type === 'privacy') return renderPrivacyPage(route.region)
+  if (route.type === 'terms') return renderTermsPage(route.region)
+  if (route.type === 'support') return renderSupportPage(route.region)
+  if (route.type === 'account-delete') return renderAccountDeletionPage(route.region)
+  if (route.type === 'billing') return renderBillingPage(route.region)
+  return null
+}
+
+function resolvePublicComplianceRoute(pathname, fallbackRegion) {
+  const explicitRoutes = {
+    '/legal/privacy-cn': { type: 'privacy', region: 'domestic' },
+    '/legal/privacy-us': { type: 'privacy', region: 'overseas' },
+    '/legal/terms-cn': { type: 'terms', region: 'domestic' },
+    '/legal/terms-us': { type: 'terms', region: 'overseas' },
+    '/support-cn': { type: 'support', region: 'domestic' },
+    '/support-us': { type: 'support', region: 'overseas' },
+    '/account/delete-cn': { type: 'account-delete', region: 'domestic' },
+    '/account/delete-us': { type: 'account-delete', region: 'overseas' },
+    '/billing-cn': { type: 'billing', region: 'domestic' },
+    '/billing-us': { type: 'billing', region: 'overseas' }
+  }
+  if (explicitRoutes[pathname]) return explicitRoutes[pathname]
+
+  const genericRoutes = {
+    '/privacy': 'privacy',
+    '/terms': 'terms',
+    '/support': 'support',
+    '/account/delete': 'account-delete',
+    '/billing': 'billing'
+  }
+  if (!genericRoutes[pathname]) return null
+
+  return {
+    type: genericRoutes[pathname],
+    region: fallbackRegion
+  }
+}
+
+function renderPrivacyPage(region) {
+  const isDomestic = region === 'domestic'
+  const title = isDomestic ? '电工大师隐私政策' : 'Electric Master Privacy Policy'
+  return renderPublicPage({
+    region,
+    title,
+    kicker: isDomestic ? '隐私与数据保护' : 'Privacy and data protection',
+    lead: isDomestic
+      ? '我们只收集账号登录、学习进度、题库答题、购买权益和产品分析所必需的数据，并按国内包与海外包分别处理。'
+      : 'We process only the data needed for account sign-in, learning progress, question banks, purchases, support, and product analytics.',
+    sections: isDomestic
+      ? [
+          {
+            heading: '我们收集的信息',
+            items: ['账号标识、手机号、邮箱或微信登录状态。', '课程进度、题库答题、错题和仿真练习记录。', '套餐权益、购买状态、订单状态和恢复购买结果。', 'App 版本、渠道、设备平台、匿名会话和产品分析事件。']
+          },
+          {
+            heading: '使用目的',
+            items: ['提供登录、账号绑定、跨设备同步、题库练习和权益恢复。', '处理客服、账号注销、支付状态核验和安全风控。', '统计核心功能完成率，改进课程、仿真和题库体验。']
+          },
+          {
+            heading: '第三方 SDK 与共享',
+            items: ['国内包仅启用微信登录、短信验证码和自建产品分析所需能力。', '不会把题库答案或学习详情用于广告追踪。', '正式接入新 SDK 前会同步更新 SDK 清单、权限清单和隐私政策。']
+          },
+          {
+            heading: '保存、删除与联系我们',
+            items: [`账号删除请求会进入删除队列，预计 ${storeProfiles[region].accountDeletionSlaDays} 天内处理。`, '你可以在 App 账号页提交删除，也可以使用本页底部的公开删除入口。', '支持页面提供问题反馈、订阅和数据权利联系渠道。']
+          }
+        ]
+      : [
+          {
+            heading: 'Data we collect',
+            items: ['Account identifiers, email, phone number, Google or Facebook sign-in state.', 'Course progress, question-bank answers, wrong-question sets, and simulation practice state.', 'Entitlement tier, purchase status, transaction state, and purchase-restore results.', 'App version, channel, platform, locale, anonymous session, and product analytics events.']
+          },
+          {
+            heading: 'How we use data',
+            items: ['Provide sign-in, account linking, progress sync, question banks, and entitlement restore.', 'Handle support, account deletion, billing status checks, fraud prevention, and service reliability.', 'Measure feature completion and improve lessons, simulations, and question-bank quality.']
+          },
+          {
+            heading: 'Third parties and Data Safety',
+            items: ['Google Play builds may use Google Sign-In, Facebook Login, Google Play Billing, and an account-page ad banner for free accounts.', 'Paid accounts do not show ads, and learning answers are not used for ad targeting.', 'The Data Safety form should match the SDK list and data categories returned by the compliance manifest.']
+          },
+          {
+            heading: 'Retention, deletion, and contact',
+            items: [`Account deletion requests are queued and handled within ${storeProfiles[region].accountDeletionSlaDays} days.`, 'You can request deletion in the app account page or through the public deletion page.', 'Support links below cover subscription, restore, deletion, and privacy questions.']
+          }
+        ],
+    actions: buildPublicPageActions(region)
+  })
+}
+
+function renderTermsPage(region) {
+  const isDomestic = region === 'domestic'
+  return renderPublicPage({
+    region,
+    title: isDomestic ? '电工大师服务条款' : 'Electric Master Terms of Service',
+    kicker: isDomestic ? '服务规则' : 'Service terms',
+    lead: isDomestic
+      ? '使用电工大师即表示你同意遵守学习、仿真、题库、账号和订阅相关规则。'
+      : 'By using Electric Master, you agree to the rules for learning content, simulations, question banks, accounts, and subscriptions.',
+    sections: isDomestic
+      ? [
+          {
+            heading: '账号与安全',
+            items: ['请使用本人可控制的手机号、邮箱或微信账号登录。', '请勿共享账号、绕过权益限制或批量抓取题库与课程内容。']
+          },
+          {
+            heading: '学习内容与仿真',
+            items: ['仿真和题库用于教育训练，不能替代现场电气作业规范、持证要求和专业安全评估。', '涉及真实设备、强电或工控系统时，应由具备资质的人员执行。']
+          },
+          {
+            heading: '订阅与权益',
+            items: ['国内包通过国内渠道支付或平台允许的支付方式开通权益。', '购买、退款、恢复和续费状态以支付渠道和服务端权益记录为准。']
+          },
+          {
+            heading: '变更与终止',
+            items: ['我们可能根据法规、商店规则或课程运营调整功能和条款。', '严重违反安全、支付或内容使用规则时，可能限制账号访问。']
+          }
+        ]
+      : [
+          {
+            heading: 'Accounts and security',
+            items: ['Use an email, phone number, Google account, or Facebook account you control.', 'Do not share accounts, bypass entitlements, or scrape lessons and question-bank content.']
+          },
+          {
+            heading: 'Educational use',
+            items: ['Simulations and question banks are for learning and do not replace field electrical codes, licensing, or professional safety review.', 'Real equipment, high-voltage work, and industrial control systems must be handled by qualified people.']
+          },
+          {
+            heading: 'Subscriptions and entitlements',
+            items: ['Google Play builds use Google Play Billing for in-app digital content and subscription purchases.', 'Purchase restore, cancellation, refund, and renewal status are synchronized through store and backend records.']
+          },
+          {
+            heading: 'Changes and termination',
+            items: ['We may update features and terms to reflect regulation, store policy, or content operations.', 'Serious abuse of safety, billing, or content rules may limit account access.']
+          }
+        ],
+    actions: buildPublicPageActions(region)
+  })
+}
+
+function renderSupportPage(region) {
+  const isDomestic = region === 'domestic'
+  return renderPublicPage({
+    region,
+    title: isDomestic ? '电工大师客服支持' : 'Electric Master Support',
+    kicker: isDomestic ? '帮助与联系' : 'Help and contact',
+    lead: isDomestic
+      ? '这里集中处理账号、题库进度、订阅权益、发票/退款、账号注销和数据权利请求。'
+      : 'Use this page for account, question-bank progress, subscription, restore, refund, deletion, and data-rights support.',
+    sections: isDomestic
+      ? [
+          {
+            heading: '支持范围',
+            items: ['登录、绑定手机号/邮箱/微信和账号状态异常。', '课程进度、题库同步、错题记录和跨设备恢复。', '订阅权益、支付状态、退款协助和账号注销。']
+          },
+          {
+            heading: '联系信息',
+            items: ['邮箱：support@electricmaster.app。', '提交问题时请附上 App 版本、渠道、账号登录方式和问题时间。', '账号删除请求请优先使用账号页或公开删除入口，便于核验身份。']
+          }
+        ]
+      : [
+          {
+            heading: 'Support topics',
+            items: ['Sign-in, linking email, phone, Google, or Facebook accounts.', 'Course progress, question-bank sync, wrong-question records, and device restore.', 'Subscriptions, Google Play purchase restore, refunds, account deletion, and privacy requests.']
+          },
+          {
+            heading: 'Contact',
+            items: ['Email: support@electricmaster.app.', 'Include app version, store channel, sign-in method, and issue time when you contact support.', 'For account deletion, use the in-app account page or the public deletion page so identity can be checked.']
+          }
+        ],
+    actions: buildPublicPageActions(region)
+  })
+}
+
+function renderAccountDeletionPage(region) {
+  const isDomestic = region === 'domestic'
+  return renderPublicPage({
+    region,
+    title: isDomestic ? '电工大师账号删除' : 'Electric Master Account Deletion',
+    kicker: isDomestic ? '账号与数据删除' : 'Account and data deletion',
+    lead: isDomestic
+      ? `你可以在 App 账号页提交删除账号，也可以在此提交公开删除请求。我们会在 ${storeProfiles[region].accountDeletionSlaDays} 天内处理。`
+      : `You can request deletion from the app account page or submit a public request here. Requests are handled within ${storeProfiles[region].accountDeletionSlaDays} days.`,
+    sections: isDomestic
+      ? [
+          {
+            heading: '会删除的数据',
+            items: ['账号登录标识和绑定关系。', '学习进度、题库记录、错题记录和仿真练习状态。', '与账号关联的订阅权益状态和客服处理记录，法律或财务要求保留的订单摘要除外。']
+          },
+          {
+            heading: '处理流程',
+            items: ['优先在 App 账号页提交，系统会带上登录态。', '公开页面提交后，客服会根据联系方式核验账号归属。', '处理完成后，账号无法恢复，订阅取消和退款仍遵循支付渠道规则。']
+          }
+        ]
+      : [
+          {
+            heading: 'Data deleted',
+            items: ['Account sign-in identifiers and linked-provider state.', 'Learning progress, question-bank records, wrong-question sets, and simulation practice state.', 'Account-linked entitlement state and support records, except order summaries retained for legal or financial obligations.']
+          },
+          {
+            heading: 'Process',
+            items: ['The in-app account page is the preferred path because it includes your signed-in account.', 'Public web requests require support verification through the contact you provide.', 'Once completed, the account cannot be restored. Subscription cancellation and refunds still follow store policy.']
+          }
+        ],
+    actions: buildPublicPageActions(region),
+    form: buildAccountDeletionForm(region)
+  })
+}
+
+function renderBillingPage(region) {
+  const isDomestic = region === 'domestic'
+  const catalog = billingCatalog[region]
+  return renderPublicPage({
+    region,
+    title: isDomestic ? '电工大师订阅与付费说明' : 'Electric Master Billing Policy',
+    kicker: isDomestic ? '订阅、退款与恢复' : 'Subscriptions, refunds, and restore',
+    lead: isDomestic
+      ? '付费内容用于解锁专业元件、题库、课程和训练能力，具体权益以 App 内套餐页和账号权益记录为准。'
+      : 'Paid content unlocks professional components, question banks, lessons, and training features. Entitlements are synchronized with your store account and backend record.',
+    sections: isDomestic
+      ? [
+          {
+            heading: '商品目录',
+            items: catalog.products.map((product) => `${product.displayName}: ${formatMinorAmount(catalog.currency, product.amountMinor)}/${product.period}`)
+          },
+          {
+            heading: '恢复与退款',
+            items: ['更换设备或重新登录后，可在账号页恢复已购买权益。', '退款、取消和续费按对应国内支付渠道或应用商店规则执行。', '付费账号不展示账号页广告。']
+          }
+        ]
+      : [
+          {
+            heading: 'Catalog',
+            items: catalog.products.map((product) => `${product.displayName}: ${formatMinorAmount(catalog.currency, product.amountMinor)}/${product.period}`)
+          },
+          {
+            heading: 'Restore and refunds',
+            items: ['Google Play builds use Google Play Billing for in-app digital content.', 'Restore purchases from the account page after reinstalling or changing devices.', 'Refunds, cancellation, and renewal management follow Google Play policy. Paid accounts do not show account-page ads.']
+          }
+        ],
+    actions: buildPublicPageActions(region)
+  })
+}
+
+function buildAccountDeletionConfirmationPage(region, request) {
+  const isDomestic = region === 'domestic'
+  return renderPublicPage({
+    region,
+    title: isDomestic ? '删除请求已提交' : 'Deletion Request Submitted',
+    kicker: isDomestic ? '账号删除' : 'Account deletion',
+    lead: isDomestic
+      ? `请求编号 ${request.requestId} 已进入处理队列，预计 ${request.slaDays} 天内完成。`
+      : `Request ${request.requestId} is queued and will be handled within ${request.slaDays} days.`,
+    sections: isDomestic
+      ? [
+          {
+            heading: '下一步',
+            items: ['请保留请求编号。', '如通过公开页面提交，客服可能通过你提供的联系方式核验账号归属。', '处理完成后，账号和学习数据不可恢复。']
+          }
+        ]
+      : [
+          {
+            heading: 'Next steps',
+            items: ['Keep the request ID for support.', 'For public web requests, support may verify ownership through the contact you provided.', 'After completion, your account and learning data cannot be restored.']
+          }
+        ],
+    actions: buildPublicPageActions(region)
+  })
+}
+
+function buildPublicPageActions(region) {
+  const profile = storeProfiles[region]
+  return [
+    { label: region === 'domestic' ? '隐私政策' : 'Privacy', href: profile.privacyPolicyPath },
+    { label: region === 'domestic' ? '服务条款' : 'Terms', href: profile.termsPath },
+    { label: region === 'domestic' ? '客服支持' : 'Support', href: profile.supportPath },
+    { label: region === 'domestic' ? '删除账号' : 'Delete account', href: profile.accountDeletionPath },
+    { label: region === 'domestic' ? '订阅说明' : 'Billing', href: profile.billingPolicyPath }
+  ]
+}
+
+function buildAccountDeletionForm(region) {
+  const isDomestic = region === 'domestic'
+  return `
+    <form class="request-form" method="post" action="/account/delete-request">
+      <input type="hidden" name="region" value="${escapeHtml(region)}" />
+      <label>
+        <span>${isDomestic ? '账号或用户 ID' : 'Account or user ID'}</span>
+        <input name="userId" autocomplete="username" placeholder="${isDomestic ? '可选' : 'Optional'}" />
+      </label>
+      <label>
+        <span>${isDomestic ? '联系邮箱或手机号' : 'Contact email or phone'}</span>
+        <input name="contact" autocomplete="email" required />
+      </label>
+      <button type="submit">${isDomestic ? '提交删除请求' : 'Submit deletion request'}</button>
+    </form>
+  `
+}
+
+function renderPublicPage({
+  region,
+  title,
+  kicker,
+  lead,
+  sections,
+  actions = [],
+  form = ''
+}) {
+  const sectionMarkup = sections.map((section) => `
+    <section>
+      <h2>${escapeHtml(section.heading)}</h2>
+      <ul>
+        ${section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+      </ul>
+    </section>
+  `).join('')
+  const actionMarkup = actions.map((action) => `<a href="${escapeHtml(action.href)}">${escapeHtml(action.label)}</a>`).join('')
+
+  return `<!doctype html>
+<html lang="${region === 'domestic' ? 'zh-CN' : 'en-US'}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #eef3f9; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 880px; margin: 0 auto; }
+    header, section, .request-form { background: #fff; border: 1px solid #dbe3ef; border-radius: 10px; padding: 18px; box-sizing: border-box; }
+    header { background: #132238; color: #fff; }
+    .kicker { margin: 0 0 8px; color: rgba(255,255,255,.72); font-size: 13px; font-weight: 800; }
+    h1 { margin: 0; font-size: clamp(26px, 5vw, 42px); line-height: 1.1; }
+    .lead { margin: 12px 0 0; color: rgba(255,255,255,.78); line-height: 1.6; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+    nav a, button { border: 1px solid #dbe3ef; border-radius: 8px; background: #fff; color: #172033; padding: 10px 12px; text-decoration: none; font-weight: 800; }
+    section { margin-top: 12px; }
+    h2 { margin: 0 0 10px; font-size: 18px; line-height: 1.3; }
+    ul { margin: 0; padding-left: 20px; color: #4b5565; line-height: 1.7; }
+    .request-form { display: grid; gap: 12px; margin-top: 12px; }
+    label { display: grid; gap: 6px; color: #4b5565; font-weight: 800; }
+    input { min-height: 42px; border: 1px solid #dbe3ef; border-radius: 8px; padding: 0 10px; font: inherit; box-sizing: border-box; }
+    button { justify-self: start; background: #132238; color: #fff; cursor: pointer; }
+    footer { margin-top: 16px; color: #657186; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 540px) { body { padding: 14px; } header, section, .request-form { padding: 14px; } nav a { flex: 1 1 44%; text-align: center; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="kicker">${escapeHtml(kicker)}</p>
+      <h1>${escapeHtml(title)}</h1>
+      <p class="lead">${escapeHtml(lead)}</p>
+    </header>
+    <nav>${actionMarkup}</nav>
+    ${sectionMarkup}
+    ${form}
+    <footer>${region === 'domestic' ? '生效日期：2026-06-14。客服邮箱：support@electricmaster.app。' : 'Effective date: 2026-06-14. Contact: support@electricmaster.app.'}</footer>
+  </main>
+</body>
+</html>`
+}
+
+function queueAccountDeletionRequest(state, {
+  userId,
+  region,
+  source,
+  contact
+}) {
+  const requestId = `del_${crypto.randomUUID()}`
+  const request = {
+    requestId,
+    userId: String(userId || 'delete-request').slice(0, 120),
+    region,
+    status: 'queued',
+    source,
+    contactHash: contact ? hashSecret(contact).slice(0, 24) : null,
+    requestedAt: new Date().toISOString(),
+    slaDays: storeProfiles[region].accountDeletionSlaDays
+  }
+  state.deletionRequests.set(requestId, request)
+  return request
+}
+
+function formatMinorAmount(currency, amountMinor) {
+  const amount = Number(amountMinor) / 100
+  if (currency === 'CNY') return `CNY ${amount.toFixed(2)}`
+  if (currency === 'USD') return `USD ${amount.toFixed(2)}`
+  return `${currency} ${amount.toFixed(2)}`
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 async function handleAdminRequest(req, res, url, state, defaultRegion) {
@@ -995,7 +1462,8 @@ function buildBillingPortal(state, region, userId) {
     actions: [
       { id: 'restore_purchase', endpoint: '/api/billing/restore' },
       { id: 'delete_account', endpoint: '/api/auth/account/delete' },
-      { id: 'support', href: storeProfiles[region].termsPath }
+      { id: 'support', href: storeProfiles[region].supportPath },
+      { id: 'billing_policy', href: storeProfiles[region].billingPolicyPath }
     ]
   }
 }
