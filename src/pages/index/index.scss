@@ -2155,6 +2155,10 @@ $ink: #1f2937;
   background: $surface;
 }
 
+.account-workspace .account-internal-test-panel {
+  grid-column: 1 / -1;
+}
+
 .account-domain-overview {
   align-items: stretch;
   grid-template-columns: 1fr;
@@ -5833,6 +5837,79 @@ $ink: #1f2937;
   word-break: break-all;
 }
 
+.account-internal-test-panel {
+  margin-top: 0;
+  padding: 14px;
+  border: 1px solid #f8c076;
+  border-radius: 8px;
+  background: #fff8ec;
+  box-sizing: border-box;
+}
+
+.internal-test-head {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.internal-test-kicker,
+.internal-test-title,
+.internal-test-desc {
+  display: block;
+}
+
+.internal-test-kicker {
+  color: #a15300;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 900;
+}
+
+.internal-test-title {
+  margin-top: 3px;
+  color: #132238;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 900;
+}
+
+.internal-test-desc {
+  margin-top: 4px;
+  color: #7a4a10;
+}
+
+.internal-test-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.internal-test-metrics > view,
+.internal-test-metrics > div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #f4d4a6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.internal-test-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.internal-test-primary {
+  background: #132238;
+  border-color: #132238;
+  color: #ffffff;
+}
+
+.internal-test-secondary {
+  background: #ffffff;
+}
+
 .effects-bar {
   display: flex;
   flex-wrap: wrap;
@@ -6364,6 +6441,10 @@ $ink: #1f2937;
   .knowledge-board,
   .assessment-board {
     padding: 10px;
+  }
+
+  .internal-test-metrics {
+    grid-template-columns: 1fr;
   }
 
   .commercial-title,
