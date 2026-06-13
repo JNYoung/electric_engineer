@@ -4,6 +4,7 @@ import {
   buildProviderSession,
   getAuthProviders,
   getDefaultAuthServerPort,
+  getPublicCompliancePages,
   linkProviderToSession,
   requestAccountDeletion,
   requestInternalTestUnlock,
@@ -50,6 +51,29 @@ describe('auth flavor matrix', () => {
       'phone-otp',
       'email-password'
     ])
+  })
+
+  it('builds public compliance URLs by store region', () => {
+    expect(getPublicCompliancePages({
+      region: 'domestic',
+      apiBaseUrl: 'https://cn.example.com/'
+    })).toEqual({
+      privacy: 'https://cn.example.com/legal/privacy-cn',
+      terms: 'https://cn.example.com/legal/terms-cn',
+      support: 'https://cn.example.com/support-cn',
+      accountDeletion: 'https://cn.example.com/account/delete-cn',
+      billing: 'https://cn.example.com/billing-cn'
+    })
+    expect(getPublicCompliancePages({
+      region: 'overseas',
+      apiBaseUrl: 'https://global.example.com'
+    })).toEqual({
+      privacy: 'https://global.example.com/legal/privacy-us',
+      terms: 'https://global.example.com/legal/terms-us',
+      support: 'https://global.example.com/support-us',
+      accountDeletion: 'https://global.example.com/account/delete-us',
+      billing: 'https://global.example.com/billing-us'
+    })
   })
 
   it('builds and links provider sessions', () => {

@@ -84,6 +84,7 @@ import {
 import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@/core/googlePlayNative'
 import { enterNativeLandscapeCheck, exitNativeLandscapeCheck } from '@/core/nativeDisplay'
 import {
+  getPublicCompliancePages,
   getRuntimeAuthConfig,
   requestInternalTestUnlock,
   requestAccountDeletion,
@@ -126,7 +127,7 @@ import type {
 import type { MaterialFamily, MaterialFinderResult, MaterialTrainingKitPlan } from '@/core/materials'
 import type { VirtualMeterWorksheet } from '@/core/instruments'
 import type { TelemetryEventName, TelemetryProperties } from '@/core/telemetry'
-import type { AuthCredentialDraft, AuthProviderConfig, RuntimeAuthConfig } from '@/core/auth'
+import type { AuthCredentialDraft, AuthProviderConfig, PublicCompliancePageId, PublicCompliancePages, RuntimeAuthConfig } from '@/core/auth'
 import type {
   AuthSession,
   BillingPlan,
@@ -145,6 +146,17 @@ const DEFAULT_BOARD_WIDTH = 720
 const BOARD_DRAG_INSET = 2
 const MIN_CANVAS_ZOOM = 1
 const MAX_CANVAS_ZOOM = 3
+const accountComplianceItems: Array<{
+  id: PublicCompliancePageId
+  label: string
+  mark: string
+}> = [
+  { id: 'privacy', label: '隐私', mark: '隐' },
+  { id: 'terms', label: '条款', mark: '约' },
+  { id: 'support', label: '支持', mark: '助' },
+  { id: 'billing', label: '订阅', mark: '订' },
+  { id: 'accountDeletion', label: '删除', mark: '删' }
+]
 
 type FullscreenDocument = Document & {
   webkitExitFullscreen?: () => Promise<void> | void
@@ -660,11 +672,7 @@ function CommercialDashboard({
     : variant === 'library'
       ? '行业元件概览'
       : '行业控制台'
-  const planPrefix = variant === 'account'
-    ? '权益建议'
-    : variant === 'library'
-      ? '素材建议'
-      : '推荐套餐'
+  const planPrefix = variant === 'library' ? '素材套餐' : '推荐套餐'
 
   return (
     <View className={`commercial-dashboard ${isAccountVariant ? 'account-domain-overview' : ''}`}>
@@ -691,9 +699,7 @@ function CommercialDashboard({
             <Text className='metric-value'>{access.catalog.locked}</Text>
           </View>
         </View>
-        <Text className='commercial-plan'>
-          {planPrefix}：{plan.name} · {profile.recommendedVoltage}V · 下一步：{access.primaryAction.label}
-        </Text>
+        <Text className='commercial-plan'>{planPrefix}：{plan.name} · {profile.recommendedVoltage}V</Text>
       </View>
     </View>
   )
@@ -1233,6 +1239,32 @@ function AccountAuthEntryCard({
   )
 }
 
+function AccountComplianceLinks({
+  pages,
+  onOpen
+}: {
+  pages: PublicCompliancePages
+  onOpen: (pageId: PublicCompliancePageId, url: string) => void
+}) {
+  return (
+    <View className='account-compliance-panel'>
+      <Text className='account-section-title'>合规与支持</Text>
+      <View className='account-compliance-grid'>
+        {accountComplianceItems.map((item) => (
+          <Button
+            key={item.id}
+            className='account-compliance-button'
+            onClick={() => onOpen(item.id, pages[item.id])}
+          >
+            <Text className='account-compliance-mark'>{item.mark}</Text>
+            <Text className='account-compliance-label'>{item.label}</Text>
+          </Button>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 function CommercePanel({
   access,
   session,
@@ -1242,6 +1274,7 @@ function CommercePanel({
   authConfig,
   onSignOut,
   onDeleteAccount,
+  onOpenCompliancePage,
   onOpenAuthDialog,
   onSelectPlan
 }: {
@@ -1253,6 +1286,7 @@ function CommercePanel({
   authConfig: RuntimeAuthConfig
   onSignOut: () => void
   onDeleteAccount: () => void
+  onOpenCompliancePage: (pageId: PublicCompliancePageId, url: string) => void
   onOpenAuthDialog: (mode: AuthDialogMode, source: AuthDialogSource, targetTier?: SubscriptionTier) => void
   onSelectPlan: (tier: SubscriptionTier) => void
 }) {
@@ -1263,6 +1297,7 @@ function CommercePanel({
     ? `当前已开通${tierLabel(session.tier)}，可管理订阅、权益和账号状态。`
     : ''
   const connectionLabel = session.status === 'authenticated' ? '账号已连接' : '未登录'
+  const publicPages = getPublicCompliancePages(authConfig)
 
   function runPrimaryAction() {
     if (access.primaryAction.kind === 'sign-in') {
@@ -1329,6 +1364,8 @@ function CommercePanel({
         onOpenBind={() => onOpenAuthDialog('bind', 'account')}
       />
 
+      <AccountComplianceLinks pages={publicPages} onOpen={onOpenCompliancePage} />
+
       <Text className='account-section-title'>权益用量</Text>
       <View className='access-summary'>
         <View>
@@ -1354,7 +1391,6 @@ function CommercePanel({
           <View key={feature.id} className={`feature-gate-row ${feature.available ? 'is-open' : 'is-locked'}`}>
             <View>
               <Text className='feature-gate-title'>{feature.label}</Text>
-              <Text className='feature-gate-detail'>{feature.description}</Text>
             </View>
             <Text className={`tier-badge tier-${feature.requiredTier}`}>
               {feature.available ? '已解锁' : `${tierLabel(feature.requiredTier)}版`}
@@ -1400,7 +1436,6 @@ function PlanCard({
         <Text className='plan-name'>{plan.name}</Text>
         <Text className='plan-price'>{formatPlanPrice(plan, authRegion)}</Text>
       </View>
-      <Text className='plan-target'>{plan.target}</Text>
       <Text className='plan-feature'>{plan.features[0]}</Text>
       <Button className={`small-action plan-action ${owned ? 'is-owned' : ''}`} onClick={() => onSelect(plan.id)}>
         {owned ? '已具备' : '开通'}
@@ -4187,6 +4222,21 @@ export default function Index() {
     setAccountDeletionMessage('账号删除请求暂未提交，请稍后再试。')
   }
 
+  function openCompliancePage(pageId: PublicCompliancePageId, url: string) {
+    trackTelemetryEvent('compliance_link_opened', {
+      page_id: pageId,
+      auth_region: authConfig.region
+    })
+
+    if (typeof window !== 'undefined' && typeof window.open === 'function') {
+      window.open(url, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    void Taro.setClipboardData({ data: url })
+    void Taro.showToast({ title: '链接已复制', icon: 'none' })
+  }
+
   async function selectPlan(tier: SubscriptionTier) {
     trackTelemetryEvent('purchase_intent', {
       target_tier: tier,
@@ -4652,6 +4702,7 @@ export default function Index() {
             authConfig={authConfig}
             onSignOut={simulateSignOut}
             onDeleteAccount={deleteAccount}
+            onOpenCompliancePage={openCompliancePage}
             onOpenAuthDialog={openAuthDialog}
             onSelectPlan={selectPlan}
           />

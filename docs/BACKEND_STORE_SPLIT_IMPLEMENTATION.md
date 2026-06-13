@@ -11,10 +11,13 @@
 - 后台新增公开合规页面骨架，国内/海外分别提供隐私政策、服务条款、客服支持、账号删除和订阅说明页面。
 - 后台新增公开网页账号删除表单，表单进入删除队列并只保存联系方式 hash。
 - 前台登录入口改为弹窗，不再暴露 API 地址、端口、接口路径、测试码和原生插件说明。
+- 账号页新增 App 内合规与支持入口，以短按钮打开隐私、条款、客服、订阅说明和账号删除页面，不在界面暴露 URL 或 API 路径。
+- 账号页权益和套餐区域已压缩为清单式信息，移除“下一步”等内部流程状态口吻。
 - 账号页新增账号删除入口，已登录用户可提交删除队列，国内/海外按各自 SLA 返回处理时限。
 - Google Play 包与国内包继续使用 flavor-scoped 依赖：Google/Facebook/Firebase/Ads 只进 Google Play 变体，国内包只保留国内登录依赖占位。
 - Google/Firebase/AdMob manifest metadata 仅放在 Google Play flavor manifest，国内 APK manifest 不暴露海外 SDK 配置。
 - Android 新增正式/内测包拆分：正式包不外显内部解锁入口，内测包在账号页底部显示内部测试解锁。
+- Android 系统应用名按 flavor 拆分：国内正式 `电工大师`、国内内测 `电工大师内测`、Google Play 正式 `Electric Master`、Google Play 内测 `Electric Master Internal`。
 
 ## 后台接口
 
@@ -130,6 +133,7 @@ Google Play/海外包默认页面：
 ## 中国包
 
 - 登录：微信、手机号验证码、邮箱密码。
+- 系统应用名：正式包 `电工大师`，内测包 `电工大师内测`。
 - 后台默认端口：`4317`。
 - 数据区域：`CN`。
 - 合规输出：隐私政策、SDK 清单、权限清单、账号注销入口。
@@ -140,6 +144,7 @@ Google Play/海外包默认页面：
 ## 美国/Google Play 包
 
 - 登录：Facebook、Google、手机号验证码、邮箱。
+- 系统应用名：正式包 `Electric Master`，内测包 `Electric Master Internal`。
 - 后台默认端口：`4318`。
 - 数据区域：`US`。
 - 合规输出：隐私政策、Data safety 对应数据类型、账号删除入口。

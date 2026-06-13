@@ -71,6 +71,10 @@ export interface AccountDeletionResult {
   slaDays?: number
 }
 
+export type PublicCompliancePageId = 'privacy' | 'terms' | 'support' | 'accountDeletion' | 'billing'
+
+export type PublicCompliancePages = Record<PublicCompliancePageId, string>
+
 declare const __AUTH_REGION__: string | undefined
 declare const __AUTH_API_BASE_URL__: string | undefined
 declare const __INTERNAL_TEST_UNLOCK__: boolean | undefined
@@ -124,6 +128,23 @@ const overseasProviders: AuthProviderConfig[] = [
   }
 ]
 
+const publicCompliancePaths: Record<AuthRegion, PublicCompliancePages> = {
+  domestic: {
+    privacy: '/legal/privacy-cn',
+    terms: '/legal/terms-cn',
+    support: '/support-cn',
+    accountDeletion: '/account/delete-cn',
+    billing: '/billing-cn'
+  },
+  overseas: {
+    privacy: '/legal/privacy-us',
+    terms: '/legal/terms-us',
+    support: '/support-us',
+    accountDeletion: '/account/delete-us',
+    billing: '/billing-us'
+  }
+}
+
 export function normalizeAuthRegion(value?: string): AuthRegion {
   return value === 'overseas' ? 'overseas' : 'domestic'
 }
@@ -164,6 +185,26 @@ export function getRuntimeAuthConfig(): RuntimeAuthConfig {
     accountDeleteEndpoint: `${apiBaseUrl}/api/auth/account/delete`,
     internalUnlockEndpoint: `${apiBaseUrl}/api/entitlements/test-unlock`
   }
+}
+
+export function getPublicCompliancePages(config: Pick<RuntimeAuthConfig, 'apiBaseUrl' | 'region'>): PublicCompliancePages {
+  const paths = publicCompliancePaths[config.region]
+
+  return {
+    privacy: resolveAuthPublicUrl(config.apiBaseUrl, paths.privacy),
+    terms: resolveAuthPublicUrl(config.apiBaseUrl, paths.terms),
+    support: resolveAuthPublicUrl(config.apiBaseUrl, paths.support),
+    accountDeletion: resolveAuthPublicUrl(config.apiBaseUrl, paths.accountDeletion),
+    billing: resolveAuthPublicUrl(config.apiBaseUrl, paths.billing)
+  }
+}
+
+export function resolveAuthPublicUrl(apiBaseUrl: string, path: string) {
+  if (/^(https?:)?\/\//i.test(path)) return path
+
+  const base = apiBaseUrl.replace(/\/+$/, '')
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${base}${normalizedPath}`
 }
 
 export function buildProviderSession(

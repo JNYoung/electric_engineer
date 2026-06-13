@@ -28,6 +28,7 @@ export type TelemetryEventName =
   | 'assessment_answered'
   | 'paywall_viewed'
   | 'purchase_intent'
+  | 'compliance_link_opened'
   | 'auth_changed'
 
 export interface TelemetryBuildConfig {
