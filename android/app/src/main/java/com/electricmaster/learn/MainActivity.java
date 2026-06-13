@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ElectricAdsPlugin.class);
         registerPlugin(ElectricAnalyticsPlugin.class);
+        registerPlugin(ElectricDisplayPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

@@ -45,7 +45,6 @@ export const APP_MODULES: Array<{
 
 export function getAdPlacementForModule(moduleId: AppModuleId) {
   if (moduleId === 'library') return 'library_banner'
-  if (moduleId === 'account') return 'account_banner'
   return 'hidden'
 }
 

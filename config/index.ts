@@ -47,6 +47,15 @@ const config: UserConfigExport = {
     __TELEMETRY_ENDPOINT__: JSON.stringify(telemetryEndpoint),
     __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled)
   },
+  terser: {
+    config: {
+      compress: {
+        passes: 2
+      },
+      keep_fnames: false
+    }
+  },
+  noInjectGlobalStyle: true,
   copy: {
     patterns: [
       {
@@ -70,6 +79,38 @@ const config: UserConfigExport = {
   h5: {
     publicPath: '/',
     staticDirectory: 'static',
+    webpackChain(chain) {
+      // H5 only needs primitive DOM wrappers here; avoid shipping the Stencil component runtime in app entry.
+      chain.resolve.alias.set(
+        '@tarojs/components$',
+        path.resolve(__dirname, '..', 'src/platform/h5-components.tsx')
+      )
+      chain.resolve.alias.set(
+        '@tarojs/components/global.css$',
+        path.resolve(__dirname, '..', 'src/platform/h5-components.css')
+      )
+      chain.resolve.alias.set(
+        '@tarojs/components/dist/taro-components/taro-components.css$',
+        path.resolve(__dirname, '..', 'src/platform/h5-components.css')
+      )
+      chain.plugin('mainPlugin').tap((args) => {
+        const [options] = args
+
+        if (options?.loaderMeta) {
+          // Taro injects PullToRefresh on H5 by default even though this app does not use it.
+          options.loaderMeta.extraImportForWeb = options.loaderMeta.extraImportForWeb.replace(
+            "import { defineCustomElementTaroPullToRefreshCore } from '@tarojs/components/dist/components'\n",
+            ''
+          )
+          options.loaderMeta.execBeforeCreateWebApp = options.loaderMeta.execBeforeCreateWebApp.replace(
+            'defineCustomElementTaroPullToRefreshCore()\n',
+            ''
+          )
+        }
+
+        return args
+      })
+    },
     postcss: {
       autoprefixer: {
         enable: true

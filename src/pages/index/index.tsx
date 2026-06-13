@@ -69,6 +69,7 @@ import {
 import { buildVirtualMeterWorksheet } from '@/core/instruments'
 import { createTelemetryClient } from '@/core/telemetry'
 import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@/core/googlePlayNative'
+import { enterNativeLandscapeCheck, exitNativeLandscapeCheck } from '@/core/nativeDisplay'
 import {
   AppModuleNav,
   MobileBottomNav,
@@ -121,6 +122,22 @@ const WIRE_THICKNESS = 6
 const DEFAULT_BOARD_WIDTH = 720
 const BOARD_DRAG_INSET = 2
 
+type FullscreenDocument = Document & {
+  webkitExitFullscreen?: () => Promise<void> | void
+  webkitFullscreenElement?: Element | null
+}
+
+type FullscreenTarget = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void
+}
+
+type OrientationController = ScreenOrientation & {
+  lock?: (orientation: string) => Promise<void>
+  unlock?: () => void
+}
+
+declare const __BUILD_TARGET__: string | undefined
+
 interface Point {
   x: number
   y: number
@@ -171,6 +188,52 @@ function getRuntimeTelemetryPlatform() {
   } catch {
     return 'unknown'
   }
+}
+
+function getBuildTarget() {
+  return typeof __BUILD_TARGET__ === 'undefined' ? 'h5' : __BUILD_TARGET__
+}
+
+function getFullscreenElement() {
+  if (typeof document === 'undefined') return null
+  const fullscreenDocument = document as FullscreenDocument
+  return document.fullscreenElement ?? fullscreenDocument.webkitFullscreenElement ?? null
+}
+
+async function requestAppFullscreen() {
+  if (typeof document === 'undefined') return
+  const target = document.documentElement as FullscreenTarget
+
+  if (target.requestFullscreen) {
+    await target.requestFullscreen()
+    return
+  }
+
+  await target.webkitRequestFullscreen?.()
+}
+
+async function exitAppFullscreen() {
+  if (typeof document === 'undefined') return
+  const fullscreenDocument = document as FullscreenDocument
+
+  if (document.exitFullscreen) {
+    await document.exitFullscreen()
+    return
+  }
+
+  await fullscreenDocument.webkitExitFullscreen?.()
+}
+
+async function lockLandscapeOrientation() {
+  if (typeof window === 'undefined') return
+  const orientation = window.screen.orientation as OrientationController | undefined
+  await orientation?.lock?.('landscape')
+}
+
+function unlockOrientation() {
+  if (typeof window === 'undefined') return
+  const orientation = window.screen.orientation as OrientationController | undefined
+  orientation?.unlock?.()
 }
 
 function getRuntimeLocale() {
@@ -421,20 +484,33 @@ function DomainSwitcher({
 function CommercialDashboard({
   access,
   activeDomain,
-  onChangeDomain
+  onChangeDomain,
+  variant = 'workbench'
 }: {
   access: CommercialAccessSnapshot
   activeDomain: WorkbenchDomain
   onChangeDomain: (domain: WorkbenchDomain) => void
+  variant?: 'workbench' | 'library' | 'account'
 }) {
   const profile = getDomainProfile(activeDomain)
   const summary = getCatalogSummary(activeDomain)
   const plan = access.recommendedPlan
+  const isAccountVariant = variant === 'account'
+  const kicker = variant === 'account'
+    ? '行业权益概览'
+    : variant === 'library'
+      ? '行业元件概览'
+      : '商业化行业工作台'
+  const planPrefix = variant === 'account'
+    ? '权益建议'
+    : variant === 'library'
+      ? '素材建议'
+      : '推荐套餐'
 
   return (
-    <View className='commercial-dashboard'>
+    <View className={`commercial-dashboard ${isAccountVariant ? 'account-domain-overview' : ''}`}>
       <View className='commercial-copy'>
-        <Text className='training-kicker'>商业化行业工作台</Text>
+        <Text className='training-kicker'>{kicker}</Text>
         <Text className='commercial-title'>{profile.headline}</Text>
         <Text className='commercial-desc'>{profile.description}</Text>
       </View>
@@ -455,7 +531,7 @@ function CommercialDashboard({
           </View>
         </View>
         <Text className='commercial-plan'>
-          推荐套餐：{plan.name} · {profile.recommendedVoltage}V · 下一步：{access.primaryAction.label}
+          {planPrefix}：{plan.name} · {profile.recommendedVoltage}V · 下一步：{access.primaryAction.label}
         </Text>
       </View>
     </View>
@@ -561,6 +637,14 @@ function CommercePanel({
   onSignOut: () => void
   onSelectPlan: (tier: SubscriptionTier) => void
 }) {
+  const accountTitle = session.status === 'authenticated'
+    ? session.displayName
+    : '登录后同步专业训练'
+  const accountDescription = session.status === 'authenticated'
+    ? `当前已开通${tierLabel(session.tier)}，可管理订阅、权益和接口状态。`
+    : `当前以访客身份体验基础训练，登录后可开通${access.recommendedPlan.name}并解锁专业元件。`
+  const connectionLabel = session.status === 'authenticated' ? '账号已连接' : '未登录'
+
   function runPrimaryAction() {
     if (access.primaryAction.kind === 'sign-in') {
       onSignIn(access.primaryAction.targetTier)
@@ -572,13 +656,33 @@ function CommercePanel({
 
   return (
     <View className='commerce-panel'>
-      <View className='training-card-head'>
-        <View>
-          <Text className='summary-title'>账号与付费接口</Text>
-          <Text className='commerce-user'>{session.displayName}</Text>
+      <View className='account-hero'>
+        <View className='account-avatar'>
+          <Text>{session.status === 'authenticated' ? '专' : '访'}</Text>
+        </View>
+        <View className='account-hero-copy'>
+          <Text className='account-kicker'>账户中心</Text>
+          <Text className='account-title'>{accountTitle}</Text>
+          <Text className='account-desc'>{accountDescription}</Text>
         </View>
         <Text className={`tier-badge tier-${session.tier}`}>{tierLabel(session.tier)}</Text>
       </View>
+
+      <View className='account-summary-grid'>
+        <View>
+          <Text className='metric-label'>账号状态</Text>
+          <Text className='metric-value'>{connectionLabel}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>当前套餐</Text>
+          <Text className='metric-value'>{tierLabel(session.tier)}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>目录权限</Text>
+          <Text className='metric-value'>{access.catalog.available}/{access.catalog.total}</Text>
+        </View>
+      </View>
+
       <View className='commerce-actions-row'>
         <Button className='small-action commerce-primary-action' onClick={runPrimaryAction}>
           {access.primaryAction.label}
@@ -587,11 +691,12 @@ function CommercePanel({
           <Button className='small-action' onClick={onSignOut}>退出演示</Button>
         )}
         <Text className='commerce-status'>
-          {session.status === 'authenticated' ? '已连接账号接口' : '等待接入真实登录'} · {access.primaryAction.endpoint}
+          {session.status === 'authenticated' ? '可管理订阅和发票' : '登录后再创建支付会话'}
         </Text>
       </View>
       <Text className='commerce-status'>{access.primaryAction.detail}</Text>
 
+      <Text className='account-section-title'>权益用量</Text>
       <View className='access-summary'>
         <View>
           <Text className='metric-label'>目录权限</Text>
@@ -610,6 +715,7 @@ function CommercePanel({
         <Text className='locked-preview'>待解锁：{access.catalog.lockedPreview.join('、')}</Text>
       )}
 
+      <Text className='account-section-title'>功能权益</Text>
       <View className='feature-gate-list'>
         {access.features.map((feature) => (
           <View key={feature.id} className={`feature-gate-row ${feature.available ? 'is-open' : 'is-locked'}`}>
@@ -624,6 +730,7 @@ function CommercePanel({
         ))}
       </View>
 
+      <Text className='account-section-title'>套餐选择</Text>
       <View className='plan-list'>
         {BILLING_PLANS.map((plan) => (
           <PlanCard
@@ -683,7 +790,7 @@ function LessonCard({
   onSelect: (id: string) => void
 }) {
   return (
-    <View className={`lesson-card ${active ? 'is-active' : ''}`} onClick={() => onSelect(lesson.id)}>
+    <Button className={`lesson-card ${active ? 'is-active' : ''}`} onClick={() => onSelect(lesson.id)}>
       <View className='lesson-card-head'>
         <Text className='lesson-stage'>{lesson.stage}</Text>
         <Text className='lesson-time'>{lesson.minutes} 分钟</Text>
@@ -695,7 +802,7 @@ function LessonCard({
           <Text key={item}>{item}</Text>
         ))}
       </View>
-    </View>
+    </Button>
   )
 }
 
@@ -818,6 +925,9 @@ function LearningDashboard({
   onStartChallenge: (id: string) => void
   onStartScenario: (scenarioId: string) => void
 }) {
+  const lessonChallenges = lesson.challengeIds.map((challengeId) => getChallengeById(challengeId))
+  const primaryChallenge = lessonChallenges[0] ?? challenge
+
   return (
     <View className='learning-dashboard'>
       <View className='training-summary'>
@@ -856,7 +966,7 @@ function LearningDashboard({
             <Text className='section-meta'>当前：{challenge.title}</Text>
           </View>
           <View className='challenge-list'>
-            {TRAINING_CHALLENGES.map((item) => (
+            {lessonChallenges.map((item) => (
               <ChallengeCard
                 key={item.id}
                 challenge={item}
@@ -864,6 +974,35 @@ function LearningDashboard({
                 onStart={onStartChallenge}
               />
             ))}
+          </View>
+        </View>
+
+        <View className='lesson-detail-panel'>
+          <View className='section-head'>
+            <Text className='section-title'>课程内容</Text>
+            <Button className='small-action' onClick={() => onStartChallenge(primaryChallenge.id)}>
+              载入本课训练
+            </Button>
+          </View>
+          <View className='lesson-detail-grid'>
+            <View className='lesson-detail-card'>
+              <Text className='detail-card-title'>学习目标</Text>
+              {lesson.goals.map((item) => (
+                <Text key={item} className='detail-card-item'>{item}</Text>
+              ))}
+            </View>
+            <View className='lesson-detail-card'>
+              <Text className='detail-card-title'>操作练习</Text>
+              {lesson.drills.map((item) => (
+                <Text key={item} className='detail-card-item'>{item}</Text>
+              ))}
+            </View>
+            <View className='lesson-detail-card'>
+              <Text className='detail-card-title'>安全检查</Text>
+              {lesson.safetyChecks.map((item) => (
+                <Text key={item} className='detail-card-item'>{item}</Text>
+              ))}
+            </View>
           </View>
         </View>
       </View>
@@ -2061,10 +2200,14 @@ export default function Index() {
   const [activeModule, setActiveModule] = useState<AppModuleId>('simulate')
   const [draggingDeviceId, setDraggingDeviceId] = useState<string | null>(null)
   const [boardSize, setBoardSize] = useState({ width: DEFAULT_BOARD_WIDTH, height: 500 })
+  const [boardFrameWidth, setBoardFrameWidth] = useState(DEFAULT_BOARD_WIDTH)
+  const [boardFrameHeight, setBoardFrameHeight] = useState(500)
+  const [isCanvasFocusMode, setIsCanvasFocusMode] = useState(false)
   const dragRef = useRef<DragState | null>(null)
   const modelRef = useRef(model)
   const boardSizeRef = useRef(boardSize)
   const boardHeightRef = useRef(500)
+  const boardScaleRef = useRef(1)
   const telemetry = useMemo(
     () =>
       createTelemetryClient({
@@ -2123,6 +2266,17 @@ export default function Index() {
   const selectedWire = model.wires.find((wire) => wire.id === selectedId)
   const loadDevices = model.devices.filter((device) => isLoadKind(device.kind))
   const boardHeight = Math.max(500, ...model.devices.map((device) => device.y + 100))
+  const boardHeightScale = isCanvasFocusMode ? boardFrameHeight / boardHeight : 1
+  const boardScale = Math.max(
+    0.1,
+    Math.min(1, boardFrameWidth / DEFAULT_BOARD_WIDTH, boardHeightScale)
+  )
+  const boardLogicalWidth = boardScale < 1
+    ? DEFAULT_BOARD_WIDTH
+    : Math.max(DEFAULT_BOARD_WIDTH, Math.floor(boardFrameWidth))
+  const boardViewportHeight = isCanvasFocusMode
+    ? Math.max(1, boardFrameHeight)
+    : Math.ceil(boardHeight * boardScale)
 
   useEffect(() => {
     modelRef.current = model
@@ -2135,6 +2289,17 @@ export default function Index() {
   useEffect(() => {
     boardHeightRef.current = boardHeight
   }, [boardHeight])
+
+  useEffect(() => {
+    boardScaleRef.current = boardScale
+  }, [boardScale])
+
+  useEffect(() => {
+    setBoardSize({
+      width: boardLogicalWidth,
+      height: boardHeight
+    })
+  }, [boardHeight, boardLogicalWidth])
 
   useEffect(() => {
     trackTelemetryEvent('app_open', {
@@ -2150,24 +2315,60 @@ export default function Index() {
   }, [activeModule])
 
   useEffect(() => {
-    Taro.nextTick(() => {
-      Taro.createSelectorQuery()
-        .select('.circuit-board')
-        .boundingClientRect((rect) => {
-          const boardRect = Array.isArray(rect) ? rect[0] : rect
-          if (!boardRect || typeof boardRect.width !== 'number' || typeof boardRect.height !== 'number') return
-          const boardElement =
-            typeof document === 'undefined'
-              ? null
-              : document.querySelector<HTMLElement>('.circuit-board')
-          setBoardSize({
-            width: Math.max(boardRect.width, boardElement?.scrollWidth ?? 0),
-            height: Math.max(boardRect.height, boardElement?.scrollHeight ?? 0)
+    if (activeModule !== 'simulate') return undefined
+
+    let frameHandle = 0
+
+    function measureBoardFrame() {
+      Taro.nextTick(() => {
+        const boardFrame =
+          typeof document === 'undefined'
+            ? null
+            : document.querySelector<HTMLElement>('.canvas-board-viewport')
+
+        if (boardFrame?.clientWidth) {
+          setBoardFrameWidth(Math.max(1, boardFrame.clientWidth))
+          setBoardFrameHeight(Math.max(1, boardFrame.clientHeight))
+          return
+        }
+
+        Taro.createSelectorQuery()
+          .select('.canvas-board-viewport')
+          .boundingClientRect((rect) => {
+            const frameRect = Array.isArray(rect) ? rect[0] : rect
+            if (!frameRect || typeof frameRect.width !== 'number' || frameRect.width <= 0) return
+            setBoardFrameWidth(Math.max(1, frameRect.width))
+            if (typeof frameRect.height === 'number' && frameRect.height > 0) {
+              setBoardFrameHeight(Math.max(1, frameRect.height))
+            }
           })
-        })
-        .exec()
-    })
-  }, [activeModule, boardHeight, model.devices.length])
+          .exec()
+      })
+    }
+
+    function queueMeasure() {
+      if (typeof window === 'undefined') {
+        measureBoardFrame()
+        return
+      }
+
+      window.cancelAnimationFrame(frameHandle)
+      frameHandle = window.requestAnimationFrame(measureBoardFrame)
+    }
+
+    queueMeasure()
+
+    if (typeof window === 'undefined') return undefined
+
+    window.addEventListener('resize', queueMeasure)
+    window.addEventListener('orientationchange', queueMeasure)
+
+    return () => {
+      window.cancelAnimationFrame(frameHandle)
+      window.removeEventListener('resize', queueMeasure)
+      window.removeEventListener('orientationchange', queueMeasure)
+    }
+  }, [activeModule, boardHeight, isCanvasFocusMode, model.devices.length])
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return undefined
@@ -2205,11 +2406,88 @@ export default function Index() {
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+
+    function syncFullscreenState() {
+      if (!getFullscreenElement()) {
+        void exitNativeLandscapeCheck()
+        unlockOrientation()
+        setIsCanvasFocusMode(false)
+      }
+    }
+
+    document.addEventListener('fullscreenchange', syncFullscreenState)
+    document.addEventListener('webkitfullscreenchange', syncFullscreenState)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreenState)
+      document.removeEventListener('webkitfullscreenchange', syncFullscreenState)
+    }
+  }, [])
+
   function trackTelemetryEvent(name: TelemetryEventName, properties?: TelemetryProperties) {
     telemetry.track(name, properties)
   }
 
+  async function enterCanvasFocusMode() {
+    setIsCanvasFocusMode(true)
+    trackTelemetryEvent('app_module_changed', {
+      module_id: 'simulate',
+      source: 'canvas_landscape_check'
+    })
+
+    try {
+      await enterNativeLandscapeCheck()
+    } catch {
+      // Native orientation is best-effort; web fullscreen remains as fallback.
+    }
+
+    try {
+      await requestAppFullscreen()
+    } catch {
+      // Fullscreen can be denied by the WebView; keep the in-app focus layout as fallback.
+    }
+
+    try {
+      await lockLandscapeOrientation()
+    } catch {
+      // Orientation lock is best-effort and only works in some fullscreen contexts.
+    }
+  }
+
+  async function exitCanvasFocusMode() {
+    setIsCanvasFocusMode(false)
+    unlockOrientation()
+
+    try {
+      await exitNativeLandscapeCheck()
+    } catch {
+      // Web fallback below still restores the visible app shell.
+    }
+
+    try {
+      if (getFullscreenElement()) {
+        await exitAppFullscreen()
+      }
+    } catch {
+      // Leaving the CSS focus layout is enough if native fullscreen exit fails.
+    }
+  }
+
+  function toggleCanvasFocusMode() {
+    if (isCanvasFocusMode) {
+      void exitCanvasFocusMode()
+      return
+    }
+
+    void enterCanvasFocusMode()
+  }
+
   function changeAppModule(moduleId: AppModuleId, source = 'bottom_nav') {
+    if (isCanvasFocusMode && moduleId !== 'simulate') {
+      void exitCanvasFocusMode()
+    }
     setActiveModule(moduleId)
     trackTelemetryEvent('app_module_changed', {
       module_id: moduleId,
@@ -2292,11 +2570,14 @@ export default function Index() {
     event.preventDefault?.()
     const currentBoardSize = boardSizeRef.current
     const currentBoardHeight = boardHeightRef.current
+    const currentBoardScale = Math.max(0.1, boardScaleRef.current)
+    const deltaX = (point.x - activeDrag.pointerStart.x) / currentBoardScale
+    const deltaY = (point.y - activeDrag.pointerStart.y) / currentBoardScale
     const maxX = Math.max(0, currentBoardSize.width - NODE_WIDTH - BOARD_DRAG_INSET * 2)
     const maxY = Math.max(0, Math.max(currentBoardSize.height, currentBoardHeight) - NODE_HEIGHT - BOARD_DRAG_INSET * 2)
     const next = {
-      x: clamp(activeDrag.deviceStart.x + point.x - activeDrag.pointerStart.x, 0, maxX),
-      y: clamp(activeDrag.deviceStart.y + point.y - activeDrag.pointerStart.y, 0, maxY)
+      x: clamp(activeDrag.deviceStart.x + deltaX, 0, maxX),
+      y: clamp(activeDrag.deviceStart.y + deltaY, 0, maxY)
     }
 
     setModel((current) => moveDevice(current, activeDrag.deviceId, next))
@@ -2382,10 +2663,17 @@ export default function Index() {
   }
 
   function selectLesson(lessonId: string) {
+    const nextLesson = getLessonById(lessonId)
+    const nextChallengeId = nextLesson.challengeIds[0]
+
     trackTelemetryEvent('lesson_selected', {
-      lesson_id: lessonId
+      lesson_id: nextLesson.id,
+      challenge_id: nextChallengeId
     })
-    setActiveLessonId(lessonId)
+    setActiveLessonId(nextLesson.id)
+    if (nextChallengeId) {
+      setActiveChallengeId(nextChallengeId)
+    }
   }
 
   function openPlan(tier: SubscriptionTier, source = 'manual') {
@@ -2528,53 +2816,53 @@ export default function Index() {
     () => buildCommercialAccessSnapshot(authSession, activeDomain, selectedPlanId),
     [authSession, activeDomain, selectedPlanId]
   )
+  const isNativeAndroidShell = getBuildTarget() === 'android-google-play'
+  const showSimulationHeader = activeModule === 'simulate'
 
   return (
-    <View className={`app-shell module-focus-${activeModule}`}>
-      <View className='topbar'>
-        <View className='brand-block'>
-          <Text className='brand-mark'>电</Text>
-          <View>
-            <Text className='brand-title'>电工大师</Text>
-            <Text className='brand-subtitle'>Web / 小程序电路模拟控制台</Text>
+    <View className={`app-shell module-focus-${activeModule}${isNativeAndroidShell ? ' is-native-shell' : ''}${isCanvasFocusMode ? ' is-canvas-focus-mode' : ''}`}>
+      {showSimulationHeader && (
+        <View className='topbar'>
+          <View className='brand-block'>
+            <Text className='brand-mark'>电</Text>
+            <View>
+              <Text className='brand-title'>电工大师</Text>
+              <Text className='brand-subtitle'>Web / 小程序电路模拟控制台</Text>
+            </View>
+          </View>
+          <View className='toolbar'>
+            <Button className='tool-button primary' onClick={() => toggleSwitch()}>
+              {model.devices.find((device) => device.id === 's1')?.isClosed ? '■ 断开' : '▶ 接通'}
+            </Button>
+            <Button className='tool-button' onClick={resetCircuit}>↺ 复位</Button>
+            <Button className='tool-button desktop-action' onClick={() => setAllWiresConnected(true)}>
+              全部连接
+            </Button>
+            <Button className='tool-button desktop-action' onClick={() => setAllWiresConnected(false)}>
+              全部断开
+            </Button>
+            <Button className='tool-button desktop-action' onClick={() => startChallenge(activeChallenge.id)}>载入训练</Button>
+            <View className='voltage-control'>
+              <Button className='step-button' onClick={() => setVoltage(voltage - 1)}>-</Button>
+              <Text>{voltage}V DC</Text>
+              <Button className='step-button' onClick={() => setVoltage(voltage + 1)}>+</Button>
+            </View>
           </View>
         </View>
-        <View className='toolbar'>
-          <Button className='tool-button primary' onClick={() => toggleSwitch()}>
-            {model.devices.find((device) => device.id === 's1')?.isClosed ? '■ 断开' : '▶ 接通'}
-          </Button>
-          <Button className='tool-button' onClick={resetCircuit}>↺ 复位</Button>
-          <Button className='tool-button desktop-action' onClick={() => setAllWiresConnected(true)}>
-            全部连接
-          </Button>
-          <Button className='tool-button desktop-action' onClick={() => setAllWiresConnected(false)}>
-            全部断开
-          </Button>
-          <Button className='tool-button desktop-action' onClick={() => startChallenge(activeChallenge.id)}>载入训练</Button>
-          <View className='voltage-control'>
-            <Button className='step-button' onClick={() => setVoltage(voltage - 1)}>-</Button>
-            <Text>{voltage}V DC</Text>
-            <Button className='step-button' onClick={() => setVoltage(voltage + 1)}>+</Button>
-          </View>
-        </View>
-      </View>
+      )}
 
       <AppModuleNav activeModule={activeModule} onChange={changeAppModule} />
 
-      <MobileStatusStrip
-        progress={knowledgeProgress}
-        voltage={voltage}
-        simulation={simulation}
-        diagnostics={safetyDiagnostics}
-      />
+      {showSimulationHeader && (
+        <MobileStatusStrip
+          progress={knowledgeProgress}
+          voltage={voltage}
+          simulation={simulation}
+          diagnostics={safetyDiagnostics}
+        />
+      )}
 
       <View className='mobile-section mobile-section-learn'>
-        <CommercialDashboard
-          access={commercialAccess}
-          activeDomain={activeDomain}
-          onChangeDomain={changeDomain}
-        />
-
         <LearningDashboard
           lesson={activeLesson}
           challenge={activeChallenge}
@@ -2617,40 +2905,51 @@ export default function Index() {
                 点击元件或导线查看状态，导线可独立接入或断开。当前训练：{activeChallenge.title}
               </Text>
             </View>
-            <View className={`run-state ${simulation.closedCircuit ? 'is-running' : ''}`}>
-              <Text>{stateLabel}</Text>
+            <View className='canvas-actions'>
+              <View className={`run-state ${simulation.closedCircuit ? 'is-running' : ''}`}>
+                <Text>{stateLabel}</Text>
+              </View>
+              <Button className='small-action landscape-action' onClick={toggleCanvasFocusMode}>
+                {isCanvasFocusMode ? '退出全屏' : '横屏检查'}
+              </Button>
             </View>
           </View>
 
-          <View
-            className='circuit-board'
-            style={{ height: `${boardHeight}px` }}
-            onTouchMove={dragDevice}
-            onTouchEnd={stopDeviceDrag}
-            onTouchCancel={stopDeviceDrag}
-          >
-            <View className='grid-bg' />
+          <View className='canvas-board-viewport' style={{ height: `${boardViewportHeight}px` }}>
+            <View
+              className='circuit-board'
+              style={{
+                width: `${boardLogicalWidth}px`,
+                height: `${boardHeight}px`,
+                transform: boardScale < 1 ? `scale(${boardScale})` : 'none'
+              }}
+              onTouchMove={dragDevice}
+              onTouchEnd={stopDeviceDrag}
+              onTouchCancel={stopDeviceDrag}
+            >
+              <View className='grid-bg' />
               <WireLayer
                 wires={model.wires}
                 devices={model.devices}
                 simulation={simulation}
                 selectedWireId={selectedWire?.id}
-              onSelectWire={setSelectedId}
-            />
-            {model.devices.map((device) => (
-              <BoardDevice
-                key={device.id}
-                device={device}
-                selected={selectedId === device.id}
-                dragging={draggingDeviceId === device.id}
-                effect={simulation.effects[device.id]}
-                onSelect={setSelectedId}
-                onDragStart={startDeviceDrag}
-                onToggleSwitch={toggleSwitch}
+                onSelectWire={setSelectedId}
               />
-            ))}
-            <View className='board-legend positive'>正极母线</View>
-            <View className='board-legend negative'>负极回线</View>
+              {model.devices.map((device) => (
+                <BoardDevice
+                  key={device.id}
+                  device={device}
+                  selected={selectedId === device.id}
+                  dragging={draggingDeviceId === device.id}
+                  effect={simulation.effects[device.id]}
+                  onSelect={setSelectedId}
+                  onDragStart={startDeviceDrag}
+                  onToggleSwitch={toggleSwitch}
+                />
+              ))}
+              <View className='board-legend positive'>正极母线</View>
+              <View className='board-legend negative'>负极回线</View>
+            </View>
           </View>
 
           <View className='connection-strip'>
@@ -2811,6 +3110,13 @@ export default function Index() {
       </View>
 
       <View className='mobile-section mobile-section-library'>
+        <CommercialDashboard
+          access={commercialAccess}
+          activeDomain={activeDomain}
+          onChangeDomain={changeDomain}
+          variant='library'
+        />
+
         <View className='library-workspace'>
           <View className='palette-panel'>
             <Text className='panel-title'>{activeDomainProfile.label}元件库</Text>
@@ -2860,11 +3166,6 @@ export default function Index() {
 
       <View className='mobile-section mobile-section-account'>
         <View className='account-workspace'>
-          <CommercialDashboard
-            access={commercialAccess}
-            activeDomain={activeDomain}
-            onChangeDomain={changeDomain}
-          />
           <CommercePanel
             access={commercialAccess}
             session={authSession}
@@ -2872,6 +3173,12 @@ export default function Index() {
             onSignIn={simulateSignIn}
             onSignOut={simulateSignOut}
             onSelectPlan={selectPlan}
+          />
+          <CommercialDashboard
+            access={commercialAccess}
+            activeDomain={activeDomain}
+            onChangeDomain={changeDomain}
+            variant='account'
           />
         </View>
       </View>
