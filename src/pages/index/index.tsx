@@ -2347,9 +2347,11 @@ export default function Index() {
     })
   }, [])
 
+  const canShowAccountAd = authSession.tier === 'free'
+
   useEffect(() => {
-    syncGooglePlayAdPlacement(getAdPlacementForModule(activeModule))
-  }, [activeModule])
+    syncGooglePlayAdPlacement(getAdPlacementForModule(activeModule, canShowAccountAd))
+  }, [activeModule, canShowAccountAd])
 
   useEffect(() => {
     if (activeModule !== 'simulate') return undefined
