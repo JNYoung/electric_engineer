@@ -6084,7 +6084,7 @@ $ink: #1f2937;
   color: #ffffff;
 }
 
-.auth-login-panel {
+.auth-entry-card {
   margin-top: 12px;
   padding: 10px;
   border: 1px solid #e3e9f2;
@@ -6092,19 +6092,22 @@ $ink: #1f2937;
   background: #f8fbff;
 }
 
-.auth-login-head {
+.auth-entry-head,
+.auth-dialog-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
 
-.auth-login-head .account-section-title {
+.auth-entry-head .account-section-title {
   margin-top: 0;
 }
 
+.auth-entry-copy,
 .auth-region-copy,
-.auth-provider-detail {
+.auth-provider-detail,
+.auth-dialog-copy {
   display: block;
   margin-top: 4px;
   color: $muted;
@@ -6121,6 +6124,62 @@ $ink: #1f2937;
   font-size: 12px;
   line-height: 17px;
   font-weight: 900;
+}
+
+.auth-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  align-items: end;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.46);
+  box-sizing: border-box;
+}
+
+.auth-dialog-panel {
+  width: 100%;
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid #dbe5f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.24);
+  box-sizing: border-box;
+}
+
+.auth-dialog-title {
+  display: block;
+  color: $text;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 900;
+}
+
+.auth-dialog-head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-dialog-close {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #dbe5f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: 900;
+}
+
+.auth-dialog-close::after {
+  border: none;
 }
 
 .auth-provider-grid {
@@ -6254,6 +6313,17 @@ $ink: #1f2937;
   border-color: #bdebdc;
   background: #e8fbf5;
   color: #087c67;
+}
+
+@media (min-width: 720px) {
+  .auth-dialog-backdrop {
+    align-items: center;
+    justify-items: center;
+  }
+
+  .auth-dialog-panel {
+    max-width: 520px;
+  }
 }
 
 .access-summary {

@@ -148,6 +148,15 @@ type OrientationController = ScreenOrientation & {
 type QuestionBankView = 'progress' | 'practice'
 type QuestionBankHomeMode = 'create' | 'manage'
 type QuestionBankPracticeMode = 'question-bank' | 'wrong'
+type AuthDialogMode = 'sign-in' | 'bind'
+type AuthDialogSource = 'account' | 'question-bank' | 'paywall'
+
+interface AuthDialogState {
+  open: boolean
+  mode: AuthDialogMode
+  source: AuthDialogSource
+  targetTier?: SubscriptionTier
+}
 
 declare const __BUILD_TARGET__: string | undefined
 
@@ -903,17 +912,23 @@ function SimulationComponentPalette({
   )
 }
 
-function AccountLoginPanel({
+function AuthLoginDialog({
+  isOpen,
+  mode,
   authConfig,
   session,
   onProviderSignIn,
   onBindProvider,
+  onClose,
   onSendOtp
 }: {
+  isOpen: boolean
+  mode: AuthDialogMode
   authConfig: RuntimeAuthConfig
   session: AuthSession
   onProviderSignIn: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
   onBindProvider: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
+  onClose: () => void
   onSendOtp: (phone: string) => Promise<string>
 }) {
   const [activeProviderId, setActiveProviderId] = useState(authConfig.providers[0]?.id ?? 'phone-otp')
@@ -928,6 +943,24 @@ function AccountLoginPanel({
   const activeProvider =
     authConfig.providers.find((provider) => provider.id === activeProviderId) ?? authConfig.providers[0] ?? null
   const linkedProviders = session.linkedProviders ?? []
+  const isBindMode = mode === 'bind' && session.status === 'authenticated'
+  const dialogTitle = isBindMode ? '绑定账户' : '登录账号'
+  const dialogDescription = isBindMode
+    ? '选择一个登录方式绑定到当前账号，后续可用于同步题库和付费权益。'
+    : '登录后同步题库进度、错题和付费权益。'
+
+  useEffect(() => {
+    if (!isOpen) return
+    setActiveProviderId(authConfig.providers[0]?.id ?? 'phone-otp')
+    setCredential({
+      phone: '',
+      otp: '',
+      email: '',
+      password: ''
+    })
+    setPendingAction(null)
+    setOperationMessage('')
+  }, [isOpen, authConfig.providers])
 
   function updateCredential(key: keyof AuthCredentialDraft, value: string) {
     setCredential((current) => ({
@@ -1025,9 +1058,96 @@ function AccountLoginPanel({
     )
   }
 
+  if (!isOpen) {
+    return null
+  }
+
   return (
-    <View className='auth-login-panel'>
-      <View className='auth-login-head'>
+    <View className='auth-dialog-backdrop'>
+      <View className='auth-dialog-panel'>
+        <View className='auth-dialog-head'>
+          <View>
+            <Text className='auth-dialog-title'>{dialogTitle}</Text>
+            <Text className='auth-region-copy'>
+              {authConfig.region === 'domestic' ? '国内登录' : '海外登录'} · API {authConfig.apiBaseUrl}
+            </Text>
+            <Text className='auth-dialog-copy'>{dialogDescription}</Text>
+          </View>
+          <View className='auth-dialog-head-actions'>
+            <Text className='auth-port-badge'>:{authConfig.serverPort}</Text>
+            <Button className='auth-dialog-close' onClick={onClose}>×</Button>
+          </View>
+        </View>
+
+        <View className='auth-provider-grid'>
+          {authConfig.providers.map((provider) => (
+            <Button
+              key={provider.id}
+              className={`auth-provider-button ${provider.id === activeProvider?.id ? 'is-active' : ''}`}
+              onClick={() => setActiveProviderId(provider.id)}
+            >
+              <Text>{provider.label}</Text>
+              <Text>{provider.description}</Text>
+            </Button>
+          ))}
+        </View>
+
+        {activeProvider && (
+          <View className='auth-provider-card'>
+            <Text className='auth-provider-title'>{activeProvider.label}</Text>
+            {renderCredentialFields(activeProvider)}
+            <View className='auth-action-row'>
+              <Button
+                className='small-action commerce-primary-action'
+                onClick={isBindMode ? runBind : runSignIn}
+              >
+                {pendingAction === 'sign-in' || pendingAction === 'bind'
+                  ? (isBindMode ? '绑定中' : '登录中')
+                  : (isBindMode ? '绑定账户' : '登录')}
+              </Button>
+            </View>
+            {operationMessage && (
+              <Text className='auth-operation-message'>{operationMessage}</Text>
+            )}
+          </View>
+        )}
+
+        {session.status === 'authenticated' && (
+          <View className='linked-account-list'>
+            <Text className='note-title'>已绑定</Text>
+            <View className='linked-provider-chips'>
+              {authConfig.providers.map((provider) => (
+                <Text
+                  key={provider.id}
+                  className={`linked-provider-chip ${linkedProviders.includes(provider.id) ? 'is-linked' : ''}`}
+                >
+                  {provider.label}{linkedProviders.includes(provider.id) ? ' 已绑定' : ' 待绑定'}
+                </Text>
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+    </View>
+  )
+}
+
+function AccountAuthEntryCard({
+  authConfig,
+  session,
+  onOpenSignIn,
+  onOpenBind
+}: {
+  authConfig: RuntimeAuthConfig
+  session: AuthSession
+  onOpenSignIn: () => void
+  onOpenBind: () => void
+}) {
+  const linkedProviders = session.linkedProviders ?? []
+
+  return (
+    <View className='auth-entry-card'>
+      <View className='auth-entry-head'>
         <View>
           <Text className='account-section-title'>账号登录</Text>
           <Text className='auth-region-copy'>
@@ -1037,58 +1157,34 @@ function AccountLoginPanel({
         <Text className='auth-port-badge'>:{authConfig.serverPort}</Text>
       </View>
 
-      <View className='auth-provider-grid'>
-        {authConfig.providers.map((provider) => (
-          <Button
-            key={provider.id}
-            className={`auth-provider-button ${provider.id === activeProvider?.id ? 'is-active' : ''}`}
-            onClick={() => setActiveProviderId(provider.id)}
-          >
-            <Text>{provider.label}</Text>
-            <Text>{provider.description}</Text>
+      <Text className='auth-entry-copy'>
+        {session.status === 'authenticated'
+          ? '账号已连接，可继续绑定其他登录方式。'
+          : '登录入口已改为弹窗，题库进度和付费权益会在登录后同步。'}
+      </Text>
+
+      <View className='auth-action-row'>
+        {session.status === 'authenticated' ? (
+          <Button className='small-action commerce-primary-action' onClick={onOpenBind}>
+            绑定更多账号
           </Button>
-        ))}
+        ) : (
+          <Button className='small-action commerce-primary-action' onClick={onOpenSignIn}>
+            打开登录弹窗
+          </Button>
+        )}
       </View>
 
-      {activeProvider && (
-        <View className='auth-provider-card'>
-          <Text className='auth-provider-title'>{activeProvider.label}</Text>
-          {renderCredentialFields(activeProvider)}
-          <View className='auth-action-row'>
-            <Button
-              className='small-action commerce-primary-action'
-              onClick={runSignIn}
-            >
-              {pendingAction === 'sign-in' ? '登录中' : '登录'}
-            </Button>
-            {session.status === 'authenticated' && activeProvider.bindable && (
-              <Button
-                className='small-action'
-                onClick={runBind}
-              >
-                {pendingAction === 'bind' ? '绑定中' : '绑定账户'}
-              </Button>
-            )}
-          </View>
-          {operationMessage && (
-            <Text className='auth-operation-message'>{operationMessage}</Text>
-          )}
-        </View>
-      )}
-
       {session.status === 'authenticated' && (
-        <View className='linked-account-list'>
-          <Text className='note-title'>已绑定</Text>
-          <View className='linked-provider-chips'>
-            {authConfig.providers.map((provider) => (
-              <Text
-                key={provider.id}
-                className={`linked-provider-chip ${linkedProviders.includes(provider.id) ? 'is-linked' : ''}`}
-              >
-                {provider.label}{linkedProviders.includes(provider.id) ? ' 已绑定' : ' 待绑定'}
-              </Text>
-            ))}
-          </View>
+        <View className='linked-provider-chips'>
+          {authConfig.providers.map((provider) => (
+            <Text
+              key={provider.id}
+              className={`linked-provider-chip ${linkedProviders.includes(provider.id) ? 'is-linked' : ''}`}
+            >
+              {provider.label}{linkedProviders.includes(provider.id) ? ' 已绑定' : ' 待绑定'}
+            </Text>
+          ))}
         </View>
       )}
     </View>
@@ -1100,22 +1196,16 @@ function CommercePanel({
   session,
   selectedPlanId,
   authConfig,
-  onSignIn,
   onSignOut,
-  onProviderSignIn,
-  onBindProvider,
-  onSendOtp,
+  onOpenAuthDialog,
   onSelectPlan
 }: {
   access: CommercialAccessSnapshot
   session: AuthSession
   selectedPlanId: SubscriptionTier
   authConfig: RuntimeAuthConfig
-  onSignIn: (tier?: SubscriptionTier) => void
   onSignOut: () => void
-  onProviderSignIn: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
-  onBindProvider: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
-  onSendOtp: (phone: string) => Promise<string>
+  onOpenAuthDialog: (mode: AuthDialogMode, source: AuthDialogSource, targetTier?: SubscriptionTier) => void
   onSelectPlan: (tier: SubscriptionTier) => void
 }) {
   const accountTitle = session.status === 'authenticated'
@@ -1128,7 +1218,7 @@ function CommercePanel({
 
   function runPrimaryAction() {
     if (access.primaryAction.kind === 'sign-in') {
-      onSignIn(access.primaryAction.targetTier)
+      onOpenAuthDialog('sign-in', 'paywall', access.primaryAction.targetTier)
       return
     }
 
@@ -1177,12 +1267,11 @@ function CommercePanel({
       </View>
       <Text className='commerce-status'>{access.primaryAction.detail}</Text>
 
-      <AccountLoginPanel
+      <AccountAuthEntryCard
         authConfig={authConfig}
         session={session}
-        onProviderSignIn={onProviderSignIn}
-        onBindProvider={onBindProvider}
-        onSendOtp={onSendOtp}
+        onOpenSignIn={() => onOpenAuthDialog('sign-in', 'account', selectedPlanId)}
+        onOpenBind={() => onOpenAuthDialog('bind', 'account')}
       />
 
       <Text className='account-section-title'>权益用量</Text>
@@ -3022,6 +3111,11 @@ export default function Index() {
       .filter((categoryId): categoryId is string => Boolean(categoryId))
   )
   const [authSession, setAuthSession] = useState<AuthSession>(DEFAULT_AUTH_SESSION)
+  const [authDialog, setAuthDialog] = useState<AuthDialogState>({
+    open: false,
+    mode: 'sign-in',
+    source: 'account'
+  })
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionTier>('pro')
   const [activeKnowledgeTrackId, setActiveKnowledgeTrackId] = useState<KnowledgeTrackId>('high-school')
   const [knowledgeAnswers, setKnowledgeAnswers] = useState<Record<string, string>>({})
@@ -3839,15 +3933,27 @@ export default function Index() {
     openPlan(entry.tier, 'locked_component')
   }
 
-  function simulateSignIn(tier = selectedPlanId) {
-    trackTelemetryEvent('auth_changed', {
-      status: 'authenticated',
-      tier,
-      source: 'demo_sign_in'
+  function openAuthDialog(
+    mode: AuthDialogMode = 'sign-in',
+    source: AuthDialogSource = 'account',
+    targetTier?: SubscriptionTier
+  ) {
+    if (targetTier) {
+      setSelectedPlanId(targetTier)
+    }
+    setAuthDialog({
+      open: true,
+      mode,
+      source,
+      targetTier
     })
-    setSelectedPlanId(tier)
-    setAuthSession(createAuthenticatedSession(tier))
-    changeAppModule('account', 'auth_changed')
+  }
+
+  function closeAuthDialog() {
+    setAuthDialog((current) => ({
+      ...current,
+      open: false
+    }))
   }
 
   function simulateSignOut() {
@@ -3860,6 +3966,7 @@ export default function Index() {
     setQuestionBankView('progress')
     setQuestionBankHomeMode('create')
     setQuestionBankPracticeMode('question-bank')
+    closeAuthDialog()
     changeAppModule('account', 'auth_changed')
   }
 
@@ -3875,16 +3982,27 @@ export default function Index() {
   }
 
   async function signInWithAuthProvider(provider: AuthProviderConfig, credential: AuthCredentialDraft) {
+    const dialogSource = authDialog.source
+    const targetTier = authDialog.targetTier
     trackTelemetryEvent('auth_changed', {
       status: 'authenticated',
       tier: 'free',
-      source: provider.id,
+      source: `${dialogSource}_${provider.id}`,
       auth_region: authConfig.region,
       credential_mode: provider.credentialMode
     })
-    setSelectedPlanId('free')
+    setSelectedPlanId(targetTier ?? 'free')
     const session = await requestAuthSignIn(authConfig, provider, credential)
     setAuthSession(session)
+    closeAuthDialog()
+    if (dialogSource === 'question-bank') {
+      setQuestionBankView('progress')
+      setQuestionBankHomeMode('create')
+      setQuestionBankPracticeMode('question-bank')
+      setActiveModule('bank')
+      return
+    }
+
     changeAppModule('account', 'auth_provider_sign_in')
   }
 
@@ -3910,17 +4028,7 @@ export default function Index() {
   }
 
   function loginForQuestionBank() {
-    trackTelemetryEvent('auth_changed', {
-      status: 'authenticated',
-      tier: 'free',
-      source: 'question_bank_login'
-    })
-    setSelectedPlanId('free')
-    setAuthSession(createAuthenticatedSession('free'))
-    setQuestionBankView('progress')
-    setQuestionBankHomeMode('create')
-    setQuestionBankPracticeMode('question-bank')
-    setActiveModule('bank')
+    openAuthDialog('sign-in', 'question-bank', 'free')
   }
 
   function openQuestionBankTrack(trackId: KnowledgeTrackId, mode: QuestionBankPracticeMode = 'question-bank') {
@@ -4230,11 +4338,8 @@ export default function Index() {
             session={authSession}
             selectedPlanId={selectedPlanId}
             authConfig={authConfig}
-            onSignIn={simulateSignIn}
             onSignOut={simulateSignOut}
-            onProviderSignIn={signInWithAuthProvider}
-            onBindProvider={bindAuthProvider}
-            onSendOtp={sendAuthOtp}
+            onOpenAuthDialog={openAuthDialog}
             onSelectPlan={selectPlan}
           />
           <CommercialDashboard
@@ -4245,6 +4350,17 @@ export default function Index() {
           />
         </View>
       </View>
+
+      <AuthLoginDialog
+        isOpen={authDialog.open}
+        mode={authDialog.mode}
+        authConfig={authConfig}
+        session={authSession}
+        onProviderSignIn={signInWithAuthProvider}
+        onBindProvider={bindAuthProvider}
+        onClose={closeAuthDialog}
+        onSendOtp={sendAuthOtp}
+      />
 
       <MobileBottomNav activeModule={activeModule} onChange={changeAppModule} />
     </View>
