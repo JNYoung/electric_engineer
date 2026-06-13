@@ -2632,8 +2632,15 @@ $ink: #1f2937;
   position: relative;
   width: 100%;
   margin-top: 12px;
-  overflow: hidden;
+  overflow: auto;
   border-radius: 8px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.canvas-board-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .circuit-board-frame {
@@ -5880,8 +5887,6 @@ $ink: #1f2937;
 .app-shell.is-canvas-focus-mode .canvas-board-viewport {
   height: calc(100vh - 150px) !important;
   margin-top: 8px;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .app-shell.is-canvas-focus-mode .circuit-board-frame {
