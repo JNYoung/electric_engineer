@@ -158,6 +158,21 @@ async function gotoWorkbench(page: Page) {
   await waitForBoardLayoutReady(page)
 }
 
+async function signInThroughCurrentDialog(page: Page) {
+  await expect(page.locator('.auth-dialog-title')).toContainText('登录账号')
+  await page.locator('.auth-provider-card .commerce-primary-action').click()
+  await expect(page.locator('.auth-dialog-title')).not.toBeVisible()
+}
+
+async function loginToQuestionBank(page: Page) {
+  await openMobileTab(page, '题库')
+  await expect(page.locator('.question-bank-gate')).toContainText('登录后管理题库')
+  await page.locator('.question-bank-login-action').click()
+  await signInThroughCurrentDialog(page)
+  await expect(page.locator('.question-bank-home')).toContainText('我的题库')
+  await expect(page.locator('.question-bank-home')).toContainText('已同步')
+}
+
 test.describe('electric workbench e2e', () => {
   test('loads the connected circuit and toggles the main switch', async ({ page }) => {
     const runtimeProblems = watchRuntimeHealth(page)
@@ -291,37 +306,34 @@ test.describe('electric workbench e2e', () => {
     await page.locator('.fault-scenario-card').filter({ hasText: '低压模块过压样本' }).locator('.scenario-action').click()
     await expect(page.locator('.safety-card')).toContainText('可能过压')
     await openMobileTab(page, '题库')
-    await expect(page.locator('.knowledge-board')).toContainText('电工实操')
+    await expect(page.locator('.question-bank-gate')).toContainText('登录后管理题库')
 
     await expectHealthyRuntime(runtimeProblems)
   })
 
-  test('answers knowledge questions across foundation and professional tracks', async ({ page }) => {
+  test('signs in to create and practice synced question banks', async ({ page }) => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
-    await openMobileTab(page, '题库')
-    await expect(page.locator('.knowledge-board')).toContainText('基础电学')
-    await expect(page.locator('.knowledge-board')).toContainText('欧姆定律与电功率')
-    const reviewNotebook = page.locator('.review-notebook-panel')
-    const measurementPanel = page.locator('.measurement-panel')
-    const formulaPanel = page.locator('.formula-panel')
-    await expect(measurementPanel).toContainText('测量证据')
-    await expect(measurementPanel).toContainText('可测量')
-    await expect(measurementPanel).toContainText('照明灯电流')
-    await expect(formulaPanel).toContainText('公式验算')
-    await expect(formulaPanel).toContainText('可验算')
-    await expect(formulaPanel).toContainText('I = U / R')
-    await expect(formulaPanel).toContainText('P = U × I')
+    await loginToQuestionBank(page)
+    await expect(page.locator('.question-bank-home')).toContainText('新建题库')
+    await expect(page.locator('.question-bank-home')).toContainText('管理题库')
+
+    await page.locator('.course-progress-card').filter({ hasText: '欧姆定律与电功率' }).locator('.course-progress-action').click()
+    await expect(page.locator('.question-bank-practice')).toContainText('二级刷题页面')
+    await expect(page.locator('.question-bank-practice')).toContainText('题库 3')
+    await expect(page.locator('.question-bank-practice')).toContainText('错题 0')
+
+    const reviewNotebook = page.locator('.question-bank-practice .review-notebook-panel')
     await expect(reviewNotebook).toContainText('错题复训')
     await expect(reviewNotebook).toContainText('已清空')
 
-    const ohmQuestion = page.locator('.knowledge-question').filter({ hasText: '欧姆定律计算' })
+    const ohmQuestion = page.locator('.question-bank-question').filter({ hasText: '欧姆定律计算' })
     await ohmQuestion.locator('.choice-button').filter({ hasText: '0.5A' }).click()
     await expect(ohmQuestion).toContainText('回答正确')
-    await expect(page.locator('.knowledge-score')).toContainText('33%')
+    await expect(page.locator('.question-bank-sync-badge')).toContainText('已同步')
 
-    const parallelQuestion = page.locator('.knowledge-question').filter({ hasText: '并联支路判断' })
+    const parallelQuestion = page.locator('.question-bank-question').filter({ hasText: '并联支路判断' })
     await parallelQuestion.locator('.choice-button').filter({ hasText: '各约 6V' }).click()
     await expect(parallelQuestion).toContainText('需要复盘')
     await expect(reviewNotebook).toContainText('待复训')
@@ -329,28 +341,19 @@ test.describe('electric workbench e2e', () => {
     await expect(reviewNotebook).toContainText('错选：各约 6V')
     await expect(reviewNotebook).toContainText('未完成')
 
-    await page.locator('.knowledge-track-tab').filter({ hasText: '大学电路' }).click()
-    await expect(page.locator('.knowledge-board')).toContainText('节点法与线性电路')
-    await expect(page.locator('.simulation-check-list')).toContainText('KCL 电流守恒')
-    await expect(measurementPanel).toContainText('KCL 误差')
-    await expect(formulaPanel).toContainText('KCL 节点电流')
-    await expect(formulaPanel).toContainText('Req = U / I总')
-    const kclQuestion = page.locator('.knowledge-question').filter({ hasText: 'KCL 节点电流' })
-    await kclQuestion.locator('.choice-button').filter({ hasText: '1.0A' }).click()
-    await expect(kclQuestion).toContainText('回答正确')
+    await page.locator('.question-bank-mode-tab').filter({ hasText: '错题' }).click()
+    await expect(page.locator('.question-bank-question-list')).toContainText('并联支路判断')
+    await expect(page.locator('.question-bank-question-list')).not.toContainText('欧姆定律计算')
 
-    await page.locator('.knowledge-track-tab').filter({ hasText: '电工实操' }).click()
-    await expect(page.locator('.knowledge-board')).toContainText('低压控制与安全排障')
-    await expect(page.locator('.simulation-check-list')).toContainText('低压训练电源')
-    await expect(measurementPanel).toContainText('训练电源')
-    await expect(measurementPanel).toContainText('保护器件')
-    await expect(formulaPanel).toContainText('低压训练电源')
-    await expect(formulaPanel).toContainText('保护链计数')
+    await page.locator('.question-bank-back').click()
+    await page.locator('.question-bank-admin-action').filter({ hasText: '管理题库' }).click()
+    await expect(page.locator('.question-bank-home')).toContainText('错题 1')
+    await expect(page.locator('.question-bank-home')).toContainText('已同步')
 
     await expectHealthyRuntime(runtimeProblems)
   })
 
-  test('runs professional assessment sessions and exposes material specs', async ({ page }) => {
+  test('exposes material specs and training kits', async ({ page }) => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
@@ -366,57 +369,6 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.material-kit-panel')).toContainText('电工低压控制排障包')
     await expect(page.locator('.material-kit-panel')).toContainText('素材齐备')
     await expect(page.locator('.material-kit-panel')).toContainText('电磁阀')
-
-    await openMobileTab(page, '题库')
-    await expect(page.locator('.assessment-board')).toContainText('专业考试模拟')
-    await expect(page.locator('.assessment-board')).toContainText('基础电学能力测验')
-    await expect(page.locator('.assessment-board')).toContainText('仿真准备度')
-    await expect(page.locator('.assessment-board')).toContainText('3/3')
-    await expect(page.locator('.assessment-board')).toContainText('练习复盘')
-    await expect(page.locator('.assessment-board')).toContainText('未开始')
-    const stationPanel = page.locator('.station-panel')
-    await expect(stationPanel).toContainText('考试工位')
-    await expect(stationPanel).toContainText('待补证据')
-    await expect(stationPanel).toContainText('理论答题')
-    await expect(stationPanel).toContainText('仪表证据')
-    const certificationPanel = page.locator('.certification-panel')
-    await expect(certificationPanel).toContainText('认证准入')
-    await expect(certificationPanel).toContainText('基础电学测验准入')
-    await expect(certificationPanel).toContainText('待完成')
-
-    await page.locator('.assessment-question').filter({ hasText: '欧姆定律计算' }).locator('.choice-button').filter({ hasText: '0.5A' }).click()
-    await page.locator('.assessment-question').filter({ hasText: '并联支路判断' }).locator('.choice-button').filter({ hasText: '各约 12V' }).click()
-    await page.locator('.assessment-question').filter({ hasText: '电功率意义' }).locator('.choice-button').filter({ hasText: '通常增大' }).click()
-    await expect(stationPanel).toContainText('可提交')
-    await expect(stationPanel).toContainText('3/3')
-    await expect(certificationPanel).toContainText('可提交')
-    await expect(certificationPanel).toContainText('3/3')
-
-    await openMobileTab(page, '仿真')
-    await toggleMainSwitch(page)
-    await openMobileTab(page, '题库')
-    await expect(page.locator('.assessment-board')).toContainText('当前没有形成可测工作电流')
-    await expect(page.locator('.assessment-board')).toContainText('闭合主开关')
-    await expect(stationPanel).toContainText('待补证据')
-    await expect(certificationPanel).toContainText('待补仿真')
-    await openMobileTab(page, '仿真')
-    await toggleMainSwitch(page)
-    await openMobileTab(page, '题库')
-
-    await page.locator('.assessment-tab').filter({ hasText: '电工取证' }).click()
-    await expect(page.locator('.assessment-board')).toContainText('电工实操取证模拟')
-    await expect(page.locator('.assessment-metrics')).toContainText('85%')
-    await expect(page.locator('.assessment-board')).toContainText('4/4')
-    await expect(page.locator('.assessment-board')).toContainText('安全隔离')
-    await expect(page.locator('.assessment-board')).toContainText('低压训练电源')
-
-    const lockoutQuestion = page.locator('.assessment-question').filter({ hasText: '排障流程' })
-    await lockoutQuestion.locator('.choice-button').filter({ hasText: '先断电并确认无危险' }).click()
-    await expect(lockoutQuestion).toContainText('计分通过')
-    await expect(page.locator('.assessment-metrics')).toContainText('25/110')
-    await expect(page.locator('.practice-report-panel')).toContainText('进行中')
-    await expect(page.locator('.practice-report-panel')).toContainText('完成20%')
-    await expect(page.locator('.practice-report-panel')).toContainText('正确100%')
 
     await openMobileTab(page, '素材')
     await page.locator('.mobile-section-library .domain-tab').filter({ hasText: '装修工控' }).click()
@@ -473,10 +425,10 @@ test.describe('electric workbench e2e', () => {
 
     if (testInfo.project.name.includes('mobile')) {
       await expect(page.locator('.canvas-status-bar')).toBeVisible()
+      await expect(page.locator('.canvas-status-bar')).toContainText('电流')
+      await expect(page.locator('.canvas-status-bar')).toContainText('状态')
       await expect(page.locator('.mobile-bottom-nav')).toBeVisible()
       await expect(page.locator('.canvas-panel')).toBeVisible()
-      await expect(page.locator('.inspector-panel')).toBeVisible()
-      await expect(page.locator('.meter-panel')).toBeVisible()
       await expect(page.locator('.palette-panel')).not.toBeVisible()
       await expectDevicesInsideBoard(page)
 
@@ -494,8 +446,8 @@ test.describe('electric workbench e2e', () => {
       await expect(page.locator('.palette-item').filter({ hasText: '三相异步电动机' })).toHaveCount(1)
 
       await openMobileTab(page, '题库')
-      await expect(page.locator('.knowledge-board')).toBeVisible()
-      await expect(page.locator('.assessment-board')).toBeVisible()
+      await expect(page.locator('.question-bank-gate')).toBeVisible()
+      await expect(page.locator('.question-bank-gate')).toContainText('登录后管理题库')
       await expect(page.locator('.workspace')).not.toBeVisible()
 
       await openMobileTab(page, '账号')
@@ -505,7 +457,8 @@ test.describe('electric workbench e2e', () => {
       await expect(page.locator('.app-module-nav')).toBeVisible()
       await expect(page.locator('.app-module-tab.module-simulate')).toHaveClass(/is-active/)
       await expect(page.locator('.canvas-panel')).toBeVisible()
-      await expect(page.locator('.inspector-panel')).toBeVisible()
+      await expect(page.locator('.canvas-status-bar')).toContainText('电流')
+      await expect(page.locator('.canvas-status-bar')).toContainText('状态')
       await expect(page.locator('.palette-panel')).not.toBeVisible()
       await expectDevicesInsideBoard(page)
 

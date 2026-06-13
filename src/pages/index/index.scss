@@ -556,9 +556,9 @@ $ink: #1f2937;
 }
 
 .question-bank-gate {
-  min-height: 360px;
+  min-height: 0;
   display: grid;
-  align-content: center;
+  align-content: start;
   justify-items: start;
   gap: 16px;
   background: #f8fbff;
@@ -642,6 +642,18 @@ $ink: #1f2937;
 .question-bank-sync-badge span:first-child {
   font-size: 22px;
   line-height: 28px;
+}
+
+.question-bank-sync-badge.compact text:first-child,
+.question-bank-sync-badge.compact span:first-child {
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.question-bank-sync-badge.compact text:last-child,
+.question-bank-sync-badge.compact span:last-child {
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .question-bank-admin-actions {
@@ -918,6 +930,7 @@ $ink: #1f2937;
 }
 
 .question-bank-empty {
+  margin-top: 12px;
   background: #f8fbff;
 }
 
@@ -7018,7 +7031,7 @@ $ink: #1f2937;
   }
 
   .question-bank-gate {
-    min-height: 420px;
+    min-height: 0;
   }
 
   .question-bank-head,

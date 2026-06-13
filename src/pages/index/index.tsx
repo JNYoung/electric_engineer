@@ -24,6 +24,16 @@ import {
 } from '@/core/commercial'
 import { requestBillingCheckout, requestBillingPortal } from '@/core/billing'
 import {
+  createQuestionBank,
+  mergeKnowledgeAnswers,
+  recordQuestionBankAnswer,
+  requestQuestionBanks,
+  requestUserProgress,
+  syncUserProgress,
+  type ProgressSyncStatus,
+  type SyncedQuestionBank
+} from '@/core/progress'
+import {
   FAULT_SCENARIOS,
   buildSafetyDiagnostics,
   createFaultScenarioCircuit,
@@ -251,6 +261,15 @@ function getAuthProviderMark(providerId: AuthProviderConfig['id']) {
     'phone-otp': '码',
     'email-password': '@'
   }[providerId]
+}
+
+function progressSyncLabel(status: ProgressSyncStatus) {
+  return {
+    idle: '待同步',
+    syncing: '同步中',
+    synced: '已同步',
+    offline: '本地保存'
+  }[status]
 }
 
 function getFullscreenElement() {
@@ -1826,7 +1845,7 @@ function KnowledgeMeasurementPanel({ measurement }: { measurement: KnowledgeMeas
           <Text className='metric-value'>{measurement.passed}/{measurement.total}</Text>
         </View>
         <View>
-          <Text className='metric-label'>Track</Text>
+          <Text className='metric-label'>层级</Text>
           <Text className='metric-value'>{track.level}</Text>
         </View>
       </View>
@@ -1883,7 +1902,7 @@ function ReviewNotebookPanel({ review }: { review: KnowledgeReviewNotebook }) {
       </View>
 
       {review.items.length === 0 ? (
-        <Text className='review-empty'>当前 Track 暂无错题，继续完成新题或切换更高层级。</Text>
+        <Text className='review-empty'>当前层级暂无错题，继续完成新题或切换更高层级。</Text>
       ) : (
         <View className='review-item-list'>
           {review.items.map((item) => (
@@ -1936,17 +1955,22 @@ function QuestionBankLoginGate({ onLogin }: { onLogin: () => void }) {
 function QuestionBankProgressHome({
   session,
   answers,
+  questionBanks,
+  syncStatus,
   mode,
   onModeChange,
   onOpenTrack
 }: {
   session: AuthSession
   answers: Record<string, string>
+  questionBanks: SyncedQuestionBank[]
+  syncStatus: ProgressSyncStatus
   mode: QuestionBankHomeMode
   onModeChange: (mode: QuestionBankHomeMode) => void
   onOpenTrack: (trackId: KnowledgeTrackId, mode?: QuestionBankPracticeMode) => void
 }) {
-  const bankRows = KNOWLEDGE_TRACKS.map((track) => {
+  const knownBankTrackIds = new Set(questionBanks.map((bank) => bank.trackId))
+  const allRows = KNOWLEDGE_TRACKS.map((track) => {
     const progress = buildKnowledgeTrackProgress(track.id, answers)
     const wrong = buildKnowledgeReviewNotebook(answers, {
       trackIds: [track.id],
@@ -1956,10 +1980,17 @@ function QuestionBankProgressHome({
 
     return { track, progress, wrong }
   })
+  const bankRows = mode === 'manage'
+    ? allRows.filter(({ track, progress, wrong }) =>
+      knownBankTrackIds.has(track.id) || progress.answered > 0 || wrong > 0
+    )
+    : allRows
   const listTitle = mode === 'create' ? '新建题库' : '管理已创建题库'
   const listCopy = mode === 'create'
     ? '创建题库后，直接进入二级刷题页面。'
-    : '查看题库题量和错题入口，继续刷题或复训错题。'
+    : questionBanks.length > 0
+      ? `已同步 ${questionBanks.length} 个题库，可继续刷题或复训错题。`
+      : '已有答题记录会出现在这里，可从新建题库开始刷题。'
 
   return (
     <View className='question-bank-home'>
@@ -1970,6 +2001,10 @@ function QuestionBankProgressHome({
           <Text className='question-bank-copy'>
             {session.displayName} · 可新建题库、管理题库和进入错题复训。
           </Text>
+        </View>
+        <View className='question-bank-sync-badge compact'>
+          <Text>{progressSyncLabel(syncStatus)}</Text>
+          <Text>{questionBanks.length} 个</Text>
         </View>
       </View>
 
@@ -1997,8 +2032,14 @@ function QuestionBankProgressHome({
         </View>
       </View>
 
-      <View className='course-progress-list'>
-        {bankRows.map(({ track, progress, wrong }) => (
+      {bankRows.length === 0 ? (
+        <View className='question-bank-empty'>
+          <Text className='question-bank-empty-title'>暂无已创建题库</Text>
+          <Text className='question-bank-empty-copy'>切到新建题库，选择一个课程即可开始同步刷题。</Text>
+        </View>
+      ) : (
+        <View className='course-progress-list'>
+          {bankRows.map(({ track, progress, wrong }) => (
           <View key={track.id} className='course-progress-card' onClick={() => onOpenTrack(track.id, 'question-bank')}>
             <View className='course-progress-main'>
               <Text className='course-progress-level'>{track.level}</Text>
@@ -2035,8 +2076,9 @@ function QuestionBankProgressHome({
               )}
             </View>
           </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
     </View>
   )
 }
@@ -2044,6 +2086,7 @@ function QuestionBankProgressHome({
 function QuestionBankPracticePage({
   activeTrackId,
   answers,
+  syncStatus,
   mode,
   onBack,
   onModeChange,
@@ -2051,6 +2094,7 @@ function QuestionBankPracticePage({
 }: {
   activeTrackId: KnowledgeTrackId
   answers: Record<string, string>
+  syncStatus: ProgressSyncStatus
   mode: QuestionBankPracticeMode
   onBack: () => void
   onModeChange: (mode: QuestionBankPracticeMode) => void
@@ -2075,7 +2119,7 @@ function QuestionBankPracticePage({
           <Text className='question-bank-copy'>{track.target} · {progress.status}</Text>
         </View>
         <View className='question-bank-sync-badge compact'>
-          <Text>{progress.percent}%</Text>
+          <Text>{progressSyncLabel(syncStatus)}</Text>
           <Text>{progress.correct}/{progress.total}</Text>
         </View>
       </View>
@@ -3140,6 +3184,9 @@ export default function Index() {
   const [billingMessage, setBillingMessage] = useState('')
   const [activeKnowledgeTrackId, setActiveKnowledgeTrackId] = useState<KnowledgeTrackId>('high-school')
   const [knowledgeAnswers, setKnowledgeAnswers] = useState<Record<string, string>>({})
+  const [questionBanks, setQuestionBanks] = useState<SyncedQuestionBank[]>([])
+  const [activeQuestionBankIdByTrack, setActiveQuestionBankIdByTrack] = useState<Partial<Record<KnowledgeTrackId, string>>>({})
+  const [progressSyncStatus, setProgressSyncStatus] = useState<ProgressSyncStatus>('idle')
   const [activeAssessmentId, setActiveAssessmentId] = useState<AssessmentBlueprintId>('high-school-foundation-check')
   const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, string>>({})
   const [questionBankView, setQuestionBankView] = useState<QuestionBankView>('progress')
@@ -3278,6 +3325,77 @@ export default function Index() {
   }, [])
 
   const canShowAccountAd = authSession.tier === 'free'
+
+  useEffect(() => {
+    if (authSession.status !== 'authenticated') {
+      setQuestionBanks([])
+      setActiveQuestionBankIdByTrack({})
+      setProgressSyncStatus('idle')
+      return undefined
+    }
+
+    let isMounted = true
+    setProgressSyncStatus('syncing')
+
+    async function loadAccountProgress() {
+      const [progress, banksResult] = await Promise.all([
+        requestUserProgress(authConfig, authSession),
+        requestQuestionBanks(authConfig, authSession)
+      ])
+
+      if (!isMounted) return
+
+      if (progress?.questionBank.answers) {
+        setKnowledgeAnswers((current) => mergeKnowledgeAnswers(current, progress.questionBank.answers))
+      }
+
+      if (banksResult) {
+        setQuestionBanks(banksResult.banks)
+        setActiveQuestionBankIdByTrack((current) => {
+          const next = { ...current }
+          banksResult.banks.forEach((bank) => {
+            next[bank.trackId] = bank.id
+          })
+          return next
+        })
+      }
+
+      setProgressSyncStatus(progress || banksResult ? 'synced' : 'offline')
+    }
+
+    void loadAccountProgress()
+
+    return () => {
+      isMounted = false
+    }
+  }, [authSession.status, authSession.userId, authConfig])
+
+  useEffect(() => {
+    if (authSession.status !== 'authenticated') return undefined
+
+    setProgressSyncStatus('syncing')
+    const syncTimer = setTimeout(() => {
+      void syncUserProgress(authConfig, authSession, knowledgeAnswers, {
+        activeLessonId,
+        activeChallengeId,
+        activeKnowledgeTrackId
+      }).then((progress) => {
+        setProgressSyncStatus(progress ? 'synced' : 'offline')
+      })
+    }, 350)
+
+    return () => {
+      clearTimeout(syncTimer)
+    }
+  }, [
+    activeChallengeId,
+    activeKnowledgeTrackId,
+    activeLessonId,
+    authConfig,
+    authSession.status,
+    authSession.userId,
+    knowledgeAnswers
+  ])
 
   useEffect(() => {
     syncGooglePlayAdPlacement(getAdPlacementForModule(activeModule, canShowAccountAd))
@@ -4094,11 +4212,45 @@ export default function Index() {
     openAuthDialog('sign-in', 'question-bank', 'free')
   }
 
-  function openQuestionBankTrack(trackId: KnowledgeTrackId, mode: QuestionBankPracticeMode = 'question-bank') {
+  function upsertQuestionBank(bank: SyncedQuestionBank) {
+    setQuestionBanks((current) => [
+      bank,
+      ...current.filter((item) => item.id !== bank.id)
+    ])
+    setActiveQuestionBankIdByTrack((current) => ({
+      ...current,
+      [bank.trackId]: bank.id
+    }))
+  }
+
+  async function ensureQuestionBank(trackId: KnowledgeTrackId, mode: QuestionBankPracticeMode) {
+    if (authSession.status !== 'authenticated') return undefined
+
+    const existingBankId =
+      activeQuestionBankIdByTrack[trackId] ??
+      questionBanks.find((bank) => bank.trackId === trackId)?.id
+
+    if (existingBankId) return existingBankId
+
+    setProgressSyncStatus('syncing')
+    const track = getKnowledgeTrack(trackId)
+    const bank = await createQuestionBank(authConfig, authSession, trackId, `${track.title}题库`, mode)
+    if (!bank) {
+      setProgressSyncStatus('offline')
+      return undefined
+    }
+
+    upsertQuestionBank(bank)
+    setProgressSyncStatus('synced')
+    return bank.id
+  }
+
+  async function openQuestionBankTrack(trackId: KnowledgeTrackId, mode: QuestionBankPracticeMode = 'question-bank') {
     trackTelemetryEvent('knowledge_track_changed', {
       track_id: trackId,
       source: 'course_progress'
     })
+    await ensureQuestionBank(trackId, mode)
     setActiveKnowledgeTrackId(trackId)
     setQuestionBankPracticeMode(mode)
     setQuestionBankView('practice')
@@ -4123,6 +4275,25 @@ export default function Index() {
       ...current,
       [questionId]: answerId
     }))
+    const bankId = activeQuestionBankIdByTrack[activeKnowledgeTrackId]
+    if (bankId && authSession.status === 'authenticated') {
+      setProgressSyncStatus('syncing')
+      void recordQuestionBankAnswer(
+        authConfig,
+        authSession,
+        bankId,
+        questionId,
+        answerId,
+        result.correct
+      ).then((bank) => {
+        if (bank) {
+          upsertQuestionBank(bank)
+          setProgressSyncStatus('synced')
+          return
+        }
+        setProgressSyncStatus('offline')
+      })
+    }
     changeAppModule('bank', 'knowledge_answered')
   }
 
@@ -4214,6 +4385,7 @@ export default function Index() {
           <QuestionBankPracticePage
             activeTrackId={activeKnowledgeTrackId}
             answers={knowledgeAnswers}
+            syncStatus={progressSyncStatus}
             mode={questionBankPracticeMode}
             onBack={backToQuestionBankProgress}
             onModeChange={setQuestionBankPracticeMode}
@@ -4223,6 +4395,8 @@ export default function Index() {
           <QuestionBankProgressHome
             session={authSession}
             answers={knowledgeAnswers}
+            questionBanks={questionBanks}
+            syncStatus={progressSyncStatus}
             mode={questionBankHomeMode}
             onModeChange={setQuestionBankHomeMode}
             onOpenTrack={openQuestionBankTrack}

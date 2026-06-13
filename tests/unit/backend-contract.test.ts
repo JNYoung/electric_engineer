@@ -92,11 +92,24 @@ describe('app backend contract', () => {
       { title: '低压题库', trackId: 'high-school' },
       signIn.token
     )
+    const wrongBank = await postJson<{ answers: unknown[]; wrongQuestionIds: string[] }>(
+      `${server.url}/api/question-banks/${bank.id}/answer`,
+      { questionId: 'hs-ohm-current', answerId: 'b', correct: false },
+      signIn.token
+    )
+    const correctedBank = await postJson<{ answers: unknown[]; wrongQuestionIds: string[] }>(
+      `${server.url}/api/question-banks/${bank.id}/answer`,
+      { questionId: 'hs-ohm-current', answerId: 'a', correct: true },
+      signIn.token
+    )
 
     expect(profile.session.userId).toBe(signIn.session.userId)
     expect(progress.questionBank.answered).toBe(3)
     expect(bank.id).toMatch(/^qb_/)
     expect(bank.trackId).toBe('high-school')
+    expect(wrongBank.wrongQuestionIds).toEqual(['hs-ohm-current'])
+    expect(correctedBank.answers).toHaveLength(1)
+    expect(correctedBank.wrongQuestionIds).toEqual([])
   })
 
   it('queues account deletion and hides internal unlock unless enabled', async () => {

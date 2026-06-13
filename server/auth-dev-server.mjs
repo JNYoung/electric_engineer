@@ -372,9 +372,18 @@ export function createAppBackendServer(options = {}) {
       const body = await readBody(req)
       const userId = getAuthorizedUserId(req, state) ?? body.userId ?? 'anonymous'
       const current = getProgress(state, userId)
+      const incoming = body.progress ?? {}
       const next = {
         ...current,
-        ...body.progress,
+        ...incoming,
+        courseProgress: {
+          ...(current.courseProgress ?? {}),
+          ...(incoming.courseProgress ?? {})
+        },
+        questionBank: {
+          ...(current.questionBank ?? {}),
+          ...(incoming.questionBank ?? {})
+        },
         userId,
         updatedAt: new Date().toISOString()
       }
@@ -431,9 +440,14 @@ export function createAppBackendServer(options = {}) {
         correct: Boolean(body.correct),
         answeredAt: new Date().toISOString()
       }
-      bank.answers.push(answer)
+      bank.answers = [
+        ...bank.answers.filter((item) => item.questionId !== answer.questionId),
+        answer
+      ]
       if (!answer.correct && answer.questionId) {
         bank.wrongQuestionIds = Array.from(new Set([...bank.wrongQuestionIds, answer.questionId]))
+      } else if (answer.questionId) {
+        bank.wrongQuestionIds = bank.wrongQuestionIds.filter((questionId) => questionId !== answer.questionId)
       }
       bank.updatedAt = new Date().toISOString()
       json(res, 200, bank)

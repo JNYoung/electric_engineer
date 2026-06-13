@@ -67,21 +67,21 @@ const domesticProviders: AuthProviderConfig[] = [
   {
     id: 'wechat',
     label: '微信登录',
-    description: '接入微信开放平台移动应用授权',
+    description: '使用微信账号快速登录',
     credentialMode: 'oauth',
     bindable: true
   },
   {
     id: 'phone-otp',
     label: '手机号+验证码',
-    description: '短信验证码登录或绑定手机号',
+    description: '使用短信验证码登录或绑定',
     credentialMode: 'phone-otp',
     bindable: true
   },
   {
     id: 'email-password',
     label: '邮箱+密码',
-    description: '邮箱密码登录，支持绑定邮箱',
+    description: '使用邮箱和密码登录',
     credentialMode: 'email-password',
     bindable: true
   }
@@ -91,28 +91,28 @@ const overseasProviders: AuthProviderConfig[] = [
   {
     id: 'facebook',
     label: 'Facebook',
-    description: '接入 Facebook Login',
+    description: 'Use your Facebook account',
     credentialMode: 'oauth',
     bindable: true
   },
   {
     id: 'google',
     label: 'Google',
-    description: '接入 Google Identity Services',
+    description: 'Use your Google account',
     credentialMode: 'oauth',
     bindable: true
   },
   {
     id: 'phone-otp',
     label: '手机号+验证码',
-    description: '短信验证码登录或绑定手机号',
+    description: 'Sign in or link with an SMS code',
     credentialMode: 'phone-otp',
     bindable: true
   },
   {
     id: 'email-password',
     label: '邮箱登录',
-    description: '邮箱登录，服务端可配置密码或邮件验证码',
+    description: 'Sign in with email credentials',
     credentialMode: 'email-password',
     bindable: true
   }
