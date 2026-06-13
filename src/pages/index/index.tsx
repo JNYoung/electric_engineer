@@ -1632,9 +1632,9 @@ function QuestionBankProgressHome({
 
     return { track, progress, wrong }
   })
-  const listTitle = mode === 'create' ? '选择模板新建题库' : '管理已创建题库'
+  const listTitle = mode === 'create' ? '新建题库' : '管理已创建题库'
   const listCopy = mode === 'create'
-    ? '从课程模板创建题库后，直接进入二级刷题页面。'
+    ? '创建题库后，直接进入二级刷题页面。'
     : '查看题库题量和错题入口，继续刷题或复训错题。'
 
   return (
@@ -1655,7 +1655,7 @@ function QuestionBankProgressHome({
           onClick={() => onModeChange('create')}
         >
           <Text className='question-bank-admin-title'>新建题库</Text>
-          <Text className='question-bank-admin-copy'>按课程模板创建刷题题库</Text>
+          <Text className='question-bank-admin-copy'>创建新的刷题题库</Text>
         </Button>
         <Button
           className={`question-bank-admin-action ${mode === 'manage' ? 'is-active' : ''}`}
@@ -1677,7 +1677,7 @@ function QuestionBankProgressHome({
         {bankRows.map(({ track, progress, wrong }) => (
           <View key={track.id} className='course-progress-card' onClick={() => onOpenTrack(track.id, 'question-bank')}>
             <View className='course-progress-main'>
-              <Text className='course-progress-level'>{mode === 'create' ? '模板' : track.level}</Text>
+              <Text className='course-progress-level'>{track.level}</Text>
               <Text className='course-progress-title'>{track.title}</Text>
               <Text className='course-progress-copy'>{track.summary}</Text>
               <View className='course-progress-tags'>
@@ -1696,7 +1696,7 @@ function QuestionBankProgressHome({
                   onOpenTrack(track.id, 'question-bank')
                 }}
               >
-                {mode === 'create' ? '创建并刷题' : '进入题库'}
+                {mode === 'create' ? '创建题库' : '进入题库'}
               </Button>
               {mode === 'manage' && wrong > 0 && (
                 <Button
