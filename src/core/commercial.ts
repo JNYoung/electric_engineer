@@ -565,7 +565,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     monthlyPrice: 39,
     target: '电工证、工控弱电岗位提升和施工培训',
     checkoutSku: 'sku_dg_pro_month',
-    features: ['工程工控高级器件', '过压/断线/短路诊断', '取证训练模板', '项目导出接口']
+    features: ['工程工控高级器件', '过压/断线/短路诊断', '取证训练模板', '项目导出']
   },
   {
     id: 'team',
@@ -573,7 +573,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     monthlyPrice: 199,
     target: '培训机构、工程团队和门店交付',
     checkoutSku: 'sku_dg_team_month',
-    features: ['成员管理接口', '统一付费入口', '课程进度同步', '企业模板库']
+    features: ['成员管理', '统一付费入口', '课程进度同步', '企业模板库']
   }
 ]
 
@@ -600,13 +600,13 @@ export const FEATURE_GATES: FeatureGate[] = [
     id: 'project-export',
     label: '项目导出',
     requiredTier: 'pro',
-    description: '为 BOM、施工检查表和课程报告导出预留接口。'
+    description: '支持 BOM、施工检查表和课程报告导出。'
   },
   {
     id: 'team-management',
     label: '团队管理',
     requiredTier: 'team',
-    description: '为机构账号、学员进度和企业计费预留接口。'
+    description: '支持机构账号、学员进度和企业计费管理。'
   }
 ]
 
@@ -686,7 +686,7 @@ export function createAuthenticatedSession(tier: SubscriptionTier): AuthSession 
   return {
     status: 'authenticated',
     userId: `demo-${tier}-user`,
-    displayName: `${plan.name}演示账号`,
+    displayName: `${plan.name}账号`,
     tier,
     linkedProviders: []
   }
@@ -774,10 +774,10 @@ function buildPrimaryCommercialAction(
   if (session.status === 'anonymous') {
     return {
       kind: 'sign-in',
-      label: `登录后开通${recommendedPlan.name}`,
+      label: '登录',
       endpoint: COMMERCIAL_API_CONTRACT.auth.signInEndpoint,
       targetTier: recommendedPlan.id,
-      detail: '真实接入时先完成账号登录，再创建支付会话。'
+      detail: '登录后可继续开通套餐。'
     }
   }
 
@@ -787,7 +787,7 @@ function buildPrimaryCommercialAction(
       label: `开通${recommendedPlan.name}`,
       endpoint: COMMERCIAL_API_CONTRACT.billing.checkoutEndpoint,
       targetTier: recommendedPlan.id,
-      detail: `创建 ${recommendedPlan.checkoutSku ?? recommendedPlan.id} 的结账会话。`
+      detail: `开通后解锁${recommendedPlan.name}权益。`
     }
   }
 

@@ -12,7 +12,6 @@ import {
 import { simulateCircuit } from '@/core/simulator'
 import {
   BILLING_PLANS,
-  COMMERCIAL_API_CONTRACT,
   DEFAULT_AUTH_SESSION,
   DOMAIN_PROFILES,
   buildCommercialAccessSnapshot,
@@ -241,6 +240,26 @@ function getRuntimeTelemetryPlatform() {
 
 function getBuildTarget() {
   return typeof __BUILD_TARGET__ === 'undefined' ? 'h5' : __BUILD_TARGET__
+}
+
+function getAuthProviderMark(providerId: AuthProviderConfig['id']) {
+  return {
+    wechat: '微',
+    facebook: 'f',
+    google: 'G',
+    'phone-otp': '码',
+    'email-password': '@'
+  }[providerId]
+}
+
+function getAuthProviderShortLabel(providerId: AuthProviderConfig['id'], label: string) {
+  return {
+    wechat: '微信',
+    facebook: 'Facebook',
+    google: 'Google',
+    'phone-otp': '手机号',
+    'email-password': '邮箱'
+  }[providerId] ?? label
 }
 
 function getFullscreenElement() {
@@ -945,9 +964,6 @@ function AuthLoginDialog({
   const linkedProviders = session.linkedProviders ?? []
   const isBindMode = mode === 'bind' && session.status === 'authenticated'
   const dialogTitle = isBindMode ? '绑定账户' : '登录账号'
-  const dialogDescription = isBindMode
-    ? '选择一个登录方式绑定到当前账号，后续可用于同步题库和付费权益。'
-    : '登录后同步题库进度、错题和付费权益。'
 
   useEffect(() => {
     if (!isOpen) return
@@ -1051,11 +1067,7 @@ function AuthLoginDialog({
       )
     }
 
-    return (
-      <Text className='auth-provider-detail'>
-        {provider.description}，当前先接入服务端契约，原生授权插件按 flavor 继续补齐。
-      </Text>
-    )
+    return null
   }
 
   if (!isOpen) {
@@ -1068,13 +1080,8 @@ function AuthLoginDialog({
         <View className='auth-dialog-head'>
           <View>
             <Text className='auth-dialog-title'>{dialogTitle}</Text>
-            <Text className='auth-region-copy'>
-              {authConfig.region === 'domestic' ? '国内登录' : '海外登录'} · API {authConfig.apiBaseUrl}
-            </Text>
-            <Text className='auth-dialog-copy'>{dialogDescription}</Text>
           </View>
           <View className='auth-dialog-head-actions'>
-            <Text className='auth-port-badge'>:{authConfig.serverPort}</Text>
             <Button className='auth-dialog-close' onClick={onClose}>×</Button>
           </View>
         </View>
@@ -1086,8 +1093,10 @@ function AuthLoginDialog({
               className={`auth-provider-button ${provider.id === activeProvider?.id ? 'is-active' : ''}`}
               onClick={() => setActiveProviderId(provider.id)}
             >
-              <Text>{provider.label}</Text>
-              <Text>{provider.description}</Text>
+              <Text className={`auth-provider-icon provider-${provider.id}`}>
+                {getAuthProviderMark(provider.id)}
+              </Text>
+              <Text>{getAuthProviderShortLabel(provider.id, provider.label)}</Text>
             </Button>
           ))}
         </View>
@@ -1150,18 +1159,8 @@ function AccountAuthEntryCard({
       <View className='auth-entry-head'>
         <View>
           <Text className='account-section-title'>账号登录</Text>
-          <Text className='auth-region-copy'>
-            {authConfig.region === 'domestic' ? '国内登录' : '海外登录'} · API {authConfig.apiBaseUrl}
-          </Text>
         </View>
-        <Text className='auth-port-badge'>:{authConfig.serverPort}</Text>
       </View>
-
-      <Text className='auth-entry-copy'>
-        {session.status === 'authenticated'
-          ? '账号已连接，可继续绑定其他登录方式。'
-          : '登录入口已改为弹窗，题库进度和付费权益会在登录后同步。'}
-      </Text>
 
       <View className='auth-action-row'>
         {session.status === 'authenticated' ? (
@@ -1170,7 +1169,7 @@ function AccountAuthEntryCard({
           </Button>
         ) : (
           <Button className='small-action commerce-primary-action' onClick={onOpenSignIn}>
-            打开登录弹窗
+            登录
           </Button>
         )}
       </View>
@@ -1210,10 +1209,10 @@ function CommercePanel({
 }) {
   const accountTitle = session.status === 'authenticated'
     ? session.displayName
-    : '登录后同步专业训练'
+    : '账户与权益'
   const accountDescription = session.status === 'authenticated'
-    ? `当前已开通${tierLabel(session.tier)}，可管理订阅、权益和接口状态。`
-    : `当前以访客身份体验基础训练，登录后可开通${access.recommendedPlan.name}并解锁专业元件。`
+    ? `当前已开通${tierLabel(session.tier)}，可管理订阅、权益和账号状态。`
+    : ''
   const connectionLabel = session.status === 'authenticated' ? '账号已连接' : '未登录'
 
   function runPrimaryAction() {
@@ -1234,7 +1233,9 @@ function CommercePanel({
         <View className='account-hero-copy'>
           <Text className='account-kicker'>账户中心</Text>
           <Text className='account-title'>{accountTitle}</Text>
-          <Text className='account-desc'>{accountDescription}</Text>
+          {accountDescription && (
+            <Text className='account-desc'>{accountDescription}</Text>
+          )}
         </View>
         <Text className={`tier-badge tier-${session.tier}`}>{tierLabel(session.tier)}</Text>
       </View>
@@ -1259,13 +1260,9 @@ function CommercePanel({
           {access.primaryAction.label}
         </Button>
         {session.status === 'authenticated' && (
-          <Button className='small-action' onClick={onSignOut}>退出演示</Button>
+          <Button className='small-action' onClick={onSignOut}>退出登录</Button>
         )}
-        <Text className='commerce-status'>
-          {session.status === 'authenticated' ? '可管理订阅和发票' : '登录后再创建支付会话'}
-        </Text>
       </View>
-      <Text className='commerce-status'>{access.primaryAction.detail}</Text>
 
       <AccountAuthEntryCard
         authConfig={authConfig}
@@ -1321,13 +1318,6 @@ function CommercePanel({
         ))}
       </View>
 
-      <View className='api-contract'>
-        <Text className='note-title'>接口合约</Text>
-        <Text className='api-row'>登录：{COMMERCIAL_API_CONTRACT.auth.signInEndpoint}</Text>
-        <Text className='api-row'>支付：{COMMERCIAL_API_CONTRACT.billing.checkoutEndpoint}</Text>
-        <Text className='api-row'>账户中心：{COMMERCIAL_API_CONTRACT.billing.portalEndpoint}</Text>
-        <Text className='api-row'>Webhook：{COMMERCIAL_API_CONTRACT.billing.webhookEndpoint}</Text>
-      </View>
     </View>
   )
 }
@@ -4021,10 +4011,10 @@ export default function Index() {
   async function sendAuthOtp(phone: string) {
     const response = await requestAuthOtp(authConfig, phone)
     if (response.ok) {
-      return response.devCode ? `验证码已发送，测试码 ${response.devCode}` : '验证码已发送。'
+      return '验证码已发送。'
     }
 
-    return '验证码服务未连接，当前保留本地演示登录。'
+    return '验证码暂不可用，请稍后再试。'
   }
 
   function loginForQuestionBank() {
@@ -4314,9 +4304,9 @@ export default function Index() {
                   </View>
                 ))}
               </View>
-              <Text className='note-title extension-title'>商业化扩展接口</Text>
+              <Text className='note-title extension-title'>商业化扩展</Text>
               <Text className='note-copy'>
-                当前账号已解锁 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐门槛和分类已拆到商业配置层。
+                当前账号可使用 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐权限会按当前账号实时生效。
               </Text>
             </View>
           </View>
