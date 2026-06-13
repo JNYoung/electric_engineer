@@ -5,6 +5,8 @@
 - `server/auth-dev-server.mjs` 从账号原型扩展为本地 app backend 骨架。
 - 国内默认端口 `4317`，海外默认端口 `4318`。
 - 后台接口覆盖账号、绑定、账号删除、进度同步、题库、权益、付费订阅和合规 manifest。
+- 后台支持可选文件持久化，便于本地内测、审核账号和真机验证跨重启保留数据。
+- 后台新增受 token 保护的运营/审核接口，可查看用户、进度、题库、删除队列、付费流水，并可创建审核账号或手动补发权益。
 - 前台登录入口改为弹窗，不再暴露 API 地址、端口、接口路径、测试码和原生插件说明。
 - Google Play 包与国内包继续使用 flavor-scoped 依赖。
 - Android 新增正式/内测包拆分：正式包不外显内部解锁入口，内测包在账号页底部显示内部测试解锁。
@@ -33,6 +35,40 @@
 - `GET /api/question-banks`
 - `POST /api/question-banks`
 - `POST /api/question-banks/:id/answer`
+
+## 后台持久化与运营接口
+
+默认不配置时后台仍以内存运行，方便测试隔离。需要跨重启保存账号、token、进度、题库、权益、付费事件和删除请求时，配置文件路径：
+
+```bash
+APP_BACKEND_STORE_PATH=.data/electric-master-backend/domestic.json npm run dev:backend:domestic
+APP_BACKEND_STORE_PATH=.data/electric-master-backend/overseas.json npm run dev:backend:overseas
+```
+
+运营/审核接口默认关闭。配置 `APP_BACKEND_ADMIN_TOKEN` 后，用 `Authorization: Bearer <token>` 或 `x-admin-token` 访问：
+
+- `GET /api/admin/users`
+- `GET /api/admin/progress?userId=...`
+- `GET /api/admin/question-banks?userId=...`
+- `GET /api/admin/deletion-requests`
+- `GET /api/admin/billing-transactions?userId=...`
+- `POST /api/admin/review-accounts`
+- `POST /api/admin/entitlements/grant`
+
+审核账号示例：
+
+```bash
+APP_BACKEND_STORE_PATH=.data/electric-master-backend/overseas.json \
+APP_BACKEND_ADMIN_TOKEN=local-admin \
+npm run dev:backend:overseas
+
+curl -X POST http://127.0.0.1:4318/api/admin/review-accounts \
+  -H 'Authorization: Bearer local-admin' \
+  -H 'Content-Type: application/json' \
+  -d '{"region":"overseas","provider":"google","tier":"team"}'
+```
+
+该接口会返回可用于 App 登录联调的 provider、credential、token，并把对应账号权益写入持久化文件。正式部署时应把同一契约迁移到数据库和真正的管理台权限系统。
 
 ## 中国包
 
@@ -88,9 +124,9 @@ npm run android:aab:googleplay:release
 
 - 短信服务：替换 `/api/auth/otp/send`。
 - OAuth：微信、Google、Facebook token 校验替换 `/api/auth/sign-in`。
-- 持久化：将当前内存 Map 替换为数据库表。
+- 持久化：当前已支持 JSON 文件落盘；正式服务需替换为数据库表、迁移脚本、备份和审计日志。
 - 支付：当前已落地 checkout、restore、portal、webhook 和 entitlement 写入骨架；后续替换为 Google Play Billing purchase token 校验、RTDN、国内渠道支付/微信支付/支付宝回调验签。
-- 账号删除：接入真实删除队列、邮件通知和后台审核台。
+- 账号删除：当前已进入持久化删除队列；正式服务需接入邮件通知、后台处理状态流转和数据擦除任务。
 
 ## 付费订阅流
 

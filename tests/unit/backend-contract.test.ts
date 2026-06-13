@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 type TestServer = {
@@ -228,5 +231,59 @@ describe('app backend contract', () => {
     expect(paid.entitlement.source).toBe('billing_webhook')
     expect(duplicate.duplicate).toBe(true)
     expect(revoked.entitlement.tier).toBe('free')
+  })
+
+  it('persists backend state and protects admin review operations', async () => {
+    const storageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'electric-master-backend-'))
+    const storagePath = path.join(storageDir, 'state.json')
+    const adminToken = 'admin-secret'
+    const firstServer = await startBackend({ region: 'overseas', storagePath, adminToken })
+    servers.push(firstServer)
+
+    const unauthorized = await fetch(`${firstServer.url}/api/admin/users`)
+    const reviewAccount = await fetch(`${firstServer.url}/api/admin/review-accounts`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        region: 'overseas',
+        provider: 'google',
+        tier: 'team'
+      })
+    }).then((response) => response.json())
+    const progress = await postJson<{ questionBank: { answered: number } }>(
+      `${firstServer.url}/api/progress/sync`,
+      { progress: { questionBank: { answered: 4, correct: 3, wrong: 1 } } },
+      reviewAccount.token
+    )
+
+    expect(unauthorized.status).toBe(401)
+    expect(reviewAccount.session.provider).toBe('google')
+    expect(reviewAccount.entitlement.tier).toBe('team')
+    expect(progress.questionBank.answered).toBe(4)
+    expect(fs.existsSync(storagePath)).toBe(true)
+
+    await firstServer.close()
+    servers.splice(servers.indexOf(firstServer), 1)
+
+    const secondServer = await startBackend({ region: 'overseas', storagePath, adminToken })
+    servers.push(secondServer)
+    const users = await fetch(`${secondServer.url}/api/admin/users?region=overseas`, {
+      headers: { authorization: `Bearer ${adminToken}` }
+    }).then((response) => response.json())
+    const restoredProgress = await fetch(`${secondServer.url}/api/progress`, {
+      headers: { authorization: `Bearer ${reviewAccount.token}` }
+    }).then((response) => response.json())
+    const entitlements = await fetch(`${secondServer.url}/api/entitlements`, {
+      headers: { authorization: `Bearer ${reviewAccount.token}` }
+    }).then((response) => response.json())
+
+    expect(users.users.map((user: { userId: string }) => user.userId)).toContain(reviewAccount.session.userId)
+    expect(restoredProgress.questionBank.answered).toBe(4)
+    expect(entitlements.tier).toBe('team')
+
+    fs.rmSync(storageDir, { recursive: true, force: true })
   })
 })

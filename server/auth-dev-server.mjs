@@ -1,5 +1,7 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 import http from 'node:http'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const providerMatrix = {
@@ -51,8 +53,9 @@ const tierRank = {
   team: 2
 }
 
-function createInitialState() {
-  return {
+export function createAppBackendState(options = {}) {
+  const storagePath = options.storagePath ?? process.env.APP_BACKEND_STORE_PATH ?? ''
+  const state = {
     users: new Map(),
     tokens: new Map(),
     progress: new Map(),
@@ -60,15 +63,19 @@ function createInitialState() {
     entitlements: new Map(),
     billingTransactions: new Map(),
     billingEvents: new Map(),
-    deletionRequests: new Map()
+    deletionRequests: new Map(),
+    storagePath
   }
+  hydrateState(state, storagePath)
+  return state
 }
 
 export function createAppBackendServer(options = {}) {
   const defaultRegion = normalizeRegion(options.region ?? process.env.AUTH_REGION)
   const defaultPort = Number(options.port ?? process.env.AUTH_SERVER_PORT ?? getDefaultPort(defaultRegion))
   const internalTestUnlock = String(options.internalTestUnlock ?? process.env.ENABLE_TEST_UNLOCK ?? '') === 'true'
-  const state = options.state ?? createInitialState()
+  const adminToken = String(options.adminToken ?? process.env.APP_BACKEND_ADMIN_TOKEN ?? '')
+  const state = options.state ?? createAppBackendState({ storagePath: options.storagePath })
 
   return http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
@@ -127,6 +134,19 @@ export function createAppBackendServer(options = {}) {
       return
     }
 
+    if (url.pathname.startsWith('/api/admin/')) {
+      if (!isAdminAuthorized(req, adminToken)) {
+        json(res, adminToken ? 401 : 404, { error: adminToken ? 'admin_unauthorized' : 'admin_disabled' })
+        return
+      }
+
+      const handled = await handleAdminRequest(req, res, url, state, defaultRegion)
+      if (!handled) {
+        json(res, 404, { error: 'admin_not_found' })
+      }
+      return
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/auth/otp/send') {
       const body = await readBody(req)
       json(res, 200, {
@@ -144,6 +164,7 @@ export function createAppBackendServer(options = {}) {
       const provider = normalizeProvider(region, body.provider)
       const session = upsertUserSession(state, region, provider, body.credential)
       const token = issueToken(state, session.userId)
+      persistState(state)
       json(res, 200, { session, token })
       return
     }
@@ -159,6 +180,7 @@ export function createAppBackendServer(options = {}) {
       if (session) {
         session.linkedProviders = linkedProviders
         session.updatedAt = new Date().toISOString()
+        persistState(state)
       }
 
       json(res, 200, {
@@ -196,6 +218,7 @@ export function createAppBackendServer(options = {}) {
         slaDays: storeProfiles[region].accountDeletionSlaDays
       }
       state.deletionRequests.set(requestId, request)
+      persistState(state)
       json(res, 200, request)
       return
     }
@@ -224,6 +247,7 @@ export function createAppBackendServer(options = {}) {
         status: 'pending',
         source: 'checkout'
       })
+      persistState(state)
 
       json(res, 200, {
         transaction,
@@ -266,6 +290,7 @@ export function createAppBackendServer(options = {}) {
         }
         return current
       }, getEntitlements(state, userId))
+      persistState(state)
 
       json(res, 200, {
         userId,
@@ -328,6 +353,7 @@ export function createAppBackendServer(options = {}) {
           eventId
         })
       }
+      persistState(state)
 
       json(res, 200, {
         ok: true,
@@ -350,14 +376,8 @@ export function createAppBackendServer(options = {}) {
       }
       const body = await readBody(req)
       const userId = getAuthorizedUserId(req, state) ?? body.userId ?? 'anonymous'
-      const entitlement = {
-        userId,
-        tier: 'team',
-        source: 'internal_test_unlock',
-        unlockedUntil: null,
-        updatedAt: new Date().toISOString()
-      }
-      state.entitlements.set(userId, entitlement)
+      const entitlement = activateEntitlement(state, userId, 'team', 'internal_test_unlock')
+      persistState(state)
       json(res, 200, entitlement)
       return
     }
@@ -388,6 +408,7 @@ export function createAppBackendServer(options = {}) {
         updatedAt: new Date().toISOString()
       }
       state.progress.set(userId, next)
+      persistState(state)
       json(res, 200, next)
       return
     }
@@ -418,6 +439,7 @@ export function createAppBackendServer(options = {}) {
       const banks = getQuestionBanks(state, userId)
       banks.push(bank)
       state.questionBanks.set(userId, banks)
+      persistState(state)
       json(res, 200, bank)
       return
     }
@@ -450,6 +472,7 @@ export function createAppBackendServer(options = {}) {
         bank.wrongQuestionIds = bank.wrongQuestionIds.filter((questionId) => questionId !== answer.questionId)
       }
       bank.updatedAt = new Date().toISOString()
+      persistState(state)
       json(res, 200, bank)
       return
     }
@@ -484,6 +507,184 @@ function readBody(req) {
       }
     })
   })
+}
+
+async function handleAdminRequest(req, res, url, state, defaultRegion) {
+  if (req.method === 'GET' && url.pathname === '/api/admin/users') {
+    const region = url.searchParams.get('region')
+    const users = Array.from(state.users.values())
+      .filter((session) => !region || session.authRegion === normalizeRegion(region))
+      .sort(sortByUpdatedAtDesc)
+    json(res, 200, { users })
+    return true
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/progress') {
+    const userId = url.searchParams.get('userId')
+    const progress = userId
+      ? [getProgress(state, userId)]
+      : Array.from(state.progress.values()).sort(sortByUpdatedAtDesc)
+    json(res, 200, { progress })
+    return true
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/question-banks') {
+    const userId = url.searchParams.get('userId')
+    const banks = userId
+      ? getQuestionBanks(state, userId)
+      : Array.from(state.questionBanks.values()).flat().sort(sortByUpdatedAtDesc)
+    json(res, 200, { banks })
+    return true
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/deletion-requests') {
+    const requests = Array.from(state.deletionRequests.values()).sort(sortByRequestedAtDesc)
+    json(res, 200, { requests })
+    return true
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/billing-transactions') {
+    const userId = url.searchParams.get('userId')
+    const transactions = Array.from(state.billingTransactions.values())
+      .filter((transaction) => !userId || transaction.userId === userId)
+      .sort(sortByUpdatedAtDesc)
+    json(res, 200, { transactions })
+    return true
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/admin/review-accounts') {
+    const body = await readBody(req)
+    const region = normalizeRegion(body.region ?? defaultRegion)
+    const provider = normalizeProvider(region, body.provider)
+    const credential = buildReviewCredential(region, provider, body)
+    const session = upsertUserSession(state, region, provider, credential)
+    const entitlement = activateEntitlement(state, session.userId, normalizeTier(body.tier ?? 'pro'), 'review_account', {
+      region,
+      provider,
+      note: body.note ?? 'store_review'
+    })
+    const token = issueToken(state, session.userId)
+    persistState(state)
+    json(res, 200, {
+      session: state.users.get(session.userId),
+      entitlement,
+      token,
+      signIn: {
+        region,
+        provider,
+        credential
+      }
+    })
+    return true
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/admin/entitlements/grant') {
+    const body = await readBody(req)
+    const userId = body.userId
+
+    if (!userId) {
+      json(res, 400, { error: 'user_id_required' })
+      return true
+    }
+
+    const entitlement = activateEntitlement(state, userId, normalizeTier(body.tier), 'admin_grant', {
+      reason: body.reason ?? 'manual_support',
+      region: normalizeRegion(body.region ?? defaultRegion)
+    })
+    persistState(state)
+    json(res, 200, entitlement)
+    return true
+  }
+
+  return false
+}
+
+function isAdminAuthorized(req, adminToken) {
+  if (!adminToken) return false
+
+  const auth = req.headers.authorization ?? ''
+  if (auth === `Bearer ${adminToken}`) return true
+
+  return req.headers['x-admin-token'] === adminToken
+}
+
+function buildReviewCredential(region, provider, body) {
+  if (body.credential && typeof body.credential === 'object') {
+    return body.credential
+  }
+
+  if (provider === 'email-password') {
+    return {
+      email: body.email ?? `review-${region}@electricmaster.test`,
+      password: body.password ?? 'review-pass'
+    }
+  }
+
+  if (provider === 'phone-otp') {
+    return {
+      phone: body.phone ?? (region === 'domestic' ? '13800138000' : '+1555010000'),
+      otp: body.otp ?? '000000'
+    }
+  }
+
+  return {
+    idToken: body.idToken ?? `${provider}-review-token`,
+    openId: body.openId ?? `${region}-${provider}-review`
+  }
+}
+
+function hydrateState(state, storagePath) {
+  if (!storagePath || !fs.existsSync(storagePath)) return
+
+  const snapshot = JSON.parse(fs.readFileSync(storagePath, 'utf8'))
+  restoreMap(state.users, snapshot.users)
+  restoreMap(state.tokens, snapshot.tokens)
+  restoreMap(state.progress, snapshot.progress)
+  restoreMap(state.questionBanks, snapshot.questionBanks)
+  restoreMap(state.entitlements, snapshot.entitlements)
+  restoreMap(state.billingTransactions, snapshot.billingTransactions)
+  restoreMap(state.billingEvents, snapshot.billingEvents)
+  restoreMap(state.deletionRequests, snapshot.deletionRequests)
+}
+
+function persistState(state) {
+  if (!state.storagePath) return
+
+  const snapshot = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    users: Array.from(state.users.entries()),
+    tokens: Array.from(state.tokens.entries()),
+    progress: Array.from(state.progress.entries()),
+    questionBanks: Array.from(state.questionBanks.entries()),
+    entitlements: Array.from(state.entitlements.entries()),
+    billingTransactions: Array.from(state.billingTransactions.entries()),
+    billingEvents: Array.from(state.billingEvents.entries()),
+    deletionRequests: Array.from(state.deletionRequests.entries())
+  }
+  const directory = path.dirname(state.storagePath)
+  const tempPath = `${state.storagePath}.${process.pid}.tmp`
+
+  fs.mkdirSync(directory, { recursive: true })
+  fs.writeFileSync(tempPath, `${JSON.stringify(snapshot, null, 2)}\n`)
+  fs.renameSync(tempPath, state.storagePath)
+}
+
+function restoreMap(map, entries) {
+  map.clear()
+  if (!Array.isArray(entries)) return
+
+  entries.forEach(([key, value]) => {
+    map.set(key, value)
+  })
+}
+
+function sortByUpdatedAtDesc(left, right) {
+  return String(right.updatedAt ?? '').localeCompare(String(left.updatedAt ?? ''))
+}
+
+function sortByRequestedAtDesc(left, right) {
+  return String(right.requestedAt ?? '').localeCompare(String(left.requestedAt ?? ''))
 }
 
 function normalizeRegion(value) {
