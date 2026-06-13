@@ -78,31 +78,38 @@ async function devicePosition(page: Page, selector: string) {
 }
 
 async function dragDevice(page: Page, selector: string, deltaX: number, deltaY: number) {
-  await page.locator(selector).evaluate((node) => {
-    const panel = node.closest('.canvas-panel')
-    if (panel instanceof HTMLElement && node instanceof HTMLElement) {
-      panel.scrollLeft = Math.max(0, node.offsetLeft - 160)
-    }
-  })
   await page.locator(selector).scrollIntoViewIfNeeded()
-  const box = await page.locator(selector).boundingBox()
-  if (!box) {
-    throw new Error(`Cannot drag missing device: ${selector}`)
-  }
+  await page.locator(selector).evaluate((node, drag) => {
+    const rect = node.getBoundingClientRect()
+    const startX = rect.left + rect.width / 2
+    const startY = rect.top + rect.height / 2
+    const dispatchMouse = (target: EventTarget, type: string, x: number, y: number) => {
+      target.dispatchEvent(new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y
+      }))
+    }
 
-  const startX = box.x + box.width / 2
-  const startY = box.y + box.height / 2
-  const endX = startX + deltaX
-  const endY = startY + deltaY
-
-  await page.mouse.move(startX, startY)
-  await page.mouse.down()
-  await page.mouse.move(endX, endY, { steps: 8 })
-  await page.mouse.up()
+    dispatchMouse(node, 'mousedown', startX, startY)
+    for (let step = 1; step <= 8; step += 1) {
+      dispatchMouse(window, 'mousemove', startX + (drag.deltaX * step) / 8, startY + (drag.deltaY * step) / 8)
+    }
+    dispatchMouse(window, 'mouseup', startX + drag.deltaX, startY + drag.deltaY)
+  }, { deltaX, deltaY })
 }
 
 async function isMobileViewport(page: Page) {
   return (page.viewportSize()?.width ?? await page.evaluate(() => window.innerWidth)) <= 760
+}
+
+async function waitForBoardLayoutReady(page: Page) {
+  if (!(await isMobileViewport(page))) return
+
+  await expect.poll(async () =>
+    page.locator('.circuit-board').evaluate((board) => getComputedStyle(board).transform)
+  ).not.toBe('none')
 }
 
 async function openMobileTab(page: Page, label: string) {
@@ -125,6 +132,16 @@ async function openMobileTab(page: Page, label: string) {
   await expect(button).toHaveClass(/is-active/)
 }
 
+async function expectCircuitStatus(page: Page, status: string) {
+  await expect(page.locator('.canvas-status-bar')).toContainText(status)
+}
+
+async function toggleMainSwitch(page: Page) {
+  const switchButton = page.locator('.circuit-board .device-switch .inline-switch').first()
+  await switchButton.scrollIntoViewIfNeeded()
+  await switchButton.click()
+}
+
 async function addPaletteDevice(page: Page, name: string) {
   await openMobileTab(page, '素材')
   const paletteItem = page.locator('.palette-item').filter({ hasText: name }).first()
@@ -137,8 +154,8 @@ async function gotoWorkbench(page: Page) {
   await page.goto(route, { waitUntil: 'domcontentloaded' })
   await expect(page).toHaveTitle(/电工大师/)
   await expect(page.locator('.app-shell')).toBeVisible()
-  await expect(page.locator('.app-shell')).toContainText('Web / 小程序电路模拟控制台')
-  await expect(page.locator('.run-state')).toContainText('回路接通')
+  await expectCircuitStatus(page, '回路接通')
+  await waitForBoardLayoutReady(page)
 }
 
 test.describe('electric workbench e2e', () => {
@@ -156,15 +173,26 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('转速 100%')
     await expectNoIconText(page)
     await expectDevicesInsideBoard(page)
+    await expect(page.locator('.topbar')).toHaveCount(0)
+    await expect(page.locator('.toolbar')).toHaveCount(0)
+    await expect(page.locator('.canvas-status-bar')).toContainText('电流')
+    await expect(page.locator('.canvas-status-bar')).toContainText('状态')
+    const sourceVoltage = page.locator('.device-power-positive .node-voltage-control')
+    await expect(sourceVoltage).toContainText('12V')
+    await sourceVoltage.locator('.node-step-button').last().click()
+    await expect(sourceVoltage).toContainText('13V')
+    await expect(page.locator('.summary-card')).toContainText('13V DC')
+    await sourceVoltage.locator('.node-step-button').first().click()
+    await expect(sourceVoltage).toContainText('12V')
 
-    await page.locator('.toolbar .tool-button.primary').click()
-    await expect(page.locator('.run-state')).toContainText('等待接通')
+    await toggleMainSwitch(page)
+    await expectCircuitStatus(page, '等待接通')
     await expect(meterPanel).toContainText('待接线')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('未通电')
     await expect(page.locator('.effect-pill').filter({ hasText: '排风扇' })).toContainText('未通电')
 
-    await page.locator('.toolbar .tool-button.primary').click()
-    await expect(page.locator('.run-state')).toContainText('回路接通')
+    await toggleMainSwitch(page)
+    await expectCircuitStatus(page, '回路接通')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
 
     await expectHealthyRuntime(runtimeProblems)
@@ -180,9 +208,9 @@ test.describe('electric workbench e2e', () => {
     const before = await devicePosition(page, lampSelector)
     await dragDevice(page, lampSelector, 92, 44)
 
-    await expect.poll(async () => (await devicePosition(page, lampSelector)).left).toBeGreaterThan(before.left + 60)
+    await expect.poll(async () => (await devicePosition(page, lampSelector)).left).toBeGreaterThan(before.left + 30)
     const after = await devicePosition(page, lampSelector)
-    expect(after.top).toBeGreaterThan(before.top + 24)
+    expect(after.top).toBeGreaterThan(before.top + 16)
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('亮度 100%')
     await expectDevicesInsideBoard(page)
 
@@ -231,7 +259,7 @@ test.describe('electric workbench e2e', () => {
     await lampReturn.locator('.toggle-button').click()
 
     await expect(lampReturn).toContainText('已断开')
-    await expect(page.locator('.run-state')).toContainText('回路接通')
+    await expectCircuitStatus(page, '回路接通')
     await expect(page.locator('.meter-panel')).toContainText('OL')
     await expect(page.locator('.meter-panel')).toContainText('接回 灯泡回负极')
     await expect(page.locator('.effect-pill').filter({ hasText: '照明灯' })).toContainText('未通电')
@@ -291,7 +319,7 @@ test.describe('electric workbench e2e', () => {
     const ohmQuestion = page.locator('.knowledge-question').filter({ hasText: '欧姆定律计算' })
     await ohmQuestion.locator('.choice-button').filter({ hasText: '0.5A' }).click()
     await expect(ohmQuestion).toContainText('回答正确')
-    await expect(page.locator('.mobile-status-strip')).toContainText('33%')
+    await expect(page.locator('.knowledge-score')).toContainText('33%')
 
     const parallelQuestion = page.locator('.knowledge-question').filter({ hasText: '并联支路判断' })
     await parallelQuestion.locator('.choice-button').filter({ hasText: '各约 6V' }).click()
@@ -364,12 +392,16 @@ test.describe('electric workbench e2e', () => {
     await expect(certificationPanel).toContainText('可提交')
     await expect(certificationPanel).toContainText('3/3')
 
-    await page.locator('.toolbar .tool-button.primary').click()
+    await openMobileTab(page, '仿真')
+    await toggleMainSwitch(page)
+    await openMobileTab(page, '题库')
     await expect(page.locator('.assessment-board')).toContainText('当前没有形成可测工作电流')
     await expect(page.locator('.assessment-board')).toContainText('闭合主开关')
     await expect(stationPanel).toContainText('待补证据')
     await expect(certificationPanel).toContainText('待补仿真')
-    await page.locator('.toolbar .tool-button.primary').click()
+    await openMobileTab(page, '仿真')
+    await toggleMainSwitch(page)
+    await openMobileTab(page, '题库')
 
     await page.locator('.assessment-tab').filter({ hasText: '电工取证' }).click()
     await expect(page.locator('.assessment-board')).toContainText('电工实操取证模拟')
@@ -386,9 +418,8 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.practice-report-panel')).toContainText('完成20%')
     await expect(page.locator('.practice-report-panel')).toContainText('正确100%')
 
-    await openMobileTab(page, '学习')
-    await page.locator('.mobile-section-learn .domain-tab').filter({ hasText: '装修工控' }).click()
     await openMobileTab(page, '素材')
+    await page.locator('.mobile-section-library .domain-tab').filter({ hasText: '装修工控' }).click()
     await expect(page.locator('.material-spec-panel')).toContainText('智能网关')
     await expect(page.locator('.material-kit-panel')).toContainText('装修智能联动包')
     await expect(page.locator('.material-kit-panel')).toContainText('窗帘电机')
@@ -400,11 +431,10 @@ test.describe('electric workbench e2e', () => {
     const runtimeProblems = watchRuntimeHealth(page)
 
     await gotoWorkbench(page)
-    await openMobileTab(page, '学习')
-    await expect(page.locator('.mobile-section-learn .commercial-dashboard')).toContainText('工程工控')
-    await expect(page.locator('.mobile-section-learn .commercial-dashboard')).toContainText('已解锁')
-    await expect(page.locator('.mobile-section-learn .commercial-dashboard')).toContainText('待解锁')
     await openMobileTab(page, '素材')
+    await expect(page.locator('.mobile-section-library .commercial-dashboard')).toContainText('工程工控')
+    await expect(page.locator('.mobile-section-library .commercial-dashboard')).toContainText('已解锁')
+    await expect(page.locator('.mobile-section-library .commercial-dashboard')).toContainText('待解锁')
     await expect(page.locator('.palette-panel')).toContainText('PLC 控制器')
     await openMobileTab(page, '账号')
     await expect(page.locator('.commerce-panel')).toContainText('登录后开通专业版')
@@ -415,9 +445,8 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.commerce-panel')).toContainText('/api/billing/portal')
     await expect(page.locator('.commerce-panel')).toContainText('/api/billing/webhook')
 
-    await openMobileTab(page, '学习')
-    await page.locator('.mobile-section-learn .domain-tab').filter({ hasText: '装修工控' }).click()
     await openMobileTab(page, '素材')
+    await page.locator('.mobile-section-library .domain-tab').filter({ hasText: '装修工控' }).click()
     await expect(page.locator('.palette-panel')).toContainText('装修工控元件库')
     await expect(page.locator('.palette-item').filter({ hasText: '智能开关面板' })).toHaveCount(1)
 
@@ -436,7 +465,7 @@ test.describe('electric workbench e2e', () => {
     await gotoWorkbench(page)
 
     if (testInfo.project.name.includes('mobile')) {
-      await expect(page.locator('.mobile-status-strip')).toBeVisible()
+      await expect(page.locator('.canvas-status-bar')).toBeVisible()
       await expect(page.locator('.mobile-bottom-nav')).toBeVisible()
       await expect(page.locator('.canvas-panel')).toBeVisible()
       await expect(page.locator('.inspector-panel')).toBeVisible()

@@ -73,7 +73,6 @@ import { enterNativeLandscapeCheck, exitNativeLandscapeCheck } from '@/core/nati
 import {
   AppModuleNav,
   MobileBottomNav,
-  MobileStatusStrip,
   getAdPlacementForModule,
   type AppModuleId
 } from './appShell'
@@ -372,13 +371,6 @@ function updateWirePathMode(model: CircuitModel, id: string, pathMode: WirePathM
     wires: model.wires.map((wire) =>
       wire.id === id ? { ...wire, pathMode } : wire
     )
-  }
-}
-
-function setAllWires(model: CircuitModel, connected: boolean): CircuitModel {
-  return {
-    ...model,
-    wires: model.wires.map((wire) => ({ ...wire, connected }))
   }
 }
 
@@ -2073,27 +2065,32 @@ function BoardDevice({
   selected,
   dragging,
   effect,
+  voltage,
   onSelect,
   onDragStart,
+  onSetVoltage,
   onToggleSwitch
 }: {
   device: CircuitDevice
   selected: boolean
   dragging: boolean
   effect?: SimulationResult['effects'][string]
+  voltage: number
   onSelect: (id: string) => void
   onDragStart: (event: PointerLikeEvent, id: string) => void
+  onSetVoltage: (nextVoltage: number, source?: string) => void
   onToggleSwitch: (id: string) => void
 }) {
   const definition = getDeviceDefinition(device.kind)
   const active = Boolean(effect?.active)
+  const isPowerSource = device.kind === 'power-positive'
   const className = [
     'device-node',
     `device-${device.kind}`,
     selected ? 'is-selected' : '',
     dragging ? 'is-dragging' : '',
     active ? 'is-active' : '',
-    device.kind === 'switch' && device.isClosed ? 'is-closed' : ''
+    isConductiveControlKind(device.kind) && device.isClosed ? 'is-closed' : ''
   ]
     .filter(Boolean)
     .join(' ')
@@ -2114,11 +2111,24 @@ function BoardDevice({
         <Text className='device-meta'>
           {isConductiveControlKind(device.kind)
             ? device.isClosed
-              ? '闭合'
+              ? '已接通'
               : '断开'
-            : effect?.label ?? definition.name}
+            : isPowerSource
+              ? `${voltage}V DC`
+              : effect?.label ?? definition.name}
         </Text>
       </View>
+      {isPowerSource && (
+        <View
+          className='node-voltage-control'
+          onTouchStart={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Button className='node-step-button' onClick={() => onSetVoltage(voltage - 1, 'source_node')}>-</Button>
+          <Text className='node-voltage-value'>{voltage}V</Text>
+          <Button className='node-step-button' onClick={() => onSetVoltage(voltage + 1, 'source_node')}>+</Button>
+        </View>
+      )}
       {isConductiveControlKind(device.kind) && (
         <Button
           className='inline-switch'
@@ -2128,9 +2138,36 @@ function BoardDevice({
             onToggleSwitch(device.id)
           }}
         >
-          {device.isClosed ? '断开' : '闭合'}
+          {device.isClosed ? '断开' : '接通'}
         </Button>
       )}
+    </View>
+  )
+}
+
+function CanvasStatusBar({
+  simulation,
+  stateLabel
+}: {
+  simulation: SimulationResult
+  stateLabel: string
+}) {
+  const stateClassName = simulation.shortCircuit
+    ? 'is-danger'
+    : simulation.closedCircuit
+      ? 'is-safe'
+      : 'is-idle'
+
+  return (
+    <View className='canvas-status-bar'>
+      <View className='canvas-status-cell'>
+        <Text className='canvas-status-label'>电流</Text>
+        <Text className='canvas-status-value'>{formatNumber(simulation.totalCurrent)}A</Text>
+      </View>
+      <View className='canvas-status-cell'>
+        <Text className='canvas-status-label'>状态</Text>
+        <Text className={`canvas-status-value ${stateClassName}`}>{stateLabel}</Text>
+      </View>
     </View>
   )
 }
@@ -2600,16 +2637,6 @@ export default function Index() {
     setDraggingDeviceId(null)
   }
 
-  function resetCircuit() {
-    trackTelemetryEvent('circuit_reset', {
-      voltage,
-      device_count: modelRef.current.devices.length,
-      wire_count: modelRef.current.wires.length
-    })
-    setSelectedId('l1')
-    setModel(createInitialCircuit(model.devices.find((item) => item.id === 'p1')?.sourceVoltage ?? 12))
-  }
-
   function startChallenge(challengeId: string) {
     const challenge = getChallengeById(challengeId)
     trackTelemetryEvent('training_started', {
@@ -2798,14 +2825,6 @@ export default function Index() {
     setModel((current) => updateWirePathMode(current, wireId, mode))
   }
 
-  function setAllWiresConnected(connected: boolean) {
-    trackTelemetryEvent('all_wires_changed', {
-      connected,
-      wire_count: modelRef.current.wires.length
-    })
-    setModel((current) => setAllWires(current, connected))
-  }
-
   const voltage = model.devices.find((device) => device.id === 'p1')?.sourceVoltage ?? 12
   const stateLabel = simulation.shortCircuit
     ? '短路保护'
@@ -2817,50 +2836,9 @@ export default function Index() {
     [authSession, activeDomain, selectedPlanId]
   )
   const isNativeAndroidShell = getBuildTarget() === 'android-google-play'
-  const showSimulationHeader = activeModule === 'simulate'
-
   return (
     <View className={`app-shell module-focus-${activeModule}${isNativeAndroidShell ? ' is-native-shell' : ''}${isCanvasFocusMode ? ' is-canvas-focus-mode' : ''}`}>
-      {showSimulationHeader && (
-        <View className='topbar'>
-          <View className='brand-block'>
-            <Text className='brand-mark'>电</Text>
-            <View>
-              <Text className='brand-title'>电工大师</Text>
-              <Text className='brand-subtitle'>Web / 小程序电路模拟控制台</Text>
-            </View>
-          </View>
-          <View className='toolbar'>
-            <Button className='tool-button primary' onClick={() => toggleSwitch()}>
-              {model.devices.find((device) => device.id === 's1')?.isClosed ? '■ 断开' : '▶ 接通'}
-            </Button>
-            <Button className='tool-button' onClick={resetCircuit}>↺ 复位</Button>
-            <Button className='tool-button desktop-action' onClick={() => setAllWiresConnected(true)}>
-              全部连接
-            </Button>
-            <Button className='tool-button desktop-action' onClick={() => setAllWiresConnected(false)}>
-              全部断开
-            </Button>
-            <Button className='tool-button desktop-action' onClick={() => startChallenge(activeChallenge.id)}>载入训练</Button>
-            <View className='voltage-control'>
-              <Button className='step-button' onClick={() => setVoltage(voltage - 1)}>-</Button>
-              <Text>{voltage}V DC</Text>
-              <Button className='step-button' onClick={() => setVoltage(voltage + 1)}>+</Button>
-            </View>
-          </View>
-        </View>
-      )}
-
       <AppModuleNav activeModule={activeModule} onChange={changeAppModule} />
-
-      {showSimulationHeader && (
-        <MobileStatusStrip
-          progress={knowledgeProgress}
-          voltage={voltage}
-          simulation={simulation}
-          diagnostics={safetyDiagnostics}
-        />
-      )}
 
       <View className='mobile-section mobile-section-learn'>
         <LearningDashboard
@@ -2906,9 +2884,6 @@ export default function Index() {
               </Text>
             </View>
             <View className='canvas-actions'>
-              <View className={`run-state ${simulation.closedCircuit ? 'is-running' : ''}`}>
-                <Text>{stateLabel}</Text>
-              </View>
               <Button className='small-action landscape-action' onClick={toggleCanvasFocusMode}>
                 {isCanvasFocusMode ? '退出全屏' : '横屏检查'}
               </Button>
@@ -2942,8 +2917,10 @@ export default function Index() {
                   selected={selectedId === device.id}
                   dragging={draggingDeviceId === device.id}
                   effect={simulation.effects[device.id]}
+                  voltage={voltage}
                   onSelect={setSelectedId}
                   onDragStart={startDeviceDrag}
+                  onSetVoltage={setVoltage}
                   onToggleSwitch={toggleSwitch}
                 />
               ))}
@@ -2951,6 +2928,8 @@ export default function Index() {
               <View className='board-legend negative'>负极回线</View>
             </View>
           </View>
+
+          <CanvasStatusBar simulation={simulation} stateLabel={stateLabel} />
 
           <View className='connection-strip'>
             {model.wires.map((wire) => {
