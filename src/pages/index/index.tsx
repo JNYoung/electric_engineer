@@ -139,6 +139,7 @@ type OrientationController = ScreenOrientation & {
 }
 
 type QuestionBankView = 'progress' | 'practice'
+type QuestionBankHomeMode = 'create' | 'manage'
 type QuestionBankPracticeMode = 'question-bank' | 'wrong'
 
 declare const __BUILD_TARGET__: string | undefined
@@ -1589,23 +1590,19 @@ function ReviewNotebookPanel({ review }: { review: KnowledgeReviewNotebook }) {
   )
 }
 
-function formatSyncedAt(value: string) {
-  return value || '登录后同步'
-}
-
 function QuestionBankLoginGate({ onLogin }: { onLogin: () => void }) {
   return (
     <View className='question-bank-gate'>
       <View className='question-bank-gate-copy'>
         <Text className='training-kicker'>题库需要登录</Text>
-        <Text className='question-bank-gate-title'>登录后同步课程进度</Text>
+        <Text className='question-bank-gate-title'>登录后管理题库</Text>
         <Text className='question-bank-gate-desc'>
-          题库、错题和课程进度会绑定到账号，登录后可继续上次刷题位置。
+          新建题库、管理题库和错题复训会绑定到账号，登录后可继续刷题。
         </Text>
       </View>
       <View className='question-bank-gate-actions'>
         <Button className='small-action question-bank-login-action' onClick={onLogin}>
-          登录并同步进度
+          登录进入题库
         </Button>
       </View>
     </View>
@@ -1615,15 +1612,17 @@ function QuestionBankLoginGate({ onLogin }: { onLogin: () => void }) {
 function QuestionBankProgressHome({
   session,
   answers,
-  syncedAt,
+  mode,
+  onModeChange,
   onOpenTrack
 }: {
   session: AuthSession
   answers: Record<string, string>
-  syncedAt: string
+  mode: QuestionBankHomeMode
+  onModeChange: (mode: QuestionBankHomeMode) => void
   onOpenTrack: (trackId: KnowledgeTrackId, mode?: QuestionBankPracticeMode) => void
 }) {
-  const progressRows = KNOWLEDGE_TRACKS.map((track) => {
+  const bankRows = KNOWLEDGE_TRACKS.map((track) => {
     const progress = buildKnowledgeTrackProgress(track.id, answers)
     const wrong = buildKnowledgeReviewNotebook(answers, {
       trackIds: [track.id],
@@ -1633,48 +1632,52 @@ function QuestionBankProgressHome({
 
     return { track, progress, wrong }
   })
-  const total = progressRows.reduce((sum, item) => sum + item.progress.total, 0)
-  const answered = progressRows.reduce((sum, item) => sum + item.progress.answered, 0)
-  const correct = progressRows.reduce((sum, item) => sum + item.progress.correct, 0)
-  const wrong = progressRows.reduce((sum, item) => sum + item.wrong, 0)
-  const percent = total === 0 ? 0 : Math.round((correct / total) * 100)
+  const listTitle = mode === 'create' ? '选择模板新建题库' : '管理已创建题库'
+  const listCopy = mode === 'create'
+    ? '从课程模板创建题库后，直接进入二级刷题页面。'
+    : '查看题库题量和错题入口，继续刷题或复训错题。'
 
   return (
     <View className='question-bank-home'>
       <View className='question-bank-head'>
         <View>
-          <Text className='training-kicker'>课程进度</Text>
-          <Text className='question-bank-title'>题库同步工作台</Text>
+          <Text className='training-kicker'>题库管理</Text>
+          <Text className='question-bank-title'>我的题库</Text>
           <Text className='question-bank-copy'>
-            {session.displayName} · 已同步 {formatSyncedAt(syncedAt)}
+            {session.displayName} · 可新建题库、管理题库和进入错题复训。
           </Text>
-        </View>
-        <View className='question-bank-sync-badge'>
-          <Text>{percent}%</Text>
-          <Text>{answered}/{total}</Text>
         </View>
       </View>
 
-      <View className='question-bank-summary'>
+      <View className='question-bank-admin-actions'>
+        <Button
+          className={`question-bank-admin-action ${mode === 'create' ? 'is-active' : ''}`}
+          onClick={() => onModeChange('create')}
+        >
+          <Text className='question-bank-admin-title'>新建题库</Text>
+          <Text className='question-bank-admin-copy'>按课程模板创建刷题题库</Text>
+        </Button>
+        <Button
+          className={`question-bank-admin-action ${mode === 'manage' ? 'is-active' : ''}`}
+          onClick={() => onModeChange('manage')}
+        >
+          <Text className='question-bank-admin-title'>管理题库</Text>
+          <Text className='question-bank-admin-copy'>查看题库并进入错题复训</Text>
+        </Button>
+      </View>
+
+      <View className='question-bank-list-head'>
         <View>
-          <Text className='metric-label'>已答题</Text>
-          <Text className='metric-value'>{answered}/{total}</Text>
-        </View>
-        <View>
-          <Text className='metric-label'>正确</Text>
-          <Text className='metric-value'>{correct}</Text>
-        </View>
-        <View>
-          <Text className='metric-label'>错题</Text>
-          <Text className='metric-value'>{wrong}</Text>
+          <Text className='course-progress-title'>{listTitle}</Text>
+          <Text className='course-progress-copy'>{listCopy}</Text>
         </View>
       </View>
 
       <View className='course-progress-list'>
-        {progressRows.map(({ track, progress, wrong }) => (
+        {bankRows.map(({ track, progress, wrong }) => (
           <View key={track.id} className='course-progress-card' onClick={() => onOpenTrack(track.id, 'question-bank')}>
             <View className='course-progress-main'>
-              <Text className='course-progress-level'>{track.level}</Text>
+              <Text className='course-progress-level'>{mode === 'create' ? '模板' : track.level}</Text>
               <Text className='course-progress-title'>{track.title}</Text>
               <Text className='course-progress-copy'>{track.summary}</Text>
               <View className='course-progress-tags'>
@@ -1684,20 +1687,28 @@ function QuestionBankProgressHome({
               </View>
             </View>
             <View className='course-progress-side'>
-              <Text className={`course-status status-${progress.status === '已掌握' ? 'passed' : progress.answered > 0 ? 'active' : 'ready'}`}>
-                {progress.status}
-              </Text>
-              <Text className='course-progress-percent'>{progress.percent}%</Text>
-              <Text className='course-progress-count'>{progress.correct}/{progress.total}</Text>
+              <Text className='question-bank-card-meta'>{progress.total} 题</Text>
+              {mode === 'manage' && <Text className='question-bank-card-meta'>错题 {wrong}</Text>}
               <Button
                 className='small-action course-progress-action'
                 onClick={(event) => {
                   event.stopPropagation()
-                  onOpenTrack(track.id, wrong > 0 ? 'wrong' : 'question-bank')
+                  onOpenTrack(track.id, 'question-bank')
                 }}
               >
-                {wrong > 0 ? `错题 ${wrong}` : '开始刷题'}
+                {mode === 'create' ? '创建并刷题' : '进入题库'}
               </Button>
+              {mode === 'manage' && wrong > 0 && (
+                <Button
+                  className='small-action course-progress-action'
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onOpenTrack(track.id, 'wrong')
+                  }}
+                >
+                  错题复训
+                </Button>
+              )}
             </View>
           </View>
         ))}
@@ -2802,8 +2813,8 @@ export default function Index() {
   const [activeAssessmentId, setActiveAssessmentId] = useState<AssessmentBlueprintId>('high-school-foundation-check')
   const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, string>>({})
   const [questionBankView, setQuestionBankView] = useState<QuestionBankView>('progress')
+  const [questionBankHomeMode, setQuestionBankHomeMode] = useState<QuestionBankHomeMode>('create')
   const [questionBankPracticeMode, setQuestionBankPracticeMode] = useState<QuestionBankPracticeMode>('question-bank')
-  const [syncedCourseProgressAt, setSyncedCourseProgressAt] = useState('')
   const [materialQuery, setMaterialQuery] = useState('')
   const [activeModule, setActiveModule] = useState<AppModuleId>('simulate')
   const [draggingDeviceId, setDraggingDeviceId] = useState<string | null>(null)
@@ -3247,13 +3258,6 @@ export default function Index() {
     void enterCanvasFocusMode()
   }
 
-  function markCourseProgressSynced() {
-    setSyncedCourseProgressAt(new Date().toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit'
-    }))
-  }
-
   function changeAppModule(moduleId: AppModuleId, source = 'bottom_nav') {
     if (isCanvasFocusMode && moduleId !== 'simulate') {
       void exitCanvasFocusMode()
@@ -3627,7 +3631,6 @@ export default function Index() {
     })
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
-    markCourseProgressSynced()
     changeAppModule('account', 'auth_changed')
   }
 
@@ -3639,8 +3642,8 @@ export default function Index() {
     })
     setAuthSession(DEFAULT_AUTH_SESSION)
     setQuestionBankView('progress')
+    setQuestionBankHomeMode('create')
     setQuestionBankPracticeMode('question-bank')
-    setSyncedCourseProgressAt('')
     changeAppModule('account', 'auth_changed')
   }
 
@@ -3652,7 +3655,6 @@ export default function Index() {
     })
     setSelectedPlanId(tier)
     setAuthSession(createAuthenticatedSession(tier))
-    markCourseProgressSynced()
     changeAppModule('account', 'purchase_intent')
   }
 
@@ -3664,8 +3666,8 @@ export default function Index() {
     })
     setSelectedPlanId('free')
     setAuthSession(createAuthenticatedSession('free'))
-    markCourseProgressSynced()
     setQuestionBankView('progress')
+    setQuestionBankHomeMode('create')
     setQuestionBankPracticeMode('question-bank')
     setActiveModule('bank')
   }
@@ -3799,7 +3801,8 @@ export default function Index() {
           <QuestionBankProgressHome
             session={authSession}
             answers={knowledgeAnswers}
-            syncedAt={syncedCourseProgressAt}
+            mode={questionBankHomeMode}
+            onModeChange={setQuestionBankHomeMode}
             onOpenTrack={openQuestionBankTrack}
           />
         )}

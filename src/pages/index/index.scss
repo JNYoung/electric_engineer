@@ -645,16 +645,58 @@ $ink: #1f2937;
   line-height: 28px;
 }
 
-.question-bank-summary {
+.question-bank-admin-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
   margin-top: 12px;
 }
 
-.question-bank-summary > view,
-.question-bank-summary > div {
+.question-bank-admin-action {
   min-width: 0;
+  min-height: 74px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.question-bank-admin-action::after {
+  border: none;
+}
+
+.question-bank-admin-action.is-active {
+  border-color: #bdebdc;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.question-bank-admin-title {
+  display: block;
+  font-size: 15px;
+  line-height: 21px;
+  font-weight: 900;
+}
+
+.question-bank-admin-copy {
+  display: block;
+  margin-top: 4px;
+  color: $muted;
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 700;
+}
+
+.question-bank-list-head {
+  min-width: 0;
+  margin-top: 12px;
   padding: 10px;
   border: 1px solid #edf1f6;
   border-radius: 8px;
@@ -778,6 +820,21 @@ $ink: #1f2937;
 
 .course-progress-action {
   width: 100%;
+}
+
+.question-bank-card-meta {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 900;
+  text-align: center;
 }
 
 .question-bank-back {
@@ -6698,6 +6755,10 @@ $ink: #1f2937;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 72px;
     align-items: start;
+  }
+
+  .question-bank-home .question-bank-head {
+    display: block;
   }
 
   .question-bank-practice-head .question-bank-back {
