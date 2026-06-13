@@ -11,6 +11,14 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "ElectricDisplay")
 public class ElectricDisplayPlugin extends Plugin {
     @PluginMethod
+    public void lockPortrait(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            call.resolve();
+        });
+    }
+
+    @PluginMethod
     public void lockLandscape(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
@@ -21,7 +29,7 @@ public class ElectricDisplayPlugin extends Plugin {
     @PluginMethod
     public void unlockOrientation(PluginCall call) {
         getActivity().runOnUiThread(() -> {
-            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             call.resolve();
         });
     }

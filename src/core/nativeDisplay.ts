@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
 
 interface ElectricDisplayPlugin {
+  lockPortrait(): Promise<void>
   lockLandscape(): Promise<void>
   unlockOrientation(): Promise<void>
   enterImmersive(): Promise<void>
@@ -21,6 +22,6 @@ export async function enterNativeLandscapeCheck() {
 
 export async function exitNativeLandscapeCheck() {
   if (!isNativeAndroidDisplayRuntime()) return
-  await ElectricDisplay.unlockOrientation()
+  await ElectricDisplay.lockPortrait()
   await ElectricDisplay.exitImmersive()
 }

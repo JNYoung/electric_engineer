@@ -120,6 +120,8 @@ const NODE_HEIGHT = 74
 const WIRE_THICKNESS = 6
 const DEFAULT_BOARD_WIDTH = 720
 const BOARD_DRAG_INSET = 2
+const MIN_CANVAS_ZOOM = 1
+const MAX_CANVAS_ZOOM = 3
 
 type FullscreenDocument = Document & {
   webkitExitFullscreen?: () => Promise<void> | void
@@ -172,6 +174,15 @@ interface PaletteDragPreview {
   x: number
   y: number
   overBoard: boolean
+}
+
+interface CanvasGestureState {
+  initialDistance: number
+  initialZoom: number
+  initialScale: number
+  boardPoint: Point
+  viewportOffset: Point
+  didMove?: boolean
 }
 
 interface PointerLikeEvent {
@@ -431,8 +442,25 @@ function eventPoint(event: PointerLikeEvent): Point | null {
   return { x, y }
 }
 
+function eventTouchPoints(event: PointerLikeEvent): Point[] {
+  return Array.from(event.touches ?? [])
+    .map((touch) => {
+      const x = touch.clientX ?? touch.pageX ?? touch.x
+      const y = touch.clientY ?? touch.pageY ?? touch.y
+      return typeof x === 'number' && typeof y === 'number' ? { x, y } : null
+    })
+    .filter((point): point is Point => Boolean(point))
+}
+
 function pointDistance(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+function pointCenter(a: Point, b: Point): Point {
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2
+  }
 }
 
 function statusLabel(status: ChallengeEvaluation['status']) {
@@ -732,9 +760,11 @@ function SimulationComponentPalette({
   activeDomain,
   activeCategoryId,
   expandedCategoryIds,
+  isCollapsed,
   session,
   onSelectCategory,
   onToggleCategory,
+  onToggleCollapsed,
   onAdd,
   onLocked,
   onDragStart,
@@ -744,9 +774,11 @@ function SimulationComponentPalette({
   activeDomain: WorkbenchDomain
   activeCategoryId: string
   expandedCategoryIds: string[]
+  isCollapsed: boolean
   session: AuthSession
   onSelectCategory: (categoryId: string) => void
   onToggleCategory: (categoryId: string) => void
+  onToggleCollapsed: () => void
   onAdd: (kind: DeviceKind) => void
   onLocked: (entry: ComponentCatalogEntry) => void
   onDragStart: (event: PointerLikeEvent, entry: ComponentCatalogEntry) => void
@@ -760,87 +792,100 @@ function SimulationComponentPalette({
   const allCount = getCatalogEntries(activeDomain).length
 
   return (
-    <View className='simulation-palette-panel'>
+    <View className={`simulation-palette-panel ${isCollapsed ? 'is-collapsed' : ''}`}>
       <View className='simulation-palette-head'>
-        <View>
+        <View className='simulation-palette-title'>
           <Text className='panel-title'>元器件</Text>
         </View>
+        <Button className='simulation-palette-collapse-button' onClick={onToggleCollapsed}>
+          <Text className='simulation-palette-collapse-icon'>‹</Text>
+        </Button>
       </View>
 
-      <View className='simulation-palette-mobile'>
-        <View className='simulation-category-options'>
-          <Button
-            className={`category-filter-button ${activeCategoryId === 'all' ? 'is-active' : ''}`}
-            onClick={() => onSelectCategory('all')}
-          >
-            全部 {allCount}
-          </Button>
+      <Button className='simulation-palette-collapsed-rail' onClick={onToggleCollapsed}>
+        <Text className='simulation-palette-collapse-icon'>›</Text>
+        <Text className='simulation-palette-collapsed-text'>元器件</Text>
+      </Button>
+
+      <View className='simulation-palette-content'>
+        <View className='simulation-palette-mobile'>
+          <View className='simulation-category-options'>
+            <Button
+              className={`category-filter-button ${activeCategoryId === 'all' ? 'is-active' : ''}`}
+              onClick={() => onSelectCategory('all')}
+            >
+              全部 {allCount}
+            </Button>
+            {profile.categories.map((category) => {
+              const count = getCatalogEntriesByCategory(activeDomain, category.id).length
+              return (
+                <Button
+                  key={category.id}
+                  className={`category-filter-button ${activeCategoryId === category.id ? 'is-active' : ''}`}
+                  onClick={() => onSelectCategory(category.id)}
+                >
+                  {category.label} {count}
+                </Button>
+              )
+            })}
+          </View>
+
+          <ScrollView scrollX className='simulation-component-strip'>
+            <View className='simulation-component-strip-inner'>
+              {selectedEntries.map((entry) => (
+                <ComponentPaletteCard
+                  key={`strip-${entry.domain}-${entry.categoryId}-${entry.kind}`}
+                  entry={entry}
+                  session={session}
+                  mode='strip'
+                  onAdd={onAdd}
+                  onLocked={onLocked}
+                  onDragStart={onDragStart}
+                  onDragMove={onDragMove}
+                  onDragEnd={onDragEnd}
+                />
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        <View className='simulation-palette-accordion'>
           {profile.categories.map((category) => {
-            const count = getCatalogEntriesByCategory(activeDomain, category.id).length
+            const entries = getCatalogEntriesByCategory(activeDomain, category.id)
+            const expanded = expandedCategoryIds.includes(category.id)
             return (
-              <Button
-                key={category.id}
-                className={`category-filter-button ${activeCategoryId === category.id ? 'is-active' : ''}`}
-                onClick={() => onSelectCategory(category.id)}
-              >
-                {category.label} {count}
-              </Button>
+              <View key={category.id} className={`simulation-category-section ${expanded ? 'is-expanded' : ''}`}>
+                <Button
+                  className='simulation-category-toggle'
+                  onClick={() => onToggleCategory(category.id)}
+                >
+                  <Text className='simulation-category-label'>{category.label}</Text>
+                  <View className='simulation-category-meta'>
+                    <Text>{entries.length}</Text>
+                    <Text className='simulation-category-chevron'>{expanded ? '⌃' : '⌄'}</Text>
+                  </View>
+                </Button>
+                {expanded && (
+                  <View className='simulation-category-list'>
+                    {entries.map((entry) => (
+                      <ComponentPaletteCard
+                        key={`list-${entry.domain}-${entry.categoryId}-${entry.kind}`}
+                        entry={entry}
+                        session={session}
+                        mode='list'
+                        onAdd={onAdd}
+                        onLocked={onLocked}
+                        onDragStart={onDragStart}
+                        onDragMove={onDragMove}
+                        onDragEnd={onDragEnd}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
             )
           })}
         </View>
-
-        <ScrollView scrollX className='simulation-component-strip'>
-          <View className='simulation-component-strip-inner'>
-            {selectedEntries.map((entry) => (
-              <ComponentPaletteCard
-                key={`strip-${entry.domain}-${entry.categoryId}-${entry.kind}`}
-                entry={entry}
-                session={session}
-                mode='strip'
-                onAdd={onAdd}
-                onLocked={onLocked}
-                onDragStart={onDragStart}
-                onDragMove={onDragMove}
-                onDragEnd={onDragEnd}
-              />
-            ))}
-          </View>
-        </ScrollView>
-      </View>
-
-      <View className='simulation-palette-accordion'>
-        {profile.categories.map((category) => {
-          const entries = getCatalogEntriesByCategory(activeDomain, category.id)
-          const expanded = expandedCategoryIds.includes(category.id)
-          return (
-            <View key={category.id} className={`simulation-category-section ${expanded ? 'is-expanded' : ''}`}>
-              <Button
-                className='simulation-category-toggle'
-                onClick={() => onToggleCategory(category.id)}
-              >
-                <Text>{category.label}</Text>
-                <Text>{entries.length}</Text>
-              </Button>
-              {expanded && (
-                <View className='simulation-category-list'>
-                  {entries.map((entry) => (
-                    <ComponentPaletteCard
-                      key={`list-${entry.domain}-${entry.categoryId}-${entry.kind}`}
-                      entry={entry}
-                      session={session}
-                      mode='list'
-                      onAdd={onAdd}
-                      onLocked={onLocked}
-                      onDragStart={onDragStart}
-                      onDragMove={onDragMove}
-                      onDragEnd={onDragEnd}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          )
-        })}
       </View>
     </View>
   )
@@ -2496,14 +2541,18 @@ export default function Index() {
   const [boardFrameWidth, setBoardFrameWidth] = useState(DEFAULT_BOARD_WIDTH)
   const [boardFrameHeight, setBoardFrameHeight] = useState(500)
   const [isCanvasFocusMode, setIsCanvasFocusMode] = useState(false)
+  const [isSimulationPaletteCollapsed, setIsSimulationPaletteCollapsed] = useState(false)
   const [deviceActionId, setDeviceActionId] = useState<string | null>(null)
   const [paletteDragPreview, setPaletteDragPreview] = useState<PaletteDragPreview | null>(null)
+  const [canvasZoom, setCanvasZoom] = useState(1)
   const dragRef = useRef<DragState | null>(null)
   const paletteDragRef = useRef<PaletteDragState | null>(null)
+  const canvasGestureRef = useRef<CanvasGestureState | null>(null)
   const modelRef = useRef(model)
   const boardSizeRef = useRef(boardSize)
   const boardHeightRef = useRef(500)
   const boardScaleRef = useRef(1)
+  const canvasZoomRef = useRef(1)
   const telemetry = useMemo(
     () =>
       createTelemetryClient({
@@ -2565,10 +2614,11 @@ export default function Index() {
   const shouldFillBoardWidth = isCanvasFocusMode && boardFrameWidth > boardFrameHeight
   const boardWidthScale = boardFrameWidth / DEFAULT_BOARD_WIDTH
   const boardHeightScale = isCanvasFocusMode && !shouldFillBoardWidth ? boardFrameHeight / boardHeight : 1
-  const boardScale = Math.max(
+  const baseBoardScale = Math.max(
     0.1,
     shouldFillBoardWidth ? boardWidthScale : Math.min(1, boardWidthScale, boardHeightScale)
   )
+  const boardScale = baseBoardScale * canvasZoom
   const boardLogicalWidth = boardScale < 1 || shouldFillBoardWidth
     ? DEFAULT_BOARD_WIDTH
     : Math.max(DEFAULT_BOARD_WIDTH, Math.floor(boardFrameWidth))
@@ -2593,6 +2643,10 @@ export default function Index() {
   useEffect(() => {
     boardScaleRef.current = boardScale
   }, [boardScale])
+
+  useEffect(() => {
+    canvasZoomRef.current = canvasZoom
+  }, [canvasZoom])
 
   useEffect(() => {
     setBoardSize({
@@ -2670,7 +2724,7 @@ export default function Index() {
       window.removeEventListener('resize', queueMeasure)
       window.removeEventListener('orientationchange', queueMeasure)
     }
-  }, [activeModule, boardHeight, isCanvasFocusMode, model.devices.length])
+  }, [activeModule, boardHeight, isCanvasFocusMode, isSimulationPaletteCollapsed, model.devices.length])
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return undefined
@@ -2731,6 +2785,7 @@ export default function Index() {
   useEffect(() => () => {
     clearDeviceLongPressTimer()
     clearPaletteDragTimer()
+    canvasGestureRef.current = null
   }, [])
 
   function trackTelemetryEvent(name: TelemetryEventName, properties?: TelemetryProperties) {
@@ -2755,6 +2810,88 @@ export default function Index() {
     clearPaletteDragTimer()
     paletteDragRef.current = null
     setPaletteDragPreview(null)
+  }
+
+  function getCanvasViewportElement() {
+    return typeof document === 'undefined'
+      ? null
+      : document.querySelector<HTMLElement>('.canvas-board-viewport')
+  }
+
+  function startCanvasGesture(event: PointerLikeEvent) {
+    const points = eventTouchPoints(event)
+    if (points.length < 2) return
+
+    const viewport = getCanvasViewportElement()
+    if (!viewport) return
+
+    event.preventDefault?.()
+    event.stopPropagation?.()
+    clearDeviceLongPressTimer()
+    dragRef.current = null
+    setDraggingDeviceId(null)
+    setDeviceActionId(null)
+
+    const [first, second] = points
+    const distance = Math.max(1, pointDistance(first, second))
+    const center = pointCenter(first, second)
+    const viewportRect = viewport.getBoundingClientRect()
+    const viewportOffset = {
+      x: center.x - viewportRect.left,
+      y: center.y - viewportRect.top
+    }
+    const initialScale = Math.max(0.1, boardScaleRef.current)
+
+    canvasGestureRef.current = {
+      initialDistance: distance,
+      initialZoom: canvasZoomRef.current,
+      initialScale,
+      boardPoint: {
+        x: (viewport.scrollLeft + viewportOffset.x) / initialScale,
+        y: (viewport.scrollTop + viewportOffset.y) / initialScale
+      },
+      viewportOffset
+    }
+  }
+
+  function moveCanvasGesture(event: PointerLikeEvent) {
+    const gesture = canvasGestureRef.current
+    if (!gesture) return
+
+    const points = eventTouchPoints(event)
+    if (points.length < 2) return
+
+    event.preventDefault?.()
+    event.stopPropagation?.()
+
+    const [first, second] = points
+    const distance = Math.max(1, pointDistance(first, second))
+    const nextZoom = clamp(
+      gesture.initialZoom * (distance / gesture.initialDistance),
+      MIN_CANVAS_ZOOM,
+      MAX_CANVAS_ZOOM
+    )
+    const scaleRatio = nextZoom / gesture.initialZoom
+    const nextScale = gesture.initialScale * scaleRatio
+    const nextScrollLeft = Math.max(0, gesture.boardPoint.x * nextScale - gesture.viewportOffset.x)
+    const nextScrollTop = Math.max(0, gesture.boardPoint.y * nextScale - gesture.viewportOffset.y)
+
+    gesture.didMove = true
+    setCanvasZoom(nextZoom)
+
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        const viewport = getCanvasViewportElement()
+        if (!viewport) return
+        viewport.scrollLeft = nextScrollLeft
+        viewport.scrollTop = nextScrollTop
+      })
+    }
+  }
+
+  function stopCanvasGesture() {
+    if (!canvasGestureRef.current) return
+    canvasGestureRef.current = null
   }
 
   function getBoardDropPosition(point: Point) {
@@ -3099,6 +3236,10 @@ export default function Index() {
     )
   }
 
+  function toggleSimulationPaletteCollapsed() {
+    setIsSimulationPaletteCollapsed((current) => !current)
+  }
+
   function startChallenge(challengeId: string) {
     const challenge = getChallengeById(challengeId)
     trackTelemetryEvent('training_started', {
@@ -3305,7 +3446,7 @@ export default function Index() {
   )
   const isNativeAndroidShell = getBuildTarget() === 'android-google-play'
   return (
-    <View className={`app-shell module-focus-${activeModule}${isNativeAndroidShell ? ' is-native-shell' : ''}${isCanvasFocusMode ? ' is-canvas-focus-mode' : ''}`}>
+    <View className={`app-shell module-focus-${activeModule}${isNativeAndroidShell ? ' is-native-shell' : ''}${isCanvasFocusMode ? ' is-canvas-focus-mode' : ''}${isSimulationPaletteCollapsed ? ' is-simulation-palette-collapsed' : ''}`}>
       <AppModuleNav activeModule={activeModule} onChange={changeAppModule} />
 
       <View className='mobile-section mobile-section-learn'>
@@ -3346,9 +3487,11 @@ export default function Index() {
             activeDomain={activeDomain}
             activeCategoryId={activeSimulationCategoryId}
             expandedCategoryIds={expandedSimulationCategoryIds}
+            isCollapsed={isSimulationPaletteCollapsed}
             session={authSession}
             onSelectCategory={selectSimulationCategory}
             onToggleCategory={toggleSimulationPaletteCategory}
+            onToggleCollapsed={toggleSimulationPaletteCollapsed}
             onAdd={(kind) => addDevice(kind, 'simulation_palette_tap')}
             onLocked={openLockedComponentPlan}
             onDragStart={startPaletteComponentDrag}
@@ -3371,7 +3514,14 @@ export default function Index() {
               </View>
             </View>
 
-            <View className='canvas-board-viewport' style={{ height: `${boardViewportHeight}px` }}>
+            <View
+              className='canvas-board-viewport'
+              style={{ height: `${boardViewportHeight}px` }}
+              onTouchStart={startCanvasGesture}
+              onTouchMove={moveCanvasGesture}
+              onTouchEnd={stopCanvasGesture}
+              onTouchCancel={stopCanvasGesture}
+            >
               <View
                 className='circuit-board-frame'
                 style={{
