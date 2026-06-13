@@ -6101,6 +6101,25 @@ $ink: #1f2937;
   color: #ffffff;
 }
 
+.account-delete-action {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #b42318;
+}
+
+.account-deletion-message {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #b42318;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
 .auth-entry-card {
   margin-top: 12px;
   padding: 10px;

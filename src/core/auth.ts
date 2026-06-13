@@ -26,6 +26,7 @@ export interface RuntimeAuthConfig {
   linkEndpoint: string
   otpEndpoint: string
   profileEndpoint: string
+  accountDeleteEndpoint: string
   internalUnlockEndpoint: string
 }
 
@@ -55,6 +56,19 @@ interface AuthLinkResponse {
 interface InternalUnlockResponse {
   tier?: SubscriptionTier
   userId?: string
+}
+
+interface AccountDeletionResponse {
+  requestId?: string
+  status?: string
+  slaDays?: number
+}
+
+export interface AccountDeletionResult {
+  ok: boolean
+  requestId?: string
+  status?: string
+  slaDays?: number
 }
 
 declare const __AUTH_REGION__: string | undefined
@@ -147,6 +161,7 @@ export function getRuntimeAuthConfig(): RuntimeAuthConfig {
     linkEndpoint: `${apiBaseUrl}/api/auth/link`,
     otpEndpoint: `${apiBaseUrl}/api/auth/otp/send`,
     profileEndpoint: `${apiBaseUrl}/api/auth/profile`,
+    accountDeleteEndpoint: `${apiBaseUrl}/api/auth/account/delete`,
     internalUnlockEndpoint: `${apiBaseUrl}/api/entitlements/test-unlock`
   }
 }
@@ -288,6 +303,31 @@ export async function requestAuthLink(
     }
   } catch {
     return fallback
+  }
+}
+
+export async function requestAccountDeletion(
+  config: RuntimeAuthConfig,
+  session: AuthSession
+): Promise<AccountDeletionResult> {
+  if (session.status !== 'authenticated') {
+    return { ok: false }
+  }
+
+  try {
+    const response = await postJson<AccountDeletionResponse>(config.accountDeleteEndpoint, {
+      region: config.region,
+      userId: session.userId
+    })
+
+    return {
+      ok: true,
+      requestId: response.requestId,
+      status: response.status,
+      slaDays: response.slaDays
+    }
+  } catch {
+    return { ok: false }
   }
 }
 

@@ -13,7 +13,6 @@ interface ElectricAnalyticsPlugin {
 interface ElectricAdsPlugin {
   initialize(): Promise<void>
   showBanner(options: {
-    adUnitId?: string
     position?: 'top' | 'bottom'
     marginTopDp?: number
     marginBottomDp?: number
@@ -24,7 +23,6 @@ interface ElectricAdsPlugin {
 declare const __TELEMETRY_CHANNEL__: string | undefined
 
 const GOOGLE_PLAY_CHANNEL = 'android-google-play'
-const TEST_BANNER_AD_UNIT_ID = 'ca-app-pub-3940256099942544/6300978111'
 const ElectricAnalytics = registerPlugin<ElectricAnalyticsPlugin>('ElectricAnalytics')
 const ElectricAds = registerPlugin<ElectricAdsPlugin>('ElectricAds')
 
@@ -64,7 +62,6 @@ export function syncGooglePlayAdPlacement(placement: GooglePlayAdPlacement) {
   }
 
   void ElectricAds.showBanner({
-    adUnitId: TEST_BANNER_AD_UNIT_ID,
     position: 'top',
     marginTopDp: 0
   }).catch(() => undefined)
@@ -74,7 +71,7 @@ export function syncGooglePlayAdPlacement(placement: GooglePlayAdPlacement) {
     params: {
       placement,
       ad_network: 'admob',
-      ad_unit_type: 'test_banner'
+      ad_unit_type: 'banner'
     }
   }).catch(() => undefined)
 }

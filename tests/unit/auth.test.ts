@@ -5,6 +5,7 @@ import {
   getAuthProviders,
   getDefaultAuthServerPort,
   linkProviderToSession,
+  requestAccountDeletion,
   requestInternalTestUnlock,
   requestAuthLink,
   requestAuthOtp,
@@ -23,6 +24,7 @@ const overseasConfig: RuntimeAuthConfig = {
   linkEndpoint: 'http://auth.test/api/auth/link',
   otpEndpoint: 'http://auth.test/api/auth/otp/send',
   profileEndpoint: 'http://auth.test/api/auth/profile',
+  accountDeleteEndpoint: 'http://auth.test/api/auth/account/delete',
   internalUnlockEndpoint: 'http://auth.test/api/entitlements/test-unlock'
 }
 
@@ -163,5 +165,37 @@ describe('auth flavor matrix', () => {
 
   it('rejects internal test unlock when the build is production', async () => {
     await expect(requestInternalTestUnlock(overseasConfig)).rejects.toThrow('internal_test_unlock_disabled')
+  })
+
+  it('queues account deletion through the configured backend', async () => {
+    const google = getAuthProviders('overseas').find((provider) => provider.id === 'google')!
+    const session = buildProviderSession(google, 'overseas')
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        requestId: 'del_1',
+        status: 'queued',
+        slaDays: 30
+      })
+    } as Response)
+
+    const result = await requestAccountDeletion(overseasConfig, session)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://auth.test/api/auth/account/delete',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          region: 'overseas',
+          userId: session.userId
+        })
+      })
+    )
+    expect(result).toEqual({
+      ok: true,
+      requestId: 'del_1',
+      status: 'queued',
+      slaDays: 30
+    })
   })
 })

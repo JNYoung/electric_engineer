@@ -86,6 +86,7 @@ import { enterNativeLandscapeCheck, exitNativeLandscapeCheck } from '@/core/nati
 import {
   getRuntimeAuthConfig,
   requestInternalTestUnlock,
+  requestAccountDeletion,
   requestAuthLink,
   requestAuthOtp,
   requestAuthSignIn
@@ -1222,8 +1223,10 @@ function CommercePanel({
   session,
   selectedPlanId,
   billingMessage,
+  accountDeletionMessage,
   authConfig,
   onSignOut,
+  onDeleteAccount,
   onOpenAuthDialog,
   onSelectPlan
 }: {
@@ -1231,8 +1234,10 @@ function CommercePanel({
   session: AuthSession
   selectedPlanId: SubscriptionTier
   billingMessage: string
+  accountDeletionMessage: string
   authConfig: RuntimeAuthConfig
   onSignOut: () => void
+  onDeleteAccount: () => void
   onOpenAuthDialog: (mode: AuthDialogMode, source: AuthDialogSource, targetTier?: SubscriptionTier) => void
   onSelectPlan: (tier: SubscriptionTier) => void
 }) {
@@ -1291,9 +1296,15 @@ function CommercePanel({
         {session.status === 'authenticated' && (
           <Button className='small-action' onClick={onSignOut}>退出登录</Button>
         )}
+        {session.status === 'authenticated' && (
+          <Button className='small-action account-delete-action' onClick={onDeleteAccount}>删除账号</Button>
+        )}
       </View>
       {billingMessage && (
         <Text className='account-billing-message'>{billingMessage}</Text>
+      )}
+      {accountDeletionMessage && (
+        <Text className='account-deletion-message'>{accountDeletionMessage}</Text>
       )}
 
       <AccountAuthEntryCard
@@ -2130,7 +2141,7 @@ function QuestionBankPracticePage({
   return (
     <View className='question-bank-practice'>
       <View className='question-bank-practice-head'>
-        <Button className='small-action question-bank-back' onClick={onBack}>返回进度</Button>
+        <Button className='small-action question-bank-back' onClick={onBack}>返回题库</Button>
         <View>
           <Text className='training-kicker'>题库练习</Text>
           <Text className='question-bank-title'>{track.title}</Text>
@@ -3211,6 +3222,7 @@ export default function Index() {
   const [questionBankHomeMode, setQuestionBankHomeMode] = useState<QuestionBankHomeMode>('create')
   const [questionBankPracticeMode, setQuestionBankPracticeMode] = useState<QuestionBankPracticeMode>('question-bank')
   const [materialQuery, setMaterialQuery] = useState('')
+  const [accountDeletionMessage, setAccountDeletionMessage] = useState('')
   const [internalUnlockMessage, setInternalUnlockMessage] = useState('')
   const [activeModule, setActiveModule] = useState<AppModuleId>('simulate')
   const [draggingDeviceId, setDraggingDeviceId] = useState<string | null>(null)
@@ -4125,11 +4137,36 @@ export default function Index() {
     })
     setAuthSession(DEFAULT_AUTH_SESSION)
     setBillingMessage('')
+    setAccountDeletionMessage('')
     setQuestionBankView('progress')
     setQuestionBankHomeMode('create')
     setQuestionBankPracticeMode('question-bank')
     closeAuthDialog()
     changeAppModule('account', 'auth_changed')
+  }
+
+  async function deleteAccount() {
+    if (authSession.status !== 'authenticated') {
+      setAccountDeletionMessage('')
+      openAuthDialog('sign-in', 'account', selectedPlanId)
+      return
+    }
+
+    trackTelemetryEvent('auth_changed', {
+      status: authSession.status,
+      tier: authSession.tier,
+      source: 'account_delete_requested',
+      auth_region: authConfig.region
+    })
+    setAccountDeletionMessage('账号删除请求提交中。')
+    const result = await requestAccountDeletion(authConfig, authSession)
+
+    if (result.ok) {
+      setAccountDeletionMessage(`账号删除请求已提交，处理时限 ${result.slaDays ?? 15} 天。`)
+      return
+    }
+
+    setAccountDeletionMessage('账号删除请求暂未提交，请稍后再试。')
   }
 
   async function selectPlan(tier: SubscriptionTier) {
@@ -4196,6 +4233,7 @@ export default function Index() {
     setSelectedPlanId(targetTier ?? 'free')
     const session = await requestAuthSignIn(authConfig, provider, credential)
     setAuthSession(session)
+    setAccountDeletionMessage('')
     closeAuthDialog()
     if (dialogSource === 'question-bank') {
       setQuestionBankView('progress')
@@ -4592,8 +4630,10 @@ export default function Index() {
             session={authSession}
             selectedPlanId={selectedPlanId}
             billingMessage={billingMessage}
+            accountDeletionMessage={accountDeletionMessage}
             authConfig={authConfig}
             onSignOut={simulateSignOut}
+            onDeleteAccount={deleteAccount}
             onOpenAuthDialog={openAuthDialog}
             onSelectPlan={selectPlan}
           />

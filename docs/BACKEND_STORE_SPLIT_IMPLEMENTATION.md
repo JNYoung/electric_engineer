@@ -9,7 +9,9 @@
 - 后台新增受 token 保护的运营/审核接口，可查看用户、进度、题库、删除队列、付费流水，并可创建审核账号或手动补发权益。
 - 后台新增国内/海外 telemetry 接收接口，按 flavor schema 入库，并在运营接口中支持按区域和事件名查询。
 - 前台登录入口改为弹窗，不再暴露 API 地址、端口、接口路径、测试码和原生插件说明。
+- 账号页新增账号删除入口，已登录用户可提交删除队列，国内/海外按各自 SLA 返回处理时限。
 - Google Play 包与国内包继续使用 flavor-scoped 依赖：Google/Facebook/Firebase/Ads 只进 Google Play 变体，国内包只保留国内登录依赖占位。
+- Google/Firebase/AdMob manifest metadata 仅放在 Google Play flavor manifest，国内 APK manifest 不暴露海外 SDK 配置。
 - Android 新增正式/内测包拆分：正式包不外显内部解锁入口，内测包在账号页底部显示内部测试解锁。
 
 ## 后台接口
@@ -100,7 +102,7 @@ Telemetry 接收按 flavor 分流：
 - 合规输出：隐私政策、Data safety 对应数据类型、账号删除入口。
 - 埋点：`global-edu-v1`，自建 `product_analytics` 接收，Google Play 包仍可并行接原生分析 adapter。
 - 付费：`google_play` 商品目录、恢复购买和 webhook 幂等处理。
-- 广告：仅免费账号的账号页 banner，付费权益账号隐藏。
+- 广告：仅账号页 banner，正式包通过真实 AdMob 环境变量开启；付费权益账号隐藏，内测包可使用测试广告位。
 
 ## 内部测试解锁
 

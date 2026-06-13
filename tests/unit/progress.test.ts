@@ -22,6 +22,7 @@ const config: RuntimeAuthConfig = {
   linkEndpoint: 'http://progress.test/api/auth/link',
   otpEndpoint: 'http://progress.test/api/auth/otp/send',
   profileEndpoint: 'http://progress.test/api/auth/profile',
+  accountDeleteEndpoint: 'http://progress.test/api/auth/account/delete',
   internalUnlockEndpoint: 'http://progress.test/api/entitlements/test-unlock'
 }
 

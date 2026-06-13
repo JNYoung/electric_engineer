@@ -26,23 +26,22 @@
 
 - `GOOGLE_PLAY_SERVICES_ENABLED=true`
 - `STORE_CHANNEL=google_play`
-- `ADMOB_BANNER_AD_UNIT_ID=ca-app-pub-3940256099942544/6300978111`
-- Manifest placeholder `admobAppId=ca-app-pub-3940256099942544~3347511713`
+- `GOOGLE_PLAY_ADMOB_APP_ID` 注入 Manifest placeholder `admobAppId`
+- `GOOGLE_PLAY_ADMOB_BANNER_AD_UNIT_ID` 注入 `ADMOB_BANNER_AD_UNIT_ID`
 
-当前使用的是 Google 官方测试广告 ID，只用于本地 APK 验证。正式上架前必须替换成真实 AdMob App ID 和 Ad Unit ID。
+正式 `googlePlay` 包默认不注入 Banner Ad Unit ID，避免误带 Google 官方测试广告位上架；上线前需要通过环境变量或 Gradle property 注入真实 AdMob App ID 和 Ad Unit ID。`googlePlayInternal` 内测包可通过 `GOOGLE_PLAY_INTERNAL_ADMOB_BANNER_AD_UNIT_ID` 使用 Google 官方测试广告位做真机 QA。
 
 ## AdMob 位置
 
 当前只接入非打断式 Banner：
 
-- 素材页：`library_banner`
 - 账号页：`account_banner`
-- 学习、仿真、题库页：隐藏广告
+- 学习、仿真、题库、素材页：隐藏广告
 
 理由：
 
 - 仿真、接线、题库属于核心学习流程，不插入广告，避免影响训练。
-- 素材页和账号页属于查阅/管理场景，适合轻量 Banner。
+- 账号页属于账户和付费管理场景，适合轻量 Banner。
 - 当前没有接入插屏和激励广告，避免教育产品过早打断用户。
 
 代码位置：
@@ -124,7 +123,7 @@ $ANDROID_HOME/build-tools/35.0.0/aapt dump badging android/app/build/outputs/apk
 ## 上架前必须替换
 
 - `android/app/google-services.json`：替换成真实 Firebase 项目配置。
-- `android/app/build.gradle` 中的 AdMob App ID 和 Banner Ad Unit ID。
+- `GOOGLE_PLAY_ADMOB_APP_ID` 和 `GOOGLE_PLAY_ADMOB_BANNER_AD_UNIT_ID`：正式包必须使用真实 AdMob 配置；不配置 Banner Unit 时正式包不展示广告。
 - Google Play Console 的 Data safety、Ads declaration、内容分级和隐私政策 URL。
 - 如果使用真实广告，需要发布根域 `app-ads.txt`。
 

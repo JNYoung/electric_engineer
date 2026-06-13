@@ -381,6 +381,16 @@ test.describe('electric workbench e2e', () => {
 
   test('switches commercial domains and exposes auth and billing hooks', async ({ page }) => {
     const runtimeProblems = watchRuntimeHealth(page)
+    await page.route('**/api/auth/account/delete', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          requestId: 'del_e2e',
+          status: 'queued',
+          slaDays: 15
+        })
+      })
+    })
 
     await gotoWorkbench(page)
     await openMobileTab(page, '素材')
@@ -411,6 +421,8 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.auth-dialog-title')).toContainText('登录账号')
     await page.locator('.auth-provider-card .commerce-primary-action').click()
     await expect(page.locator('.commerce-panel')).toContainText('微信用户')
+    await page.locator('.account-delete-action').click()
+    await expect(page.locator('.account-deletion-message')).toContainText('账号删除请求已提交，处理时限 15 天。')
     await page.locator('.plan-card').filter({ hasText: '专业版' }).locator('.plan-action').click()
     await expect(page.locator('.commerce-panel')).toContainText('已进入开通流程，请按系统提示完成支付。')
     await expect(page.locator('.feature-gate-row').filter({ hasText: '项目导出' })).toContainText('专业版')

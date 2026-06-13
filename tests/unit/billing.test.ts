@@ -14,6 +14,7 @@ const config: RuntimeAuthConfig = {
   linkEndpoint: 'http://billing.test/api/auth/link',
   otpEndpoint: 'http://billing.test/api/auth/otp/send',
   profileEndpoint: 'http://billing.test/api/auth/profile',
+  accountDeleteEndpoint: 'http://billing.test/api/auth/account/delete',
   internalUnlockEndpoint: 'http://billing.test/api/entitlements/test-unlock'
 }
 
