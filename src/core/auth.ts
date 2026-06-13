@@ -11,7 +11,6 @@ export type AuthProviderId =
 export interface AuthProviderConfig {
   id: AuthProviderId
   label: string
-  description: string
   credentialMode: 'oauth' | 'phone-otp' | 'email-password'
   bindable: boolean
 }
@@ -67,21 +66,18 @@ const domesticProviders: AuthProviderConfig[] = [
   {
     id: 'wechat',
     label: '微信登录',
-    description: '使用微信账号快速登录',
     credentialMode: 'oauth',
     bindable: true
   },
   {
     id: 'phone-otp',
     label: '手机号+验证码',
-    description: '使用短信验证码登录或绑定',
     credentialMode: 'phone-otp',
     bindable: true
   },
   {
     id: 'email-password',
     label: '邮箱+密码',
-    description: '使用邮箱和密码登录',
     credentialMode: 'email-password',
     bindable: true
   }
@@ -91,28 +87,24 @@ const overseasProviders: AuthProviderConfig[] = [
   {
     id: 'facebook',
     label: 'Facebook',
-    description: 'Use your Facebook account',
     credentialMode: 'oauth',
     bindable: true
   },
   {
     id: 'google',
     label: 'Google',
-    description: 'Use your Google account',
     credentialMode: 'oauth',
     bindable: true
   },
   {
     id: 'phone-otp',
     label: '手机号+验证码',
-    description: 'Sign in or link with an SMS code',
     credentialMode: 'phone-otp',
     bindable: true
   },
   {
     id: 'email-password',
     label: '邮箱登录',
-    description: 'Sign in with email credentials',
     credentialMode: 'email-password',
     bindable: true
   }

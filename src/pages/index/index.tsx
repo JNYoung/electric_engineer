@@ -263,6 +263,34 @@ function getAuthProviderMark(providerId: AuthProviderConfig['id']) {
   }[providerId]
 }
 
+function AuthProviderIconStrip({
+  providers,
+  linkedProviders = []
+}: {
+  providers: AuthProviderConfig[]
+  linkedProviders?: AuthProviderConfig['id'][]
+}) {
+  return (
+    <View className='linked-provider-icons'>
+      {providers.map((provider) => {
+        const linked = linkedProviders.includes(provider.id)
+
+        return (
+          <View
+            key={provider.id}
+            className={`linked-provider-icon ${linked ? 'is-linked' : 'is-pending'}`}
+          >
+            <Text className={`auth-provider-icon provider-${provider.id}`}>
+              {getAuthProviderMark(provider.id)}
+            </Text>
+            <Text className='provider-status-mark'>{linked ? '✓' : '+'}</Text>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
 function progressSyncLabel(status: ProgressSyncStatus) {
   return {
     idle: '待同步',
@@ -606,8 +634,9 @@ function CommercialDashboard({
   const summary = getCatalogSummary(activeDomain)
   const plan = access.recommendedPlan
   const isAccountVariant = variant === 'account'
+  const title = isAccountVariant ? '行业权限' : profile.headline
   const kicker = variant === 'account'
-    ? '行业权益概览'
+    ? '权益范围'
     : variant === 'library'
       ? '行业元件概览'
       : '行业控制台'
@@ -621,8 +650,10 @@ function CommercialDashboard({
     <View className={`commercial-dashboard ${isAccountVariant ? 'account-domain-overview' : ''}`}>
       <View className='commercial-copy'>
         <Text className='training-kicker'>{kicker}</Text>
-        <Text className='commercial-title'>{profile.headline}</Text>
-        <Text className='commercial-desc'>{profile.description}</Text>
+        <Text className='commercial-title'>{title}</Text>
+        {!isAccountVariant && (
+          <Text className='commercial-desc'>{profile.description}</Text>
+        )}
       </View>
       <View className='commercial-actions'>
         <DomainSwitcher activeDomain={activeDomain} onChange={onChangeDomain} />
@@ -1132,17 +1163,8 @@ function AuthLoginDialog({
 
         {session.status === 'authenticated' && (
           <View className='linked-account-list'>
-            <Text className='note-title'>已绑定</Text>
-            <View className='linked-provider-chips'>
-              {authConfig.providers.map((provider) => (
-                <Text
-                  key={provider.id}
-                  className={`linked-provider-chip ${linkedProviders.includes(provider.id) ? 'is-linked' : ''}`}
-                >
-                  {provider.label}{linkedProviders.includes(provider.id) ? ' 已绑定' : ' 待绑定'}
-                </Text>
-              ))}
-            </View>
+            <Text className='note-title'>绑定状态</Text>
+            <AuthProviderIconStrip providers={authConfig.providers} linkedProviders={linkedProviders} />
           </View>
         )}
       </View>
@@ -1171,10 +1193,15 @@ function AccountAuthEntryCard({
         </View>
       </View>
 
+      <AuthProviderIconStrip
+        providers={authConfig.providers}
+        linkedProviders={session.status === 'authenticated' ? linkedProviders : []}
+      />
+
       <View className='auth-action-row'>
         {session.status === 'authenticated' ? (
           <Button className='small-action commerce-primary-action' onClick={onOpenBind}>
-            绑定更多账号
+            绑定账号
           </Button>
         ) : (
           <Button className='small-action commerce-primary-action' onClick={onOpenSignIn}>
@@ -1182,19 +1209,6 @@ function AccountAuthEntryCard({
           </Button>
         )}
       </View>
-
-      {session.status === 'authenticated' && (
-        <View className='linked-provider-chips'>
-          {authConfig.providers.map((provider) => (
-            <Text
-              key={provider.id}
-              className={`linked-provider-chip ${linkedProviders.includes(provider.id) ? 'is-linked' : ''}`}
-            >
-              {provider.label}{linkedProviders.includes(provider.id) ? ' 已绑定' : ' 待绑定'}
-            </Text>
-          ))}
-        </View>
-      )}
     </View>
   )
 }
@@ -1384,7 +1398,7 @@ function InternalTestUnlockPanel({
       <View>
         <Text className='internal-test-title'>内部测试</Text>
         <Text className='internal-test-copy'>
-          {isUnlocked ? '全部付费内容已解锁' : '用于验收专业版、团队版和受限元件'}
+          {isUnlocked ? '权益：全部开放' : '权益：待开启'}
         </Text>
       </View>
       <Button className='small-action internal-test-action' onClick={onUnlock}>

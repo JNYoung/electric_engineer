@@ -6305,29 +6305,53 @@ $ink: #1f2937;
   font-weight: 800;
 }
 
-.linked-provider-chips {
+.linked-provider-icons {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 8px;
   margin-top: 8px;
 }
 
-.linked-provider-chip {
-  min-height: 24px;
-  padding: 0 8px;
+.linked-provider-icon {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
   border: 1px solid #edf1f6;
-  border-radius: 7px;
-  background: #f8fbff;
-  color: $muted;
-  font-size: 11px;
-  line-height: 22px;
-  font-weight: 800;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
-.linked-provider-chip.is-linked {
+.linked-provider-icon.is-linked {
   border-color: #bdebdc;
-  background: #e8fbf5;
-  color: #087c67;
+  background: #f0fdf9;
+}
+
+.linked-provider-icon.is-pending {
+  color: $muted;
+}
+
+.provider-status-mark {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #e5eaf2;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 900;
+}
+
+.linked-provider-icon.is-linked .provider-status-mark {
+  background: #0f8f73;
+  color: #ffffff;
 }
 
 @media (min-width: 720px) {
