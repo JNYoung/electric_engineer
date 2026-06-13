@@ -2562,17 +2562,21 @@ export default function Index() {
   const selectedWire = model.wires.find((wire) => wire.id === selectedId)
   const loadDevices = model.devices.filter((device) => isLoadKind(device.kind))
   const boardHeight = Math.max(500, ...model.devices.map((device) => device.y + 100))
-  const boardHeightScale = isCanvasFocusMode ? boardFrameHeight / boardHeight : 1
+  const shouldFillBoardWidth = isCanvasFocusMode && boardFrameWidth > boardFrameHeight
+  const boardWidthScale = boardFrameWidth / DEFAULT_BOARD_WIDTH
+  const boardHeightScale = isCanvasFocusMode && !shouldFillBoardWidth ? boardFrameHeight / boardHeight : 1
   const boardScale = Math.max(
     0.1,
-    Math.min(1, boardFrameWidth / DEFAULT_BOARD_WIDTH, boardHeightScale)
+    shouldFillBoardWidth ? boardWidthScale : Math.min(1, boardWidthScale, boardHeightScale)
   )
-  const boardLogicalWidth = boardScale < 1
+  const boardLogicalWidth = boardScale < 1 || shouldFillBoardWidth
     ? DEFAULT_BOARD_WIDTH
     : Math.max(DEFAULT_BOARD_WIDTH, Math.floor(boardFrameWidth))
+  const boardVisualWidth = Math.ceil(boardLogicalWidth * boardScale)
+  const boardVisualHeight = Math.ceil(boardHeight * boardScale)
   const boardViewportHeight = isCanvasFocusMode
     ? Math.max(1, boardFrameHeight)
-    : Math.ceil(boardHeight * boardScale)
+    : boardVisualHeight
 
   useEffect(() => {
     modelRef.current = model
@@ -3369,42 +3373,50 @@ export default function Index() {
 
             <View className='canvas-board-viewport' style={{ height: `${boardViewportHeight}px` }}>
               <View
-                className='circuit-board'
+                className='circuit-board-frame'
                 style={{
-                  width: `${boardLogicalWidth}px`,
-                  height: `${boardHeight}px`,
-                  transform: boardScale < 1 ? `scale(${boardScale})` : 'none'
+                  width: `${boardVisualWidth}px`,
+                  height: `${boardVisualHeight}px`
                 }}
-                onTouchMove={dragDevice}
-                onTouchEnd={stopDeviceDrag}
-                onTouchCancel={stopDeviceDrag}
               >
-                <View className='grid-bg' />
-                <WireLayer
-                  wires={model.wires}
-                  devices={model.devices}
-                  simulation={simulation}
-                  selectedWireId={selectedWire?.id}
-                  onSelectWire={setSelectedId}
-                />
-                {model.devices.map((device) => (
-                  <BoardDevice
-                    key={device.id}
-                    device={device}
-                    selected={selectedId === device.id}
-                    dragging={draggingDeviceId === device.id}
-                    showDeleteAction={deviceActionId === device.id}
-                    effect={simulation.effects[device.id]}
-                    voltage={voltage}
-                    onSelect={setSelectedId}
-                    onDragStart={startDeviceDrag}
-                    onDelete={removeDevice}
-                    onSetVoltage={setVoltage}
-                    onToggleSwitch={toggleSwitch}
+                <View
+                  className='circuit-board'
+                  style={{
+                    width: `${boardLogicalWidth}px`,
+                    height: `${boardHeight}px`,
+                    transform: boardScale === 1 ? 'none' : `scale(${boardScale})`
+                  }}
+                  onTouchMove={dragDevice}
+                  onTouchEnd={stopDeviceDrag}
+                  onTouchCancel={stopDeviceDrag}
+                >
+                  <View className='grid-bg' />
+                  <WireLayer
+                    wires={model.wires}
+                    devices={model.devices}
+                    simulation={simulation}
+                    selectedWireId={selectedWire?.id}
+                    onSelectWire={setSelectedId}
                   />
-                ))}
-                <View className='board-legend positive'>正极母线</View>
-                <View className='board-legend negative'>负极回线</View>
+                  {model.devices.map((device) => (
+                    <BoardDevice
+                      key={device.id}
+                      device={device}
+                      selected={selectedId === device.id}
+                      dragging={draggingDeviceId === device.id}
+                      showDeleteAction={deviceActionId === device.id}
+                      effect={simulation.effects[device.id]}
+                      voltage={voltage}
+                      onSelect={setSelectedId}
+                      onDragStart={startDeviceDrag}
+                      onDelete={removeDevice}
+                      onSetVoltage={setVoltage}
+                      onToggleSwitch={toggleSwitch}
+                    />
+                  ))}
+                  <View className='board-legend positive'>正极母线</View>
+                  <View className='board-legend negative'>负极回线</View>
+                </View>
               </View>
             </View>
 

@@ -2636,6 +2636,11 @@ $ink: #1f2937;
   border-radius: 8px;
 }
 
+.circuit-board-frame {
+  position: relative;
+  margin: 0 auto;
+}
+
 .circuit-board {
   position: relative;
   height: 500px;
@@ -5875,11 +5880,17 @@ $ink: #1f2937;
 .app-shell.is-canvas-focus-mode .canvas-board-viewport {
   height: calc(100vh - 150px) !important;
   margin-top: 8px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-shell.is-canvas-focus-mode .circuit-board-frame {
+  margin: 0 auto;
 }
 
 .app-shell.is-canvas-focus-mode .circuit-board {
-  margin: 0 auto;
-  transform-origin: top center;
+  margin: 0;
+  transform-origin: left top;
 }
 
 .effect-pill.is-active {
