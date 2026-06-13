@@ -257,14 +257,242 @@ export const DEVICE_REGISTRY: Record<DeviceKind, DeviceDefinition> = {
   },
   fuse: {
     kind: 'fuse',
-    name: '保险丝',
+    name: '熔断器',
     category: 'passive',
     group: '保护与驱动',
-    description: '过流保护器件，后续可扩展熔断阈值。',
+    description: '1P/2P/3P/4P 过流保护器件，当前按低电流训练等效件抽象，后续可扩展熔断阈值和分断能力。',
     simulationRole: 'resistive-load',
     effectKind: 'protect',
     defaultRatedVoltage: 12,
-    defaultResistance: 12,
+    defaultResistance: 1000,
+    terminals: twoTerminal
+  },
+  'circuit-breaker': {
+    kind: 'circuit-breaker',
+    name: '断路器',
+    category: 'passive',
+    group: '电柜保护',
+    description: '1P/2P/3P/4P 小型断路器，当前按低电流训练等效件抽象，用于隔离、短路和过载保护训练。',
+    simulationRole: 'resistive-load',
+    effectKind: 'protect',
+    defaultRatedVoltage: 220,
+    defaultResistance: 1000,
+    terminals: twoTerminal
+  },
+  'ac-contactor': {
+    kind: 'ac-contactor',
+    name: '交流接触器',
+    category: 'actuator',
+    group: '电柜控制',
+    description: '220V/380V 交流线圈接触器，模拟线圈吸合、主触点闭合和电机控制侧。',
+    simulationRole: 'resistive-load',
+    effectKind: 'relay',
+    defaultRatedVoltage: 220,
+    defaultResistance: 1200,
+    terminals: twoTerminal
+  },
+  'dc-contactor': {
+    kind: 'dc-contactor',
+    name: '直流接触器',
+    category: 'actuator',
+    group: '电柜控制',
+    description: '24V 直流线圈接触器，适合 PLC 输出驱动、联锁和低压控制柜训练。',
+    simulationRole: 'resistive-load',
+    effectKind: 'relay',
+    defaultRatedVoltage: 24,
+    defaultResistance: 80,
+    terminals: twoTerminal
+  },
+  'auxiliary-contact': {
+    kind: 'auxiliary-contact',
+    name: '接触器辅助触头',
+    category: 'input',
+    group: '电柜控制',
+    description: '接触器常开/常闭辅助触点，用于自锁、互锁和状态反馈。',
+    simulationRole: 'resistive-load',
+    effectKind: 'logic',
+    defaultRatedVoltage: 24,
+    defaultResistance: 160,
+    terminals: twoTerminal
+  },
+  'ac-time-relay': {
+    kind: 'ac-time-relay',
+    name: '交流时间继电器',
+    category: 'actuator',
+    group: '电柜控制',
+    description: '220V/380V 延时继电器，模拟通电延时、断电延时和顺序控制。',
+    simulationRole: 'resistive-load',
+    effectKind: 'relay',
+    defaultRatedVoltage: 220,
+    defaultResistance: 1800,
+    terminals: twoTerminal
+  },
+  'dc-time-relay': {
+    kind: 'dc-time-relay',
+    name: '直流时间继电器',
+    category: 'actuator',
+    group: '电柜控制',
+    description: '24V 直流延时继电器，用于 PLC 辅助延时、顺序启动和保护链训练。',
+    simulationRole: 'resistive-load',
+    effectKind: 'relay',
+    defaultRatedVoltage: 24,
+    defaultResistance: 120,
+    terminals: twoTerminal
+  },
+  'ac-intermediate-relay': {
+    kind: 'ac-intermediate-relay',
+    name: '交流中间继电器',
+    category: 'actuator',
+    group: '电柜控制',
+    description: '220V/380V 中间继电器，扩展触点容量并隔离控制逻辑。',
+    simulationRole: 'resistive-load',
+    effectKind: 'relay',
+    defaultRatedVoltage: 220,
+    defaultResistance: 1600,
+    terminals: twoTerminal
+  },
+  'dc-intermediate-relay': {
+    kind: 'dc-intermediate-relay',
+    name: '直流中间继电器',
+    category: 'actuator',
+    group: '电柜控制',
+    description: '24V 中间继电器，常用于 PLC 输出隔离、信号转接和触点扩展。',
+    simulationRole: 'resistive-load',
+    effectKind: 'relay',
+    defaultRatedVoltage: 24,
+    defaultResistance: 100,
+    terminals: twoTerminal
+  },
+  'switching-power-supply': {
+    kind: 'switching-power-supply',
+    name: '开关电源',
+    category: 'interface',
+    group: '电源与母线',
+    description: '控制柜常用 AC-DC 电源模块，典型输出 24V DC，为 PLC、继电器和传感器供电。',
+    simulationRole: 'resistive-load',
+    effectKind: 'interface',
+    defaultRatedVoltage: 220,
+    defaultResistance: 900,
+    terminals: twoTerminal
+  },
+  'self-reset-button': {
+    kind: 'self-reset-button',
+    name: '自复位按钮',
+    category: 'input',
+    group: '输入与开关',
+    description: '黄/绿/红等常用颜色的瞬时按钮，松手后回到初始状态。',
+    simulationRole: 'resistive-load',
+    effectKind: 'logic',
+    defaultRatedVoltage: 24,
+    defaultResistance: 140,
+    terminals: twoTerminal
+  },
+  'self-lock-button': {
+    kind: 'self-lock-button',
+    name: '自锁按钮',
+    category: 'input',
+    group: '输入与开关',
+    description: '黄/绿/红等常用颜色的保持按钮，按下后维持闭合状态直到再次释放。',
+    simulationRole: 'resistive-load',
+    effectKind: 'logic',
+    defaultRatedVoltage: 24,
+    defaultResistance: 130,
+    terminals: twoTerminal
+  },
+  'rotary-switch': {
+    kind: 'rotary-switch',
+    name: '旋转开关',
+    category: 'input',
+    group: '输入与开关',
+    description: '两位/三位选择开关，用于手自动、正反转和模式选择。',
+    simulationRole: 'resistive-load',
+    effectKind: 'logic',
+    defaultRatedVoltage: 24,
+    defaultResistance: 150,
+    terminals: twoTerminal
+  },
+  'pilot-light': {
+    kind: 'pilot-light',
+    name: '指示灯',
+    category: 'indicator',
+    group: '指示与显示',
+    description: '黄/绿/红等面板指示灯，用于电源、运行、故障和状态反馈。',
+    simulationRole: 'resistive-load',
+    effectKind: 'glow',
+    defaultRatedVoltage: 24,
+    defaultResistance: 160,
+    terminals: twoTerminal
+  },
+  voltmeter: {
+    kind: 'voltmeter',
+    name: '电压表',
+    category: 'display',
+    group: '指示与显示',
+    description: '面板电压表，通电后显示回路电压，后续可扩展量程和交流/直流模式。',
+    simulationRole: 'resistive-load',
+    effectKind: 'display',
+    defaultRatedVoltage: 24,
+    defaultResistance: 10000,
+    terminals: twoTerminal
+  },
+  ammeter: {
+    kind: 'ammeter',
+    name: '电流表',
+    category: 'display',
+    group: '指示与显示',
+    description: '面板电流表，当前按训练等效负载显示通电状态，后续可扩展互感器和分流器接口。',
+    simulationRole: 'resistive-load',
+    effectKind: 'display',
+    defaultRatedVoltage: 24,
+    defaultResistance: 1000,
+    terminals: twoTerminal
+  },
+  'gray-terminal': {
+    kind: 'gray-terminal',
+    name: '灰色端子',
+    category: 'interface',
+    group: '端子与配线',
+    description: '控制柜通用直通端子，当前按高阻接口状态抽象，常用于相线、信号线和普通回路转接。',
+    simulationRole: 'resistive-load',
+    effectKind: 'interface',
+    defaultRatedVoltage: 24,
+    defaultResistance: 1000,
+    terminals: twoTerminal
+  },
+  'pe-terminal': {
+    kind: 'pe-terminal',
+    name: '黄绿色端子',
+    category: 'interface',
+    group: '端子与配线',
+    description: '保护接地端子，用黄绿色标识保护地；当前按高阻接口状态抽象，训练接地和安全隔离意识。',
+    simulationRole: 'resistive-load',
+    effectKind: 'protect',
+    defaultRatedVoltage: 24,
+    defaultResistance: 1000,
+    terminals: twoTerminal
+  },
+  'three-phase-motor': {
+    kind: 'three-phase-motor',
+    name: '三相异步电动机',
+    category: 'motor',
+    group: '电机',
+    description: '三相鼠笼式异步电机抽象，用于接触器、热继和动力回路训练。',
+    simulationRole: 'resistive-load',
+    effectKind: 'spin',
+    defaultRatedVoltage: 380,
+    defaultResistance: 45,
+    terminals: twoTerminal
+  },
+  'heating-tube': {
+    kind: 'heating-tube',
+    name: '加热管',
+    category: 'actuator',
+    group: '执行器',
+    description: '阻性加热负载，用于温控、过载保护和功率估算训练。',
+    simulationRole: 'resistive-load',
+    effectKind: 'heat',
+    defaultRatedVoltage: 220,
+    defaultResistance: 80,
     terminals: twoTerminal
   },
   'transistor-driver': {
@@ -636,6 +864,8 @@ export function formatEffectLabel(kind: DeviceKind, effectKind: EffectKind, inte
       return `线圈吸合 ${percent}%`
     case 'resist':
       return `限流 ${percent}%`
+    case 'heat':
+      return `发热 ${percent}%`
     case 'adjust':
       return `可调输入 ${percent}%`
     case 'pass':

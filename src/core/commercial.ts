@@ -168,6 +168,51 @@ export const COMPONENT_CATALOG: ComponentCatalogEntry[] = [
     useCase: '水泵、风机和输送设备的控制侧训练'
   },
   {
+    kind: 'switching-power-supply',
+    domain: 'engineering-control',
+    categoryId: 'control-core',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['24V', '供电', '控制柜'],
+    useCase: '控制柜 AC-DC 电源、公共端和传感器供电训练'
+  },
+  {
+    kind: 'voltmeter',
+    domain: 'engineering-control',
+    categoryId: 'control-core',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['测量', '电压', '面板表'],
+    useCase: '电源、控制回路和支路电压读数训练'
+  },
+  {
+    kind: 'ammeter',
+    domain: 'engineering-control',
+    categoryId: 'control-core',
+    complexity: '进阶',
+    tier: 'pro',
+    tags: ['测量', '电流', '面板表'],
+    useCase: '负载电流、分流器和互感器读数训练'
+  },
+  {
+    kind: 'gray-terminal',
+    domain: 'engineering-control',
+    categoryId: 'control-core',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['端子', '配线', '转接'],
+    useCase: '控制柜信号线、相线和普通回路转接训练'
+  },
+  {
+    kind: 'pe-terminal',
+    domain: 'engineering-control',
+    categoryId: 'safety-chain',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['PE', '接地', '安全'],
+    useCase: '保护接地、黄绿色端子和安全隔离训练'
+  },
+  {
     kind: 'emergency-stop',
     domain: 'engineering-control',
     categoryId: 'safety-chain',
@@ -177,6 +222,24 @@ export const COMPONENT_CATALOG: ComponentCatalogEntry[] = [
     useCase: '急停回路、停机链和故障复位训练'
   },
   {
+    kind: 'circuit-breaker',
+    domain: 'engineering-control',
+    categoryId: 'safety-chain',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['1P-4P', '短路', '隔离'],
+    useCase: '断路器极数选择、短路保护和上电隔离训练'
+  },
+  {
+    kind: 'fuse',
+    domain: 'engineering-control',
+    categoryId: 'safety-chain',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['1P-4P', '熔断', '保护'],
+    useCase: '熔断器串接、故障隔离和保护选型训练'
+  },
+  {
     kind: 'thermal-overload',
     domain: 'engineering-control',
     categoryId: 'safety-chain',
@@ -184,6 +247,33 @@ export const COMPONENT_CATALOG: ComponentCatalogEntry[] = [
     tier: 'pro',
     tags: ['过载', '保护', '反馈'],
     useCase: '电机过载保护与告警反馈训练'
+  },
+  {
+    kind: 'self-reset-button',
+    domain: 'engineering-control',
+    categoryId: 'safety-chain',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['按钮', '点动', '启动'],
+    useCase: '启动、停止、复位和点动控制输入训练'
+  },
+  {
+    kind: 'self-lock-button',
+    domain: 'engineering-control',
+    categoryId: 'safety-chain',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['按钮', '保持', '自锁'],
+    useCase: '保持式按钮、状态锁定和误操作排查训练'
+  },
+  {
+    kind: 'rotary-switch',
+    domain: 'engineering-control',
+    categoryId: 'safety-chain',
+    complexity: '进阶',
+    tier: 'free',
+    tags: ['两位', '三位', '模式'],
+    useCase: '手自动、正反转和模式选择输入训练'
   },
   {
     kind: 'limit-switch',
@@ -202,6 +292,15 @@ export const COMPONENT_CATALOG: ComponentCatalogEntry[] = [
     tier: 'pro',
     tags: ['接近', '计数', '工位'],
     useCase: '工件到位、计数和位置反馈'
+  },
+  {
+    kind: 'pilot-light',
+    domain: 'engineering-control',
+    categoryId: 'field-sensing',
+    complexity: '基础',
+    tier: 'free',
+    tags: ['红黄绿', '指示', '面板'],
+    useCase: '电源、运行、故障和控制柜面板状态显示训练'
   },
   {
     kind: 'pressure-transmitter',
@@ -238,6 +337,87 @@ export const COMPONENT_CATALOG: ComponentCatalogEntry[] = [
     tier: 'free',
     tags: ['线圈', '吸合', '电机'],
     useCase: '接触器控制侧吸合和互锁训练'
+  },
+  {
+    kind: 'ac-contactor',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '进阶',
+    tier: 'pro',
+    tags: ['220V', '380V', '吸合'],
+    useCase: '交流接触器主回路、线圈吸合和电机启停训练'
+  },
+  {
+    kind: 'dc-contactor',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '进阶',
+    tier: 'pro',
+    tags: ['24V', 'PLC', '吸合'],
+    useCase: '直流接触器、PLC 输出驱动和联锁训练'
+  },
+  {
+    kind: 'auxiliary-contact',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '进阶',
+    tier: 'free',
+    tags: ['常开', '常闭', '自锁'],
+    useCase: '接触器辅助触点、自锁和互锁反馈训练'
+  },
+  {
+    kind: 'ac-time-relay',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '专业',
+    tier: 'pro',
+    tags: ['220V', '380V', '延时'],
+    useCase: '交流延时、顺序启动和断电延时控制训练'
+  },
+  {
+    kind: 'dc-time-relay',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '进阶',
+    tier: 'pro',
+    tags: ['24V', '延时', 'PLC'],
+    useCase: '直流延时、PLC 辅助逻辑和保护链训练'
+  },
+  {
+    kind: 'ac-intermediate-relay',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '进阶',
+    tier: 'pro',
+    tags: ['220V', '380V', '触点扩展'],
+    useCase: '交流中间继电器、触点扩展和控制隔离训练'
+  },
+  {
+    kind: 'dc-intermediate-relay',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '进阶',
+    tier: 'free',
+    tags: ['24V', '隔离', '转接'],
+    useCase: '直流中间继电器、PLC 输出隔离和信号转接训练'
+  },
+  {
+    kind: 'three-phase-motor',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '专业',
+    tier: 'pro',
+    tags: ['三相', '380V', '电机'],
+    useCase: '三相异步电机、接触器和热继保护链训练'
+  },
+  {
+    kind: 'heating-tube',
+    domain: 'engineering-control',
+    categoryId: 'actuation',
+    complexity: '进阶',
+    tier: 'pro',
+    tags: ['加热', '阻性', '温控'],
+    useCase: '加热管、温控回路和功率估算训练'
   },
   {
     kind: 'stack-light',

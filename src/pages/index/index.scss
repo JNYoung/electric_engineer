@@ -2288,6 +2288,10 @@ $ink: #1f2937;
 .palette-dip-switch,
 .palette-emergency-stop,
 .palette-limit-switch,
+.palette-self-reset-button,
+.palette-self-lock-button,
+.palette-rotary-switch,
+.palette-auxiliary-contact,
 .palette-smart-switch-panel,
 .palette-scene-panel,
 .palette-potentiometer {
@@ -2297,6 +2301,9 @@ $ink: #1f2937;
 
 .palette-led,
 .palette-rgb-led,
+.palette-pilot-light,
+.palette-voltmeter,
+.palette-ammeter,
 .palette-display,
 .palette-seven-segment,
 .palette-stack-light,
@@ -2307,6 +2314,12 @@ $ink: #1f2937;
 
 .palette-buzzer,
 .palette-relay,
+.palette-ac-contactor,
+.palette-dc-contactor,
+.palette-ac-time-relay,
+.palette-dc-time-relay,
+.palette-ac-intermediate-relay,
+.palette-dc-intermediate-relay,
 .palette-solenoid,
 .palette-contactor-coil,
 .palette-solenoid-valve {
@@ -2317,6 +2330,7 @@ $ink: #1f2937;
 .palette-dc-motor,
 .palette-stepper-motor,
 .palette-servo-motor,
+.palette-three-phase-motor,
 .palette-curtain-motor {
   background: #e8fbff;
   color: #087b8c;
@@ -2326,6 +2340,8 @@ $ink: #1f2937;
 .palette-diode,
 .palette-capacitor,
 .palette-fuse,
+.palette-circuit-breaker,
+.palette-heating-tube,
 .palette-thermal-overload {
   background: #eef2f7;
   color: #334155;
@@ -2335,6 +2351,9 @@ $ink: #1f2937;
 .palette-microcontroller,
 .palette-plc-controller,
 .palette-vfd-drive,
+.palette-switching-power-supply,
+.palette-gray-terminal,
+.palette-pe-terminal,
 .palette-smart-gateway,
 .palette-access-control {
   background: #eef2ff;
@@ -4019,10 +4038,455 @@ $ink: #1f2937;
 .visual-leak-detector .part-b { top: 30px; }
 .visual-leak-detector .part-c { top: 35px; opacity: 0.5; }
 
+.visual-circuit-breaker .part-a,
+.visual-circuit-breaker .part-b,
+.visual-circuit-breaker .part-c,
+.visual-fuse .part-d,
+.visual-fuse .part-e,
+.visual-ac-contactor .part-a,
+.visual-ac-contactor .part-b,
+.visual-ac-contactor .part-c,
+.visual-ac-contactor .part-d,
+.visual-ac-contactor .part-e,
+.visual-dc-contactor .part-a,
+.visual-dc-contactor .part-b,
+.visual-dc-contactor .part-c,
+.visual-dc-contactor .part-d,
+.visual-dc-contactor .part-e,
+.visual-ac-time-relay .part-a,
+.visual-ac-time-relay .part-b,
+.visual-ac-time-relay .part-c,
+.visual-ac-time-relay .part-d,
+.visual-dc-time-relay .part-a,
+.visual-dc-time-relay .part-b,
+.visual-dc-time-relay .part-c,
+.visual-dc-time-relay .part-d,
+.visual-ac-intermediate-relay .part-a,
+.visual-ac-intermediate-relay .part-b,
+.visual-ac-intermediate-relay .part-c,
+.visual-ac-intermediate-relay .part-d,
+.visual-dc-intermediate-relay .part-a,
+.visual-dc-intermediate-relay .part-b,
+.visual-dc-intermediate-relay .part-c,
+.visual-dc-intermediate-relay .part-d,
+.visual-auxiliary-contact .part-a,
+.visual-auxiliary-contact .part-b,
+.visual-auxiliary-contact .part-c,
+.visual-switching-power-supply .part-a,
+.visual-switching-power-supply .part-b,
+.visual-switching-power-supply .part-c,
+.visual-switching-power-supply .part-d,
+.visual-self-reset-button .part-a,
+.visual-self-reset-button .part-b,
+.visual-self-lock-button .part-a,
+.visual-self-lock-button .part-b,
+.visual-self-lock-button .part-c,
+.visual-rotary-switch .part-a,
+.visual-rotary-switch .part-b,
+.visual-rotary-switch .part-c,
+.visual-pilot-light .part-a,
+.visual-pilot-light .part-b,
+.visual-voltmeter .part-a,
+.visual-voltmeter .part-b,
+.visual-voltmeter .part-c,
+.visual-ammeter .part-a,
+.visual-ammeter .part-b,
+.visual-ammeter .part-c,
+.visual-gray-terminal .part-a,
+.visual-gray-terminal .part-b,
+.visual-gray-terminal .part-c,
+.visual-pe-terminal .part-a,
+.visual-pe-terminal .part-b,
+.visual-pe-terminal .part-c,
+.visual-three-phase-motor .part-a,
+.visual-three-phase-motor .part-b,
+.visual-three-phase-motor .part-c,
+.visual-three-phase-motor .part-d,
+.visual-heating-tube .part-a,
+.visual-heating-tube .part-b,
+.visual-heating-tube .part-c,
+.visual-heating-tube .part-d {
+  display: block;
+}
+
+.visual-circuit-breaker .part-a {
+  left: 9px;
+  top: 6px;
+  width: 22px;
+  height: 28px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-circuit-breaker .part-b {
+  left: 15px;
+  top: 12px;
+  width: 10px;
+  height: 16px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(20deg);
+}
+
+.visual-circuit-breaker .part-c {
+  left: 19px;
+  top: 28px;
+  width: 3px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-fuse .part-d,
+.visual-fuse .part-e {
+  top: 14px;
+  width: 2px;
+  height: 12px;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.visual-fuse .part-d { left: 15px; }
+.visual-fuse .part-e { left: 24px; }
+
+.visual-ac-contactor .part-a,
+.visual-dc-contactor .part-a,
+.visual-ac-time-relay .part-a,
+.visual-dc-time-relay .part-a,
+.visual-ac-intermediate-relay .part-a,
+.visual-dc-intermediate-relay .part-a {
+  left: 7px;
+  top: 7px;
+  width: 26px;
+  height: 26px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-ac-contactor .part-b,
+.visual-dc-contactor .part-b,
+.visual-ac-intermediate-relay .part-b,
+.visual-dc-intermediate-relay .part-b {
+  left: 12px;
+  top: 13px;
+  width: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-ac-contactor .part-c,
+.visual-dc-contactor .part-c,
+.visual-ac-intermediate-relay .part-c,
+.visual-dc-intermediate-relay .part-c {
+  left: 12px;
+  top: 19px;
+  width: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-ac-contactor .part-d,
+.visual-dc-contactor .part-d {
+  left: 15px;
+  top: 25px;
+  width: 10px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-ac-contactor .part-e,
+.visual-dc-contactor .part-e {
+  left: 31px;
+  top: 16px;
+  width: 6px;
+  height: 6px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.visual-ac-time-relay .part-b,
+.visual-dc-time-relay .part-b {
+  left: 12px;
+  top: 12px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.visual-ac-time-relay .part-c,
+.visual-dc-time-relay .part-c {
+  left: 19px;
+  top: 14px;
+  width: 2px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-ac-time-relay .part-d,
+.visual-dc-time-relay .part-d {
+  left: 19px;
+  top: 20px;
+  width: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(35deg);
+  transform-origin: left center;
+}
+
+.visual-ac-intermediate-relay .part-d,
+.visual-dc-intermediate-relay .part-d {
+  left: 12px;
+  top: 25px;
+  width: 16px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-auxiliary-contact .part-a,
+.visual-auxiliary-contact .part-b {
+  top: 19px;
+  width: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.visual-auxiliary-contact .part-a { left: 4px; }
+.visual-auxiliary-contact .part-b { right: 4px; }
+.visual-auxiliary-contact .part-c {
+  left: 15px;
+  top: 17px;
+  width: 13px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(-24deg);
+}
+
+.visual-switching-power-supply .part-a {
+  left: 7px;
+  top: 8px;
+  width: 26px;
+  height: 24px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-switching-power-supply .part-b,
+.visual-switching-power-supply .part-c,
+.visual-switching-power-supply .part-d {
+  top: 16px;
+  width: 4px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.visual-switching-power-supply .part-b { left: 12px; }
+.visual-switching-power-supply .part-c { left: 19px; }
+.visual-switching-power-supply .part-d { left: 26px; }
+
+.visual-self-reset-button .part-a,
+.visual-self-lock-button .part-a,
+.visual-pilot-light .part-a {
+  left: 9px;
+  top: 9px;
+  width: 22px;
+  height: 22px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.visual-self-reset-button .part-b,
+.visual-self-lock-button .part-b {
+  left: 14px;
+  top: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-self-lock-button .part-c {
+  left: 16px;
+  top: 25px;
+  width: 8px;
+  height: 5px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.visual-rotary-switch .part-a {
+  left: 8px;
+  top: 8px;
+  width: 24px;
+  height: 24px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.visual-rotary-switch .part-b {
+  left: 19px;
+  top: 12px;
+  width: 3px;
+  height: 15px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(44deg);
+  transform-origin: center bottom;
+}
+
+.visual-rotary-switch .part-c {
+  left: 17px;
+  top: 17px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-pilot-light .part-b {
+  left: 15px;
+  top: 15px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #facc15;
+}
+
+.visual-voltmeter .part-a,
+.visual-ammeter .part-a {
+  left: 7px;
+  top: 8px;
+  width: 26px;
+  height: 24px;
+  border: 3px solid currentColor;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.visual-voltmeter .part-b,
+.visual-ammeter .part-b {
+  left: 12px;
+  top: 13px;
+  width: 16px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-left-radius: 999px;
+  border-top-right-radius: 999px;
+  border-bottom: none;
+}
+
+.visual-voltmeter .part-c,
+.visual-ammeter .part-c {
+  left: 20px;
+  top: 20px;
+  width: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(-35deg);
+  transform-origin: left center;
+}
+
+.visual-gray-terminal .part-a,
+.visual-pe-terminal .part-a {
+  left: 6px;
+  top: 10px;
+  width: 28px;
+  height: 20px;
+  border: 3px solid currentColor;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.visual-gray-terminal .part-b,
+.visual-gray-terminal .part-c,
+.visual-pe-terminal .part-b,
+.visual-pe-terminal .part-c {
+  top: 17px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.visual-gray-terminal .part-b,
+.visual-pe-terminal .part-b { left: 11px; }
+.visual-gray-terminal .part-c,
+.visual-pe-terminal .part-c { right: 11px; }
+
+.visual-pe-terminal .part-a {
+  background: linear-gradient(90deg, #fef08a 0 48%, #dcfce7 48% 100%);
+}
+
+.visual-three-phase-motor .part-a {
+  left: 7px;
+  top: 8px;
+  width: 26px;
+  height: 24px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.visual-three-phase-motor .part-b,
+.visual-three-phase-motor .part-c,
+.visual-three-phase-motor .part-d {
+  top: 18px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.visual-three-phase-motor .part-b { left: 14px; }
+.visual-three-phase-motor .part-c { left: 20px; }
+.visual-three-phase-motor .part-d { left: 26px; }
+
+.visual-heating-tube .part-a {
+  left: 4px;
+  top: 19px;
+  width: 32px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.visual-heating-tube .part-b,
+.visual-heating-tube .part-c,
+.visual-heating-tube .part-d {
+  top: 12px;
+  width: 8px;
+  height: 16px;
+  border: 3px solid currentColor;
+  border-left: none;
+  border-radius: 0 999px 999px 0;
+}
+
+.visual-heating-tube .part-b { left: 7px; }
+.visual-heating-tube .part-c { left: 16px; }
+.visual-heating-tube .part-d { left: 25px; }
+
 .device-lamp.is-active .component-visual,
 .device-led.is-active .component-visual,
 .device-rgb-led.is-active .component-visual,
+.device-pilot-light.is-active .component-visual,
 .device-display.is-active .component-visual,
+.device-voltmeter.is-active .component-visual,
+.device-ammeter.is-active .component-visual,
 .device-seven-segment.is-active .component-visual {
   filter: drop-shadow(0 0 9px rgba(245, 158, 11, 0.65));
 }
@@ -4032,13 +4496,18 @@ $ink: #1f2937;
 .device-rgb-led.is-active .visual-rgb-led .part-a,
 .device-rgb-led.is-active .visual-rgb-led .part-b,
 .device-rgb-led.is-active .visual-rgb-led .part-c,
+.device-pilot-light.is-active .visual-pilot-light .part-a,
+.device-pilot-light.is-active .visual-pilot-light .part-b,
 .device-display.is-active .visual-display .part-a,
+.device-voltmeter.is-active .visual-voltmeter .part-a,
+.device-ammeter.is-active .visual-ammeter .part-a,
 .device-seven-segment.is-active .visual-seven-segment .visual-part {
   background-color: #ffd34d;
 }
 
 .device-fan.is-active .component-visual,
-.device-dc-motor.is-active .component-visual {
+.device-dc-motor.is-active .component-visual,
+.device-three-phase-motor.is-active .component-visual {
   animation: fan-spin 0.55s linear infinite;
 }
 
@@ -4056,8 +4525,21 @@ $ink: #1f2937;
 }
 
 .device-solenoid.is-active .visual-solenoid .part-f,
-.device-relay.is-active .visual-relay .part-d {
+.device-relay.is-active .visual-relay .part-d,
+.device-contactor-coil.is-active .visual-contactor-coil .part-e,
+.device-ac-contactor.is-active .visual-ac-contactor .part-d,
+.device-dc-contactor.is-active .visual-dc-contactor .part-d,
+.device-ac-time-relay.is-active .visual-ac-time-relay .part-d,
+.device-dc-time-relay.is-active .visual-dc-time-relay .part-d,
+.device-ac-intermediate-relay.is-active .visual-ac-intermediate-relay .part-d,
+.device-dc-intermediate-relay.is-active .visual-dc-intermediate-relay .part-d,
+.device-auxiliary-contact.is-active .visual-auxiliary-contact .part-c {
   animation: pull-in 0.8s ease-in-out infinite alternate;
+}
+
+.device-heating-tube.is-active .visual-heating-tube .visual-part {
+  filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.75));
+  color: #dc2626;
 }
 
 @keyframes servo-sweep {
