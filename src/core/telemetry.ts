@@ -105,6 +105,11 @@ export interface TelemetryClient {
   track: (name: TelemetryEventName, properties?: TelemetryProperties) => void
 }
 
+export interface HttpTelemetryTransportOptions {
+  apiBaseUrl?: string
+  fetchImpl?: typeof fetch
+}
+
 declare const __TELEMETRY_REGION__: string | undefined
 declare const __TELEMETRY_CHANNEL__: string | undefined
 declare const __TELEMETRY_ENDPOINT__: string | undefined
@@ -166,6 +171,48 @@ export function createTelemetryClient(options: {
       void transport(envelope)
     }
   }
+}
+
+export function createHttpTelemetryTransport(options: HttpTelemetryTransportOptions = {}): TelemetryTransport {
+  const fetchImpl = options.fetchImpl ?? (typeof fetch === 'undefined' ? undefined : fetch)
+
+  return async (envelope) => {
+    if (!fetchImpl) return
+
+    try {
+      await fetchImpl(resolveTelemetryEndpoint(envelope.endpoint, options.apiBaseUrl), {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify(envelope),
+        keepalive: true
+      })
+    } catch {
+      // Telemetry must never block learning or simulation flows.
+    }
+  }
+}
+
+export function createCompositeTelemetryTransport(transports: TelemetryTransport[]): TelemetryTransport {
+  return (envelope) => {
+    transports.forEach((transport) => {
+      try {
+        void Promise.resolve(transport(envelope)).catch(() => undefined)
+      } catch {
+        // Keep other transports alive when one adapter is unavailable.
+      }
+    })
+  }
+}
+
+export function resolveTelemetryEndpoint(endpoint: string, apiBaseUrl = '') {
+  if (/^(https?:)?\/\//i.test(endpoint)) return endpoint
+  if (!apiBaseUrl) return endpoint
+
+  const base = apiBaseUrl.replace(/\/+$/, '')
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  return `${base}${path}`
 }
 
 export function createTelemetryAdapter(region: TelemetryRegion): TelemetryAdapter {

@@ -76,7 +76,11 @@ import {
   getMaterialTrainingKits
 } from '@/core/materials'
 import { buildVirtualMeterWorksheet } from '@/core/instruments'
-import { createTelemetryClient } from '@/core/telemetry'
+import {
+  createCompositeTelemetryTransport,
+  createHttpTelemetryTransport,
+  createTelemetryClient
+} from '@/core/telemetry'
 import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@/core/googlePlayNative'
 import { enterNativeLandscapeCheck, exitNativeLandscapeCheck } from '@/core/nativeDisplay'
 import {
@@ -3226,6 +3230,7 @@ export default function Index() {
   const boardHeightRef = useRef(500)
   const boardScaleRef = useRef(1)
   const canvasZoomRef = useRef(1)
+  const authConfig = useMemo(() => getRuntimeAuthConfig(), [])
   const telemetry = useMemo(
     () =>
       createTelemetryClient({
@@ -3233,11 +3238,13 @@ export default function Index() {
           platform: getRuntimeTelemetryPlatform(),
           locale: getRuntimeLocale()
         },
-        transport: createGooglePlayTelemetryTransport()
+        transport: createCompositeTelemetryTransport([
+          createHttpTelemetryTransport({ apiBaseUrl: authConfig.apiBaseUrl }),
+          createGooglePlayTelemetryTransport()
+        ])
       }),
-    []
+    [authConfig.apiBaseUrl]
   )
-  const authConfig = useMemo(() => getRuntimeAuthConfig(), [])
   const simulation = useMemo(() => simulateCircuit(model), [model])
   const activeLesson = getLessonById(activeLessonId)
   const activeChallenge = getChallengeById(activeChallengeId)

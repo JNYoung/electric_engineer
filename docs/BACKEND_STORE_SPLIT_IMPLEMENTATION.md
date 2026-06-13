@@ -78,6 +78,7 @@ Telemetry 接收按 flavor 分流：
 
 - 国内包使用 `cn-edu-v1` 包络，投递到 `POST /api/telemetry/cn/events`。
 - Google Play/海外包使用 `global-edu-v1` 包络，投递到 `POST /api/telemetry/global/events`。
+- App 端使用 `AUTH_API_BASE_URL + telemetry endpoint` 做 fire-and-forget 上报；真机联调需要把 `AUTH_API_BASE_URL` 指到可访问的局域网或生产后台地址。
 - 服务端只保存短 hash 后的 anonymous/session 标识，运营接口不返回原始客户端 ID。
 - 本地 JSON 持久化会保留最近 1000 条事件，正式环境需替换为可查询的数据仓库或埋点平台。
 

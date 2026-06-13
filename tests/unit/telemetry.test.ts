@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  createCompositeTelemetryTransport,
+  createHttpTelemetryTransport,
   createTelemetryClient,
   createTelemetryContext,
   createTelemetryAdapter,
   getBuildTelemetryConfig,
+  resolveTelemetryEndpoint,
   sanitizeTelemetryProperties
 } from '../../src/core/telemetry'
 import type { TelemetryEnvelope } from '../../src/core/telemetry'
@@ -110,5 +113,56 @@ describe('telemetry abstraction', () => {
       falseValue: false,
       nullable: null
     })
+  })
+
+  it('posts envelopes to the backend endpoint without blocking other transports', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    const nativeTransport = vi.fn()
+    const context = createTelemetryContext(
+      getBuildTelemetryConfig({
+        region: 'domestic',
+        endpoint: '/api/telemetry/cn/events',
+        channel: 'h5-cn'
+      }),
+      {
+        anonymousId: 'anon-cn',
+        sessionId: 'session-cn'
+      }
+    )
+    const envelope = createTelemetryAdapter('domestic').toEnvelope(
+      {
+        name: 'app_open',
+        timestamp: 1000,
+        properties: { module_id: 'simulate' }
+      },
+      context
+    )
+    const httpTransport = createHttpTelemetryTransport({
+      apiBaseUrl: 'http://backend.test/',
+      fetchImpl: fetchMock as unknown as typeof fetch
+    })
+    const composite = createCompositeTelemetryTransport([
+      () => {
+        throw new Error('native_unavailable')
+      },
+      nativeTransport
+    ])
+
+    await httpTransport(envelope)
+    composite(envelope)
+
+    expect(resolveTelemetryEndpoint('/api/telemetry/cn/events', 'http://backend.test/')).toBe(
+      'http://backend.test/api/telemetry/cn/events'
+    )
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://backend.test/api/telemetry/cn/events',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(envelope),
+        keepalive: true
+      })
+    )
+    expect(nativeTransport).toHaveBeenCalledWith(envelope)
   })
 })

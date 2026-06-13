@@ -66,7 +66,7 @@
 - 构建时通过 `TELEMETRY_REGION=domestic|overseas` 选择落地方案。国内包输出 `cn-edu-v1` 包络，默认 endpoint 为 `/api/telemetry/cn/events`；海外包输出 `global-edu-v1` 包络，默认 endpoint 为 `/api/telemetry/global/events`。
 - `TELEMETRY_CHANNEL` 用来区分 `weapp`、`h5-cn`、`h5-global`、`app-cn`、`app-global` 等渠道，后续接 App Store、Google Play、国内安卓渠道时只调整打包命令。
 - 当前首批事件覆盖 App 打开、移动导航、行业/分类切换、元件添加和锁定、开关、电压、导线连接、线型、画布拖动、训练、故障场景、课程、题库、考试、付费入口和账号状态。
-- 默认 transport 是 no-op，避免在没有后端和 SDK 时污染测试环境；真实接入时在客户端创建时注入 SDK 或请求 transport。
+- 客户端默认组合 HTTP backend transport 和 Google Play 原生 adapter：HTTP 上报会把相对 endpoint 拼到 `AUTH_API_BASE_URL`，网络失败会静默降级，不阻塞仿真和学习流程；Google Play Android 运行时仍并行投递原生分析事件。
 
 ## 新增电器接口
 
