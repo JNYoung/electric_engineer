@@ -2459,7 +2459,7 @@ $ink: #1f2937;
 }
 
 .simulation-workspace {
-  grid-template-columns: 280px minmax(680px, 1fr) 320px;
+  grid-template-columns: 280px minmax(680px, 1fr);
   align-items: start;
 }
 
