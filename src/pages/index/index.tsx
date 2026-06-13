@@ -138,6 +138,7 @@ type OrientationController = ScreenOrientation & {
 }
 
 declare const __BUILD_TARGET__: string | undefined
+declare const __INTERNAL_TEST_UNLOCKS__: boolean | undefined
 
 interface Point {
   x: number
@@ -220,6 +221,10 @@ function getRuntimeTelemetryPlatform() {
 
 function getBuildTarget() {
   return typeof __BUILD_TARGET__ === 'undefined' ? 'h5' : __BUILD_TARGET__
+}
+
+function isInternalTestUnlocksEnabled() {
+  return typeof __INTERNAL_TEST_UNLOCKS__ !== 'undefined' && __INTERNAL_TEST_UNLOCKS__
 }
 
 function getFullscreenElement() {
@@ -1018,6 +1023,61 @@ function CommercePanel({
         <Text className='api-row'>支付：{COMMERCIAL_API_CONTRACT.billing.checkoutEndpoint}</Text>
         <Text className='api-row'>账户中心：{COMMERCIAL_API_CONTRACT.billing.portalEndpoint}</Text>
         <Text className='api-row'>Webhook：{COMMERCIAL_API_CONTRACT.billing.webhookEndpoint}</Text>
+      </View>
+    </View>
+  )
+}
+
+function AccountInternalTestPanel({
+  session,
+  access,
+  onUnlockAll,
+  onReset
+}: {
+  session: AuthSession
+  access: CommercialAccessSnapshot
+  onUnlockAll: () => void
+  onReset: () => void
+}) {
+  const isUnlocked = hasTierAccess(session.tier, 'team')
+
+  return (
+    <View className='account-internal-test-panel'>
+      <View className='internal-test-head'>
+        <View>
+          <Text className='internal-test-kicker'>内测接口</Text>
+          <Text className='internal-test-title'>付费内容测试解锁</Text>
+          <Text className='internal-test-desc'>
+            仅内测包外显，用于绕过支付流程检查专业元件、团队权益和内部功能。
+          </Text>
+        </View>
+        <Text className={`tier-badge ${isUnlocked ? 'tier-team' : 'tier-free'}`}>
+          {isUnlocked ? '已全量解锁' : '待解锁'}
+        </Text>
+      </View>
+
+      <View className='internal-test-metrics'>
+        <View>
+          <Text className='metric-label'>测试账号</Text>
+          <Text className='metric-value'>{session.displayName}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>当前权限</Text>
+          <Text className='metric-value'>{tierLabel(session.tier)}</Text>
+        </View>
+        <View>
+          <Text className='metric-label'>目录权限</Text>
+          <Text className='metric-value'>{access.catalog.available}/{access.catalog.total}</Text>
+        </View>
+      </View>
+
+      <View className='internal-test-actions'>
+        <Button className='small-action internal-test-primary' onClick={onUnlockAll}>
+          解锁全部付费内容
+        </Button>
+        <Button className='small-action internal-test-secondary' onClick={onReset}>
+          恢复免费状态
+        </Button>
       </View>
     </View>
   )
@@ -3364,6 +3424,17 @@ export default function Index() {
     changeAppModule('account', 'purchase_intent')
   }
 
+  function unlockAllPaidContentForInternalTest() {
+    trackTelemetryEvent('auth_changed', {
+      status: 'authenticated',
+      tier: 'team',
+      source: 'internal_test_unlock_all'
+    })
+    setSelectedPlanId('team')
+    setAuthSession(createAuthenticatedSession('team'))
+    changeAppModule('account', 'internal_test_unlock_all')
+  }
+
   function answerKnowledgeQuestion(questionId: string, answerId: string) {
     const result = evaluateKnowledgeAnswer(questionId, answerId)
     trackTelemetryEvent('knowledge_answered', {
@@ -3445,6 +3516,7 @@ export default function Index() {
     [authSession, activeDomain, selectedPlanId]
   )
   const isNativeAndroidShell = getBuildTarget() === 'android-google-play'
+  const showInternalTestUnlocks = isInternalTestUnlocksEnabled()
   return (
     <View className={`app-shell module-focus-${activeModule}${isNativeAndroidShell ? ' is-native-shell' : ''}${isCanvasFocusMode ? ' is-canvas-focus-mode' : ''}${isSimulationPaletteCollapsed ? ' is-simulation-palette-collapsed' : ''}`}>
       <AppModuleNav activeModule={activeModule} onChange={changeAppModule} />
@@ -3815,6 +3887,14 @@ export default function Index() {
             onChangeDomain={changeDomain}
             variant='account'
           />
+          {showInternalTestUnlocks && (
+            <AccountInternalTestPanel
+              session={authSession}
+              access={commercialAccess}
+              onUnlockAll={unlockAllPaidContentForInternalTest}
+              onReset={simulateSignOut}
+            />
+          )}
         </View>
       </View>
 

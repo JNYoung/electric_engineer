@@ -9,6 +9,7 @@ const telemetryEndpoint =
   (telemetryRegion === 'overseas' ? '/api/telemetry/global/events' : '/api/telemetry/cn/events')
 const telemetryChannel = process.env.TELEMETRY_CHANNEL ?? buildTarget
 const telemetryEnabled = process.env.TELEMETRY_ENABLED !== 'false'
+const internalTestUnlocks = process.env.INTERNAL_TEST_UNLOCKS === 'true'
 
 const config: UserConfigExport = {
   projectName: 'diangong-dashi',
@@ -45,7 +46,8 @@ const config: UserConfigExport = {
     __TELEMETRY_REGION__: JSON.stringify(telemetryRegion),
     __TELEMETRY_CHANNEL__: JSON.stringify(telemetryChannel),
     __TELEMETRY_ENDPOINT__: JSON.stringify(telemetryEndpoint),
-    __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled)
+    __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled),
+    __INTERNAL_TEST_UNLOCKS__: JSON.stringify(internalTestUnlocks)
   },
   terser: {
     config: {
