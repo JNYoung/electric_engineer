@@ -7,41 +7,73 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.google.firebase.analytics.FirebaseAnalytics;
 
 import org.json.JSONException;
 
+import java.lang.reflect.Method;
 import java.util.Iterator;
 
 @CapacitorPlugin(name = "ElectricAnalytics")
 public class ElectricAnalyticsPlugin extends Plugin {
-    private FirebaseAnalytics analytics;
+    private Object analytics;
 
     @Override
     public void load() {
-        analytics = FirebaseAnalytics.getInstance(getContext());
+        if (!BuildConfig.GOOGLE_PLAY_SERVICES_ENABLED) return;
+        analytics = createFirebaseAnalytics();
     }
 
     @PluginMethod
     public void logEvent(PluginCall call) {
+        if (analytics == null) {
+            call.resolve();
+            return;
+        }
+
         String name = sanitizeName(call.getString("name", "app_event"));
         JSObject params = call.getObject("params");
-        analytics.logEvent(name, toBundle(params));
+        invokeAnalytics("logEvent", new Class[]{String.class, Bundle.class}, name, toBundle(params));
         call.resolve();
     }
 
     @PluginMethod
     public void setUserId(PluginCall call) {
-        analytics.setUserId(call.getString("userId"));
+        if (analytics != null) {
+            invokeAnalytics("setUserId", new Class[]{String.class}, call.getString("userId"));
+        }
         call.resolve();
     }
 
     @PluginMethod
     public void setUserProperty(PluginCall call) {
+        if (analytics == null) {
+            call.resolve();
+            return;
+        }
+
         String name = sanitizeName(call.getString("name", "property"));
         String value = call.getString("value", "");
-        analytics.setUserProperty(name, value);
+        invokeAnalytics("setUserProperty", new Class[]{String.class, String.class}, name, value);
         call.resolve();
+    }
+
+    private Object createFirebaseAnalytics() {
+        try {
+            Class<?> analyticsClass = Class.forName("com.google.firebase.analytics.FirebaseAnalytics");
+            Method getInstance = analyticsClass.getMethod("getInstance", android.content.Context.class);
+            return getInstance.invoke(null, getContext());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void invokeAnalytics(String methodName, Class<?>[] parameterTypes, Object... args) {
+        try {
+            Method method = analytics.getClass().getMethod(methodName, parameterTypes);
+            method.invoke(analytics, args);
+        } catch (Exception ignored) {
+            // Native analytics is optional and must not block app flows.
+        }
     }
 
     private Bundle toBundle(JSObject params) {

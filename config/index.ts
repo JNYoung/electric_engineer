@@ -4,6 +4,13 @@ import path from 'path'
 const outputRoot = process.env.TARO_ENV === 'weapp' ? 'dist/weapp' : 'dist/h5'
 const buildTarget = process.env.BUILD_TARGET ?? process.env.TARO_ENV ?? 'h5'
 const telemetryRegion = process.env.TELEMETRY_REGION === 'overseas' ? 'overseas' : 'domestic'
+const authRegion = process.env.AUTH_REGION === 'overseas' || buildTarget.startsWith('android-google-play')
+  ? 'overseas'
+  : 'domestic'
+const authDefaultPort = authRegion === 'overseas' ? 4318 : 4317
+const authApiBaseUrl = process.env.AUTH_API_BASE_URL ?? `http://127.0.0.1:${authDefaultPort}`
+const internalTestUnlock = process.env.INTERNAL_TEST_UNLOCK === 'true' || buildTarget.endsWith('-internal')
+const appDistribution = internalTestUnlock ? 'internal' : 'production'
 const telemetryEndpoint =
   process.env.TELEMETRY_ENDPOINT ??
   (telemetryRegion === 'overseas' ? '/api/telemetry/global/events' : '/api/telemetry/cn/events')
@@ -31,6 +38,7 @@ const config: UserConfigExport = {
   alias: {
     '@': path.resolve(__dirname, '..', 'src'),
     ...(buildTarget === 'android-google-play'
+      || buildTarget === 'android-google-play-internal'
       ? {}
       : {
           '@capacitor/core': path.resolve(__dirname, '..', 'src/core/capacitorCoreShim.ts')
@@ -45,7 +53,11 @@ const config: UserConfigExport = {
     __TELEMETRY_REGION__: JSON.stringify(telemetryRegion),
     __TELEMETRY_CHANNEL__: JSON.stringify(telemetryChannel),
     __TELEMETRY_ENDPOINT__: JSON.stringify(telemetryEndpoint),
-    __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled)
+    __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled),
+    __AUTH_REGION__: JSON.stringify(authRegion),
+    __AUTH_API_BASE_URL__: JSON.stringify(authApiBaseUrl),
+    __INTERNAL_TEST_UNLOCK__: JSON.stringify(internalTestUnlock),
+    __APP_DISTRIBUTION__: JSON.stringify(appDistribution)
   },
   terser: {
     config: {

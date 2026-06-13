@@ -1,8 +1,12 @@
-import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, PropsWithChildren } from 'react'
+import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, InputHTMLAttributes, PropsWithChildren } from 'react'
 
 type ViewProps = PropsWithChildren<HTMLAttributes<HTMLDivElement>>
 type TextProps = PropsWithChildren<HTMLAttributes<HTMLSpanElement>>
 type ButtonProps = PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement>>
+type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'onInput'> & {
+  password?: boolean
+  onInput?: (event: { detail: { value: string } }) => void
+}
 type ScrollViewProps = ViewProps & {
   scrollX?: boolean
   scrollY?: boolean
@@ -37,6 +41,18 @@ export function Button(props: ButtonProps) {
   domProps.type = domProps.type ?? 'button'
 
   return ReactRuntime.createElement('button', domProps, props.children)
+}
+
+export function Input(props: InputProps) {
+  const domProps = copyDomProps(props as Record<string, unknown>, ['onInput', 'password'])
+  if (props.password) {
+    domProps.type = 'password'
+  }
+  domProps.onInput = (event: { currentTarget: { value: string } }) => {
+    props.onInput?.({ detail: { value: event.currentTarget.value } })
+  }
+
+  return ReactRuntime.createElement('input', domProps)
 }
 
 export function ScrollView(props: ScrollViewProps) {

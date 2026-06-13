@@ -6,6 +6,23 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+def valueOrDefault = { String name, Object fallback ->
+    if (project.hasProperty(name)) {
+        return project.property(name)
+    }
+    def envValue = System.getenv(name)
+    return envValue == null || envValue.toString().trim().isEmpty() ? fallback : envValue
+}
+
+def quotedBuildConfigString = { Object value ->
+    "\"${String.valueOf(value).replace("\\", "\\\\").replace("\"", "\\\"")}\""
+}
+
+def googlePlayAdmobAppId = valueOrDefault('GOOGLE_PLAY_ADMOB_APP_ID', 'ca-app-pub-3940256099942544~3347511713')
+def googlePlayAdmobBannerAdUnitId = valueOrDefault('GOOGLE_PLAY_ADMOB_BANNER_AD_UNIT_ID', '')
+def googlePlayInternalAdmobAppId = valueOrDefault('GOOGLE_PLAY_INTERNAL_ADMOB_APP_ID', googlePlayAdmobAppId)
+def googlePlayInternalAdmobBannerAdUnitId = valueOrDefault('GOOGLE_PLAY_INTERNAL_ADMOB_BANNER_AD_UNIT_ID', 'ca-app-pub-3940256099942544/6300978111')
+
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
     defaultConfig {
@@ -23,15 +40,49 @@ android {
     }
     flavorDimensions "store"
     productFlavors {
+        domestic {
+            dimension "store"
+            buildConfigField "boolean", "GOOGLE_PLAY_SERVICES_ENABLED", "false"
+            buildConfigField "String", "STORE_CHANNEL", "\"domestic\""
+            buildConfigField "String", "AUTH_REGION", "\"domestic\""
+            buildConfigField "String", "ADMOB_BANNER_AD_UNIT_ID", "\"\""
+            buildConfigField "boolean", "INTERNAL_TEST_UNLOCK", "false"
+        }
+        domesticInternal {
+            dimension "store"
+            applicationIdSuffix ".internal"
+            versionNameSuffix "-internal"
+            buildConfigField "boolean", "GOOGLE_PLAY_SERVICES_ENABLED", "false"
+            buildConfigField "String", "STORE_CHANNEL", "\"domestic_internal\""
+            buildConfigField "String", "AUTH_REGION", "\"domestic\""
+            buildConfigField "String", "ADMOB_BANNER_AD_UNIT_ID", "\"\""
+            buildConfigField "boolean", "INTERNAL_TEST_UNLOCK", "true"
+        }
         googlePlay {
             dimension "store"
             manifestPlaceholders = [
-                    admobAppId: "ca-app-pub-3940256099942544~3347511713",
+                    admobAppId: googlePlayAdmobAppId,
                     firebaseAnalyticsCollectionEnabled: "true"
             ]
             buildConfigField "boolean", "GOOGLE_PLAY_SERVICES_ENABLED", "true"
             buildConfigField "String", "STORE_CHANNEL", "\"google_play\""
-            buildConfigField "String", "ADMOB_BANNER_AD_UNIT_ID", "\"ca-app-pub-3940256099942544/6300978111\""
+            buildConfigField "String", "AUTH_REGION", "\"overseas\""
+            buildConfigField "String", "ADMOB_BANNER_AD_UNIT_ID", quotedBuildConfigString(googlePlayAdmobBannerAdUnitId)
+            buildConfigField "boolean", "INTERNAL_TEST_UNLOCK", "false"
+        }
+        googlePlayInternal {
+            dimension "store"
+            applicationIdSuffix ".internal"
+            versionNameSuffix "-internal"
+            manifestPlaceholders = [
+                    admobAppId: googlePlayInternalAdmobAppId,
+                    firebaseAnalyticsCollectionEnabled: "true"
+            ]
+            buildConfigField "boolean", "GOOGLE_PLAY_SERVICES_ENABLED", "true"
+            buildConfigField "String", "STORE_CHANNEL", "\"google_play_internal\""
+            buildConfigField "String", "AUTH_REGION", "\"overseas\""
+            buildConfigField "String", "ADMOB_BANNER_AD_UNIT_ID", quotedBuildConfigString(googlePlayInternalAdmobBannerAdUnitId)
+            buildConfigField "boolean", "INTERNAL_TEST_UNLOCK", "true"
         }
     }
     signingConfigs {
@@ -65,9 +116,18 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
-    implementation platform("com.google.firebase:firebase-bom:31.2.3")
-    implementation "com.google.firebase:firebase-analytics"
-    implementation "com.google.android.gms:play-services-ads:22.6.0"
+    googlePlayImplementation platform("com.google.firebase:firebase-bom:31.2.3")
+    googlePlayImplementation "com.google.firebase:firebase-analytics"
+    googlePlayImplementation "com.google.android.gms:play-services-ads:22.6.0"
+    googlePlayImplementation "com.google.android.gms:play-services-auth:21.2.0"
+    googlePlayInternalImplementation "com.google.android.gms:play-services-auth:21.2.0"
+    googlePlayInternalImplementation platform("com.google.firebase:firebase-bom:31.2.3")
+    googlePlayInternalImplementation "com.google.firebase:firebase-analytics"
+    googlePlayInternalImplementation "com.google.android.gms:play-services-ads:22.6.0"
+    googlePlayImplementation "com.facebook.android:facebook-login:17.0.2"
+    googlePlayInternalImplementation "com.facebook.android:facebook-login:17.0.2"
+    domesticImplementation "com.tencent.mm.opensdk:wechat-sdk-android-without-mta:6.8.0"
+    domesticInternalImplementation "com.tencent.mm.opensdk:wechat-sdk-android-without-mta:6.8.0"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
@@ -81,6 +141,17 @@ try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {
         apply plugin: 'com.google.gms.google-services'
+        def enabledGoogleServicesTasks = [
+                'processGooglePlayDebugGoogleServices',
+                'processGooglePlayReleaseGoogleServices'
+        ]
+        tasks.matching { task ->
+            task.name.startsWith('process') &&
+                    task.name.endsWith('GoogleServices') &&
+                    !enabledGoogleServicesTasks.contains(task.name)
+        }.configureEach {
+            enabled = false
+        }
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")

@@ -107,7 +107,6 @@ $ink: #1f2937;
 .plan-target,
 .plan-feature,
 .feature-gate-detail,
-.api-row,
 .assessment-copy,
 .assessment-meta,
 .assessment-remediation,
@@ -543,6 +542,396 @@ $ink: #1f2937;
   border: 1px solid $line;
   border-radius: 8px;
   box-sizing: border-box;
+}
+
+.question-bank-gate,
+.question-bank-home,
+.question-bank-practice {
+  margin-top: 16px;
+  padding: 14px;
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.question-bank-gate {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 16px;
+  background: #f8fbff;
+}
+
+.question-bank-gate-title,
+.question-bank-title,
+.course-progress-title,
+.question-bank-empty-title {
+  display: block;
+  color: $text;
+  font-weight: 900;
+}
+
+.question-bank-gate-title,
+.question-bank-title {
+  margin-top: 4px;
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.question-bank-gate-desc,
+.question-bank-copy,
+.course-progress-copy,
+.question-bank-empty-copy {
+  display: block;
+  margin-top: 4px;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.question-bank-login-action {
+  background: #132238;
+  border-color: #132238;
+  color: #ffffff;
+}
+
+.question-bank-head,
+.question-bank-practice-head {
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.question-bank-head .question-bank-title,
+.question-bank-practice-head .question-bank-title {
+  color: #ffffff;
+}
+
+.question-bank-head .question-bank-copy,
+.question-bank-practice-head .question-bank-copy {
+  color: #d8e2f0;
+}
+
+.question-bank-sync-badge {
+  width: 84px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.question-bank-sync-badge.compact {
+  width: 72px;
+  min-height: 60px;
+}
+
+.question-bank-sync-badge text:first-child,
+.question-bank-sync-badge span:first-child {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.question-bank-sync-badge.compact text:first-child,
+.question-bank-sync-badge.compact span:first-child {
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.question-bank-sync-badge.compact text:last-child,
+.question-bank-sync-badge.compact span:last-child {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.question-bank-admin-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.question-bank-admin-action {
+  min-width: 0;
+  min-height: 74px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.question-bank-admin-action::after {
+  border: none;
+}
+
+.question-bank-admin-action.is-active {
+  border-color: #bdebdc;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.question-bank-admin-title {
+  display: block;
+  font-size: 15px;
+  line-height: 21px;
+  font-weight: 900;
+}
+
+.question-bank-admin-copy {
+  display: block;
+  margin-top: 4px;
+  color: $muted;
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 700;
+}
+
+.question-bank-list-head {
+  min-width: 0;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.course-progress-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.course-progress-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.course-progress-card:active {
+  border-color: #9fc3ff;
+  background: #f8fbff;
+}
+
+.course-progress-level {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+}
+
+.course-progress-title {
+  margin-top: 7px;
+  font-size: 15px;
+  line-height: 21px;
+}
+
+.course-progress-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.course-progress-tags text,
+.course-progress-tags span {
+  min-height: 22px;
+  padding: 0 7px;
+  border: 1px solid #edf1f6;
+  border-radius: 7px;
+  background: #f8fbff;
+  color: #344054;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 800;
+}
+
+.course-progress-side {
+  display: grid;
+  justify-items: stretch;
+  align-content: start;
+  gap: 6px;
+}
+
+.course-status {
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.course-status.status-passed {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.course-status.status-active {
+  background: #fff7ed;
+  color: #9a4b00;
+}
+
+.course-status.status-ready {
+  background: #eef6ff;
+  color: $blue;
+}
+
+.course-progress-percent,
+.course-progress-count {
+  display: block;
+  text-align: center;
+  font-weight: 900;
+}
+
+.course-progress-percent {
+  color: #172033;
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.course-progress-count {
+  color: $muted;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.course-progress-action {
+  width: 100%;
+}
+
+.question-bank-card-meta {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.question-bank-back {
+  flex: 0 0 auto;
+  background: #ffffff;
+}
+
+.question-bank-mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.question-bank-mode-tab {
+  width: auto;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid $line;
+  border-radius: 7px;
+  background: #ffffff;
+  color: $text;
+  font-size: 13px;
+  line-height: 32px;
+  font-weight: 800;
+}
+
+.question-bank-mode-tab::after {
+  border: none;
+}
+
+.question-bank-mode-tab.is-active {
+  border-color: #bdebdc;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.question-bank-practice-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.question-bank-question-list {
+  display: grid;
+  gap: 10px;
+}
+
+.question-bank-question .choice-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  align-items: stretch;
+  overflow: visible;
+}
+
+.question-bank-question .choice-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  line-height: 18px;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.question-bank-side {
+  min-width: 0;
+}
+
+.question-bank-side-card,
+.question-bank-empty {
+  padding: 10px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.question-bank-empty {
+  margin-top: 12px;
+  background: #f8fbff;
 }
 
 .knowledge-head {
@@ -1961,8 +2350,7 @@ $ink: #1f2937;
   gap: 2px;
 }
 
-.app-module-tab-title,
-.app-module-tab-desc {
+.app-module-tab-title {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -1975,13 +2363,6 @@ $ink: #1f2937;
   font-size: 13px;
   line-height: 18px;
   font-weight: 900;
-}
-
-.app-module-tab-desc {
-  color: $muted;
-  font-size: 11px;
-  line-height: 15px;
-  font-weight: 700;
 }
 
 .mobile-bottom-nav {
@@ -2082,7 +2463,7 @@ $ink: #1f2937;
 }
 
 .simulation-workspace {
-  grid-template-columns: 280px minmax(680px, 1fr) 320px;
+  grid-template-columns: 280px minmax(680px, 1fr);
   align-items: start;
 }
 
@@ -5697,6 +6078,19 @@ $ink: #1f2937;
   margin-top: 10px;
 }
 
+.account-billing-message {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #dbe5f2;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
 .commerce-status {
   min-width: 0;
 }
@@ -5705,6 +6099,344 @@ $ink: #1f2937;
   background: #132238;
   border-color: #132238;
   color: #ffffff;
+}
+
+.account-delete-action {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #b42318;
+}
+
+.account-deletion-message {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #b42318;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
+.auth-entry-card {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.account-compliance-panel {
+  margin-top: 12px;
+}
+
+.account-compliance-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.account-compliance-button {
+  min-width: 0;
+  min-height: 54px;
+  margin: 0;
+  padding: 6px 4px;
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  box-sizing: border-box;
+}
+
+.account-compliance-button::after {
+  border: none;
+}
+
+.account-compliance-mark {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 13px;
+  line-height: 24px;
+  font-weight: 900;
+}
+
+.account-compliance-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: $muted;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-entry-head,
+.auth-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auth-entry-head .account-section-title {
+  margin-top: 0;
+}
+
+.auth-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  align-items: end;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.46);
+  box-sizing: border-box;
+}
+
+.auth-dialog-panel {
+  width: 100%;
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid #dbe5f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.24);
+  box-sizing: border-box;
+}
+
+.auth-dialog-title {
+  display: block;
+  color: $text;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 900;
+}
+
+.auth-dialog-head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-dialog-close {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #dbe5f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: 900;
+}
+
+.auth-dialog-close::after {
+  border: none;
+}
+
+.auth-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 42px);
+  gap: 8px;
+  justify-content: start;
+  margin-top: 10px;
+}
+
+.auth-provider-button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  text-align: center;
+}
+
+.auth-provider-button::after {
+  border: none;
+}
+
+.auth-provider-button.is-active {
+  border-color: #bdebdc;
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.auth-provider-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #eef6ff;
+  color: $blue;
+  font-size: 17px;
+  line-height: 34px;
+  font-weight: 900;
+}
+
+.auth-provider-icon.provider-wechat,
+.auth-provider-icon.provider-phone-otp {
+  background: #e8fbf5;
+  color: #087c67;
+}
+
+.auth-provider-icon.provider-facebook {
+  background: #eaf1ff;
+  color: #2563eb;
+}
+
+.auth-provider-icon.provider-google {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.auth-provider-icon.provider-email-password {
+  background: #f3f4f6;
+  color: $text;
+}
+
+.auth-provider-card,
+.linked-account-list {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.auth-provider-title {
+  display: block;
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.auth-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.auth-input {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  box-sizing: border-box;
+}
+
+.auth-inline-action {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.auth-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.auth-operation-message {
+  display: block;
+  margin-top: 8px;
+  color: #087c67;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 800;
+}
+
+.linked-provider-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.linked-provider-icon {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.linked-provider-icon.is-linked {
+  border-color: #bdebdc;
+  background: #f0fdf9;
+}
+
+.linked-provider-icon.is-pending {
+  color: $muted;
+}
+
+.provider-status-mark {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #e5eaf2;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 900;
+}
+
+.linked-provider-icon.is-linked .provider-status-mark {
+  background: #0f8f73;
+  color: #ffffff;
+}
+
+@media (min-width: 720px) {
+  .auth-dialog-backdrop {
+    align-items: center;
+    justify-items: center;
+  }
+
+  .auth-dialog-panel {
+    max-width: 520px;
+  }
 }
 
 .access-summary {
@@ -5821,16 +6553,43 @@ $ink: #1f2937;
   color: #087c67;
 }
 
-.api-contract {
-  margin-top: 10px;
+.internal-test-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
   padding: 10px;
+  border: 1px dashed #a7b5c8;
   border-radius: 8px;
-  background: #ffffff;
-  border: 1px solid #edf1f6;
+  background: #f8fbff;
 }
 
-.api-row {
-  word-break: break-all;
+.internal-test-title {
+  display: block;
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.internal-test-copy,
+.internal-test-message {
+  display: block;
+  margin-top: 3px;
+  color: $muted;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 800;
+}
+
+.internal-test-action {
+  margin: 0;
+}
+
+.internal-test-message {
+  grid-column: 1 / -1;
+  color: #087c67;
 }
 
 .effects-bar {
@@ -6362,8 +7121,58 @@ $ink: #1f2937;
   .commercial-dashboard,
   .learning-dashboard,
   .knowledge-board,
-  .assessment-board {
+  .assessment-board,
+  .question-bank-gate,
+  .question-bank-home,
+  .question-bank-practice {
     padding: 10px;
+  }
+
+  .question-bank-gate {
+    min-height: 0;
+  }
+
+  .question-bank-head,
+  .question-bank-practice-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 72px;
+    align-items: start;
+  }
+
+  .question-bank-home .question-bank-head {
+    display: block;
+  }
+
+  .question-bank-practice-head .question-bank-back {
+    grid-column: 1 / -1;
+    width: auto;
+    justify-self: start;
+  }
+
+  .course-progress-card {
+    grid-template-columns: 1fr;
+  }
+
+  .course-progress-side {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+  }
+
+  .course-progress-action {
+    grid-column: 1 / -1;
+  }
+
+  .question-bank-practice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .question-bank-mode-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .question-bank-mode-tab {
+    flex: 0 0 auto;
   }
 
   .commercial-title,

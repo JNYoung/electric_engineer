@@ -15,7 +15,7 @@
 - `src/core/assessment.ts`：考试蓝图与组卷评分层，面向基础电学能力测验、大学电路小考和电工实操取证模拟，复用知识题库并输出通过线、得分、薄弱 Track、仿真准备度、考试工位验收、认证准入、练习复盘报告和补练建议。
 - `src/core/instruments.ts`：虚拟万用表测点层，把当前电路和仿真结果转换成电压、电流、KCL、导线通断、短路隔离和过压风险读数，供仿真区、题库和后续训练报告复用。
 - `src/core/materials.ts`：组件素材规格库，维护常用器件、工程工控、装修工控的额定/供电、电流范围、关键参数、岗位用途、接线要点、取证考点、安全注意和常见故障，并输出训练素材检索结果与可教学交付的素材实训包，供 UI、题库和后续素材搜索复用。
-- `src/core/commercial.ts`：商业化能力模型，定义工程工控、装修工控两个工作域，分类元件目录、套餐门禁、登录状态占位、支付 API 契约和账号权限快照。
+- `src/core/commercial.ts`：商业化能力模型，定义工程工控、装修工控两个工作域，分类元件目录、套餐门禁、登录状态、支付 API 契约和账号权限快照。
 - `src/core/telemetry.ts`：埋点抽象层，统一业务事件名和属性，按构建常量选择国内 `cn-edu-v1` 或海外 `global-edu-v1` 包络，页面只调用统一 `track`，后续接神策/友盟/Firebase/GA4/自建管道时不改业务代码。
 - `src/pages/index`：跨端工作台 UI，包含行业工作域、分类元件库、素材规格速查、商业化面板、学习路径、训练挑战、知识验证、专业考试模拟、连接画布、属性检查器、训练评分、安全诊断和仿真结果。
 - `docs/LOW_VOLTAGE_COMPONENTS.md`：弱电元件调研清单与当前仿真抽象说明。
@@ -57,8 +57,8 @@
 - 装修工控覆盖智能网关、智能开关、调光模块、窗帘电机、地暖温控、漏水检测、场景面板、门禁模块等设备。
 - 元件目录在 `COMPONENT_CATALOG` 中维护，包含工作域、分类、复杂度、套餐等级、标签和使用说明。UI 使用同一份目录生成 Tab、分类筛选、锁定提示和添加按钮。
 - 套餐模型在 `BILLING_PLANS` 中维护，目前预留体验版、专业版、团队版。`FEATURE_GATES` 统一定义功能门禁，后续接入真实账号后仍可复用。
-- 商业权限快照由 `buildCommercialAccessSnapshot` 输出，会聚合当前账号、行业域、锁定元件、功能门禁、推荐套餐和下一步登录/结账/账户中心动作。UI 只消费该快照，后续替换为真实后端状态时不需要重写展示层。
-- 登录与支付暂不绑定真实后端，但 `COMMERCIAL_API_CONTRACT` 已固定 `/api/auth/*`、`/api/billing/*` 与 webhook 入口，方便后续接 OAuth、JWT、Stripe、微信支付或企业内购。
+- 商业权限快照由 `buildCommercialAccessSnapshot` 输出，会聚合当前账号、行业域、锁定元件、功能门禁、推荐套餐和下一步登录/结账/账户中心动作。UI 只消费该快照，后续切换生产权益服务时不需要重写展示层。
+- 登录与支付已接入本地 backend 契约：`src/core/auth.ts` 和 `src/core/billing.ts` 调用 `/api/auth/*`、`/api/billing/*` 与 webhook/restore/portal 入口；生产环境继续替换短信、OAuth、JWT、Stripe、微信支付、Google Play Billing 或企业内购 adapter。
 
 ## 埋点分流
 
@@ -66,7 +66,7 @@
 - 构建时通过 `TELEMETRY_REGION=domestic|overseas` 选择落地方案。国内包输出 `cn-edu-v1` 包络，默认 endpoint 为 `/api/telemetry/cn/events`；海外包输出 `global-edu-v1` 包络，默认 endpoint 为 `/api/telemetry/global/events`。
 - `TELEMETRY_CHANNEL` 用来区分 `weapp`、`h5-cn`、`h5-global`、`app-cn`、`app-global` 等渠道，后续接 App Store、Google Play、国内安卓渠道时只调整打包命令。
 - 当前首批事件覆盖 App 打开、移动导航、行业/分类切换、元件添加和锁定、开关、电压、导线连接、线型、画布拖动、训练、故障场景、课程、题库、考试、付费入口和账号状态。
-- 默认 transport 是 no-op，避免在没有后端和 SDK 时污染测试环境；真实接入时在客户端创建时注入 SDK 或请求 transport。
+- 客户端默认组合 HTTP backend transport 和 Google Play 原生 adapter：HTTP 上报会把相对 endpoint 拼到 `AUTH_API_BASE_URL`，网络失败会静默降级，不阻塞仿真和学习流程；Google Play Android 运行时仍并行投递原生分析事件。
 
 ## 新增电器接口
 

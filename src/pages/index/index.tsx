@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, ScrollView, Text, View } from '@tarojs/components'
+import { Button, Input, ScrollView, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
 import { createBranchWires, createDevice, createInitialCircuit } from '@/core/circuitFactory'
@@ -12,18 +12,27 @@ import {
 import { simulateCircuit } from '@/core/simulator'
 import {
   BILLING_PLANS,
-  COMMERCIAL_API_CONTRACT,
   DEFAULT_AUTH_SESSION,
   DOMAIN_PROFILES,
   buildCommercialAccessSnapshot,
   canUseCatalogEntry,
-  createAuthenticatedSession,
   getCatalogEntries,
   getCatalogEntriesByCategory,
   getCatalogSummary,
   getDomainProfile,
   hasTierAccess
 } from '@/core/commercial'
+import { requestBillingCheckout, requestBillingPortal } from '@/core/billing'
+import {
+  createQuestionBank,
+  mergeKnowledgeAnswers,
+  recordQuestionBankAnswer,
+  requestQuestionBanks,
+  requestUserProgress,
+  syncUserProgress,
+  type ProgressSyncStatus,
+  type SyncedQuestionBank
+} from '@/core/progress'
 import {
   FAULT_SCENARIOS,
   buildSafetyDiagnostics,
@@ -67,9 +76,22 @@ import {
   getMaterialTrainingKits
 } from '@/core/materials'
 import { buildVirtualMeterWorksheet } from '@/core/instruments'
-import { createTelemetryClient } from '@/core/telemetry'
+import {
+  createCompositeTelemetryTransport,
+  createHttpTelemetryTransport,
+  createTelemetryClient
+} from '@/core/telemetry'
 import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@/core/googlePlayNative'
 import { enterNativeLandscapeCheck, exitNativeLandscapeCheck } from '@/core/nativeDisplay'
+import {
+  getPublicCompliancePages,
+  getRuntimeAuthConfig,
+  requestInternalTestUnlock,
+  requestAccountDeletion,
+  requestAuthLink,
+  requestAuthOtp,
+  requestAuthSignIn
+} from '@/core/auth'
 import {
   AppModuleNav,
   MobileBottomNav,
@@ -86,6 +108,7 @@ import type {
 } from '@/core/training'
 import type {
   FormulaVerificationWorksheet,
+  KnowledgeQuestion,
   KnowledgeReviewItem,
   KnowledgeReviewNotebook,
   KnowledgeMeasurementWorksheet,
@@ -104,6 +127,7 @@ import type {
 import type { MaterialFamily, MaterialFinderResult, MaterialTrainingKitPlan } from '@/core/materials'
 import type { VirtualMeterWorksheet } from '@/core/instruments'
 import type { TelemetryEventName, TelemetryProperties } from '@/core/telemetry'
+import type { AuthCredentialDraft, AuthProviderConfig, PublicCompliancePageId, PublicCompliancePages, RuntimeAuthConfig } from '@/core/auth'
 import type {
   AuthSession,
   BillingPlan,
@@ -122,6 +146,17 @@ const DEFAULT_BOARD_WIDTH = 720
 const BOARD_DRAG_INSET = 2
 const MIN_CANVAS_ZOOM = 1
 const MAX_CANVAS_ZOOM = 3
+const accountComplianceItems: Array<{
+  id: PublicCompliancePageId
+  label: string
+  mark: string
+}> = [
+  { id: 'privacy', label: '隐私', mark: '隐' },
+  { id: 'terms', label: '条款', mark: '约' },
+  { id: 'support', label: '支持', mark: '助' },
+  { id: 'billing', label: '订阅', mark: '订' },
+  { id: 'accountDeletion', label: '删除', mark: '删' }
+]
 
 type FullscreenDocument = Document & {
   webkitExitFullscreen?: () => Promise<void> | void
@@ -135,6 +170,19 @@ type FullscreenTarget = HTMLElement & {
 type OrientationController = ScreenOrientation & {
   lock?: (orientation: string) => Promise<void>
   unlock?: () => void
+}
+
+type QuestionBankView = 'progress' | 'practice'
+type QuestionBankHomeMode = 'create' | 'manage'
+type QuestionBankPracticeMode = 'question-bank' | 'wrong'
+type AuthDialogMode = 'sign-in' | 'bind'
+type AuthDialogSource = 'account' | 'question-bank' | 'paywall'
+
+interface AuthDialogState {
+  open: boolean
+  mode: AuthDialogMode
+  source: AuthDialogSource
+  targetTier?: SubscriptionTier
 }
 
 declare const __BUILD_TARGET__: string | undefined
@@ -220,6 +268,53 @@ function getRuntimeTelemetryPlatform() {
 
 function getBuildTarget() {
   return typeof __BUILD_TARGET__ === 'undefined' ? 'h5' : __BUILD_TARGET__
+}
+
+function getAuthProviderMark(providerId: AuthProviderConfig['id']) {
+  return {
+    wechat: '微',
+    facebook: 'f',
+    google: 'G',
+    'phone-otp': '码',
+    'email-password': '@'
+  }[providerId]
+}
+
+function AuthProviderIconStrip({
+  providers,
+  linkedProviders = []
+}: {
+  providers: AuthProviderConfig[]
+  linkedProviders?: AuthProviderConfig['id'][]
+}) {
+  return (
+    <View className='linked-provider-icons'>
+      {providers.map((provider) => {
+        const linked = linkedProviders.includes(provider.id)
+
+        return (
+          <View
+            key={provider.id}
+            className={`linked-provider-icon ${linked ? 'is-linked' : 'is-pending'}`}
+          >
+            <Text className={`auth-provider-icon provider-${provider.id}`}>
+              {getAuthProviderMark(provider.id)}
+            </Text>
+            <Text className='provider-status-mark'>{linked ? '✓' : '+'}</Text>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
+function progressSyncLabel(status: ProgressSyncStatus) {
+  return {
+    idle: '待同步',
+    syncing: '同步中',
+    synced: '已同步',
+    offline: '本地保存'
+  }[status]
 }
 
 function getFullscreenElement() {
@@ -475,6 +570,21 @@ function tierLabel(tier: SubscriptionTier) {
   return '免费'
 }
 
+function formatPlanPrice(plan: BillingPlan, region: RuntimeAuthConfig['region']) {
+  if (plan.id === 'free' || plan.monthlyPrice === 0) {
+    return region === 'overseas' ? 'Free' : '免费'
+  }
+
+  if (region === 'overseas') {
+    return {
+      pro: 'US$5.99/月',
+      team: 'US$29.99/月'
+    }[plan.id] ?? `US$${plan.monthlyPrice}/月`
+  }
+
+  return `¥${plan.monthlyPrice}/月`
+}
+
 function domainMaterialFamily(domain: WorkbenchDomain): MaterialFamily {
   return domain === 'engineering-control' ? '工程工控' : '装修工控'
 }
@@ -556,23 +666,22 @@ function CommercialDashboard({
   const summary = getCatalogSummary(activeDomain)
   const plan = access.recommendedPlan
   const isAccountVariant = variant === 'account'
+  const title = isAccountVariant ? '行业权限' : profile.headline
   const kicker = variant === 'account'
-    ? '行业权益概览'
+    ? '权益范围'
     : variant === 'library'
       ? '行业元件概览'
-      : '商业化行业工作台'
-  const planPrefix = variant === 'account'
-    ? '权益建议'
-    : variant === 'library'
-      ? '素材建议'
-      : '推荐套餐'
+      : '行业控制台'
+  const planPrefix = variant === 'library' ? '素材套餐' : '推荐套餐'
 
   return (
     <View className={`commercial-dashboard ${isAccountVariant ? 'account-domain-overview' : ''}`}>
       <View className='commercial-copy'>
         <Text className='training-kicker'>{kicker}</Text>
-        <Text className='commercial-title'>{profile.headline}</Text>
-        <Text className='commercial-desc'>{profile.description}</Text>
+        <Text className='commercial-title'>{title}</Text>
+        {!isAccountVariant && (
+          <Text className='commercial-desc'>{profile.description}</Text>
+        )}
       </View>
       <View className='commercial-actions'>
         <DomainSwitcher activeDomain={activeDomain} onChange={onChangeDomain} />
@@ -590,9 +699,7 @@ function CommercialDashboard({
             <Text className='metric-value'>{access.catalog.locked}</Text>
           </View>
         </View>
-        <Text className='commercial-plan'>
-          {planPrefix}：{plan.name} · {profile.recommendedVoltage}V · 下一步：{access.primaryAction.label}
-        </Text>
+        <Text className='commercial-plan'>{planPrefix}：{plan.name} · {profile.recommendedVoltage}V</Text>
       </View>
     </View>
   )
@@ -891,32 +998,310 @@ function SimulationComponentPalette({
   )
 }
 
+function AuthLoginDialog({
+  isOpen,
+  mode,
+  authConfig,
+  session,
+  onProviderSignIn,
+  onBindProvider,
+  onClose,
+  onSendOtp
+}: {
+  isOpen: boolean
+  mode: AuthDialogMode
+  authConfig: RuntimeAuthConfig
+  session: AuthSession
+  onProviderSignIn: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
+  onBindProvider: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
+  onClose: () => void
+  onSendOtp: (phone: string) => Promise<string>
+}) {
+  const [activeProviderId, setActiveProviderId] = useState(authConfig.providers[0]?.id ?? 'phone-otp')
+  const [credential, setCredential] = useState<AuthCredentialDraft>({
+    phone: '',
+    otp: '',
+    email: '',
+    password: ''
+  })
+  const [pendingAction, setPendingAction] = useState<'sign-in' | 'bind' | 'otp' | null>(null)
+  const [operationMessage, setOperationMessage] = useState('')
+  const activeProvider =
+    authConfig.providers.find((provider) => provider.id === activeProviderId) ?? authConfig.providers[0] ?? null
+  const linkedProviders = session.linkedProviders ?? []
+  const isBindMode = mode === 'bind' && session.status === 'authenticated'
+  const dialogTitle = isBindMode ? '绑定账户' : '登录账号'
+
+  useEffect(() => {
+    if (!isOpen) return
+    setActiveProviderId(authConfig.providers[0]?.id ?? 'phone-otp')
+    setCredential({
+      phone: '',
+      otp: '',
+      email: '',
+      password: ''
+    })
+    setPendingAction(null)
+    setOperationMessage('')
+  }, [isOpen, authConfig.providers])
+
+  function updateCredential(key: keyof AuthCredentialDraft, value: string) {
+    setCredential((current) => ({
+      ...current,
+      [key]: value
+    }))
+  }
+
+  async function runSignIn() {
+    if (!activeProvider || pendingAction) return
+    setPendingAction('sign-in')
+    setOperationMessage('')
+    try {
+      await onProviderSignIn(activeProvider, credential)
+      setOperationMessage('登录已完成，账号状态已同步。')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function runBind() {
+    if (!activeProvider || pendingAction) return
+    setPendingAction('bind')
+    setOperationMessage('')
+    try {
+      await onBindProvider(activeProvider, credential)
+      setOperationMessage(`${activeProvider.label}绑定状态已更新。`)
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function runSendOtp() {
+    if (pendingAction) return
+    setPendingAction('otp')
+    setOperationMessage('')
+    try {
+      const message = await onSendOtp(credential.phone ?? '')
+      setOperationMessage(message)
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  function renderCredentialFields(provider: AuthProviderConfig) {
+    if (provider.credentialMode === 'phone-otp') {
+      return (
+        <View className='auth-field-grid'>
+          <Input
+            className='auth-input'
+            placeholder='手机号'
+            value={credential.phone}
+            onInput={(event) => updateCredential('phone', event.detail.value)}
+          />
+          <Input
+            className='auth-input'
+            placeholder='验证码'
+            value={credential.otp}
+            onInput={(event) => updateCredential('otp', event.detail.value)}
+          />
+          <Button
+            className='small-action auth-inline-action'
+            onClick={runSendOtp}
+          >
+            {pendingAction === 'otp' ? '发送中' : '发送验证码'}
+          </Button>
+        </View>
+      )
+    }
+
+    if (provider.credentialMode === 'email-password') {
+      return (
+        <View className='auth-field-grid'>
+          <Input
+            className='auth-input'
+            placeholder='邮箱'
+            value={credential.email}
+            onInput={(event) => updateCredential('email', event.detail.value)}
+          />
+          <Input
+            className='auth-input'
+            placeholder={authConfig.region === 'overseas' ? '密码或邮箱验证码' : '密码'}
+            password
+            value={credential.password}
+            onInput={(event) => updateCredential('password', event.detail.value)}
+          />
+        </View>
+      )
+    }
+
+    return null
+  }
+
+  if (!isOpen) {
+    return null
+  }
+
+  return (
+    <View className='auth-dialog-backdrop'>
+      <View className='auth-dialog-panel'>
+        <View className='auth-dialog-head'>
+          <View>
+            <Text className='auth-dialog-title'>{dialogTitle}</Text>
+          </View>
+          <View className='auth-dialog-head-actions'>
+            <Button className='auth-dialog-close' onClick={onClose}>×</Button>
+          </View>
+        </View>
+
+        <View className='auth-provider-grid'>
+          {authConfig.providers.map((provider) => (
+            <Button
+              key={provider.id}
+              className={`auth-provider-button ${provider.id === activeProvider?.id ? 'is-active' : ''}`}
+              onClick={() => setActiveProviderId(provider.id)}
+            >
+              <Text className={`auth-provider-icon provider-${provider.id}`}>
+                {getAuthProviderMark(provider.id)}
+              </Text>
+            </Button>
+          ))}
+        </View>
+
+        {activeProvider && (
+          <View className='auth-provider-card'>
+            <Text className='auth-provider-title'>{activeProvider.label}</Text>
+            {renderCredentialFields(activeProvider)}
+            <View className='auth-action-row'>
+              <Button
+                className='small-action commerce-primary-action'
+                onClick={isBindMode ? runBind : runSignIn}
+              >
+                {pendingAction === 'sign-in' || pendingAction === 'bind'
+                  ? (isBindMode ? '绑定中' : '登录中')
+                  : (isBindMode ? '绑定账户' : '登录')}
+              </Button>
+            </View>
+            {operationMessage && (
+              <Text className='auth-operation-message'>{operationMessage}</Text>
+            )}
+          </View>
+        )}
+
+        {session.status === 'authenticated' && (
+          <View className='linked-account-list'>
+            <Text className='note-title'>绑定状态</Text>
+            <AuthProviderIconStrip providers={authConfig.providers} linkedProviders={linkedProviders} />
+          </View>
+        )}
+      </View>
+    </View>
+  )
+}
+
+function AccountAuthEntryCard({
+  authConfig,
+  session,
+  onOpenSignIn,
+  onOpenBind
+}: {
+  authConfig: RuntimeAuthConfig
+  session: AuthSession
+  onOpenSignIn: () => void
+  onOpenBind: () => void
+}) {
+  const linkedProviders = session.linkedProviders ?? []
+
+  return (
+    <View className='auth-entry-card'>
+      <View className='auth-entry-head'>
+        <View>
+          <Text className='account-section-title'>账号登录</Text>
+        </View>
+      </View>
+
+      <AuthProviderIconStrip
+        providers={authConfig.providers}
+        linkedProviders={session.status === 'authenticated' ? linkedProviders : []}
+      />
+
+      <View className='auth-action-row'>
+        {session.status === 'authenticated' ? (
+          <Button className='small-action commerce-primary-action' onClick={onOpenBind}>
+            绑定账号
+          </Button>
+        ) : (
+          <Button className='small-action commerce-primary-action' onClick={onOpenSignIn}>
+            登录
+          </Button>
+        )}
+      </View>
+    </View>
+  )
+}
+
+function AccountComplianceLinks({
+  pages,
+  onOpen
+}: {
+  pages: PublicCompliancePages
+  onOpen: (pageId: PublicCompliancePageId, url: string) => void
+}) {
+  return (
+    <View className='account-compliance-panel'>
+      <Text className='account-section-title'>合规与支持</Text>
+      <View className='account-compliance-grid'>
+        {accountComplianceItems.map((item) => (
+          <Button
+            key={item.id}
+            className='account-compliance-button'
+            onClick={() => onOpen(item.id, pages[item.id])}
+          >
+            <Text className='account-compliance-mark'>{item.mark}</Text>
+            <Text className='account-compliance-label'>{item.label}</Text>
+          </Button>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 function CommercePanel({
   access,
   session,
   selectedPlanId,
-  onSignIn,
+  billingMessage,
+  accountDeletionMessage,
+  authConfig,
   onSignOut,
+  onDeleteAccount,
+  onOpenCompliancePage,
+  onOpenAuthDialog,
   onSelectPlan
 }: {
   access: CommercialAccessSnapshot
   session: AuthSession
   selectedPlanId: SubscriptionTier
-  onSignIn: (tier?: SubscriptionTier) => void
+  billingMessage: string
+  accountDeletionMessage: string
+  authConfig: RuntimeAuthConfig
   onSignOut: () => void
+  onDeleteAccount: () => void
+  onOpenCompliancePage: (pageId: PublicCompliancePageId, url: string) => void
+  onOpenAuthDialog: (mode: AuthDialogMode, source: AuthDialogSource, targetTier?: SubscriptionTier) => void
   onSelectPlan: (tier: SubscriptionTier) => void
 }) {
   const accountTitle = session.status === 'authenticated'
     ? session.displayName
-    : '登录后同步专业训练'
+    : '账户与权益'
   const accountDescription = session.status === 'authenticated'
-    ? `当前已开通${tierLabel(session.tier)}，可管理订阅、权益和接口状态。`
-    : `当前以访客身份体验基础训练，登录后可开通${access.recommendedPlan.name}并解锁专业元件。`
+    ? `当前已开通${tierLabel(session.tier)}，可管理订阅、权益和账号状态。`
+    : ''
   const connectionLabel = session.status === 'authenticated' ? '账号已连接' : '未登录'
+  const publicPages = getPublicCompliancePages(authConfig)
 
   function runPrimaryAction() {
     if (access.primaryAction.kind === 'sign-in') {
-      onSignIn(access.primaryAction.targetTier)
+      onOpenAuthDialog('sign-in', 'paywall', access.primaryAction.targetTier)
       return
     }
 
@@ -932,7 +1317,9 @@ function CommercePanel({
         <View className='account-hero-copy'>
           <Text className='account-kicker'>账户中心</Text>
           <Text className='account-title'>{accountTitle}</Text>
-          <Text className='account-desc'>{accountDescription}</Text>
+          {accountDescription && (
+            <Text className='account-desc'>{accountDescription}</Text>
+          )}
         </View>
         <Text className={`tier-badge tier-${session.tier}`}>{tierLabel(session.tier)}</Text>
       </View>
@@ -957,13 +1344,27 @@ function CommercePanel({
           {access.primaryAction.label}
         </Button>
         {session.status === 'authenticated' && (
-          <Button className='small-action' onClick={onSignOut}>退出演示</Button>
+          <Button className='small-action' onClick={onSignOut}>退出登录</Button>
         )}
-        <Text className='commerce-status'>
-          {session.status === 'authenticated' ? '可管理订阅和发票' : '登录后再创建支付会话'}
-        </Text>
+        {session.status === 'authenticated' && (
+          <Button className='small-action account-delete-action' onClick={onDeleteAccount}>删除账号</Button>
+        )}
       </View>
-      <Text className='commerce-status'>{access.primaryAction.detail}</Text>
+      {billingMessage && (
+        <Text className='account-billing-message'>{billingMessage}</Text>
+      )}
+      {accountDeletionMessage && (
+        <Text className='account-deletion-message'>{accountDeletionMessage}</Text>
+      )}
+
+      <AccountAuthEntryCard
+        authConfig={authConfig}
+        session={session}
+        onOpenSignIn={() => onOpenAuthDialog('sign-in', 'account', selectedPlanId)}
+        onOpenBind={() => onOpenAuthDialog('bind', 'account')}
+      />
+
+      <AccountComplianceLinks pages={publicPages} onOpen={onOpenCompliancePage} />
 
       <Text className='account-section-title'>权益用量</Text>
       <View className='access-summary'>
@@ -990,7 +1391,6 @@ function CommercePanel({
           <View key={feature.id} className={`feature-gate-row ${feature.available ? 'is-open' : 'is-locked'}`}>
             <View>
               <Text className='feature-gate-title'>{feature.label}</Text>
-              <Text className='feature-gate-detail'>{feature.description}</Text>
             </View>
             <Text className={`tier-badge tier-${feature.requiredTier}`}>
               {feature.available ? '已解锁' : `${tierLabel(feature.requiredTier)}版`}
@@ -1005,6 +1405,7 @@ function CommercePanel({
           <PlanCard
             key={plan.id}
             plan={plan}
+            authRegion={authConfig.region}
             active={plan.id === selectedPlanId}
             owned={hasTierAccess(session.tier, plan.id)}
             onSelect={onSelectPlan}
@@ -1012,24 +1413,19 @@ function CommercePanel({
         ))}
       </View>
 
-      <View className='api-contract'>
-        <Text className='note-title'>接口合约</Text>
-        <Text className='api-row'>登录：{COMMERCIAL_API_CONTRACT.auth.signInEndpoint}</Text>
-        <Text className='api-row'>支付：{COMMERCIAL_API_CONTRACT.billing.checkoutEndpoint}</Text>
-        <Text className='api-row'>账户中心：{COMMERCIAL_API_CONTRACT.billing.portalEndpoint}</Text>
-        <Text className='api-row'>Webhook：{COMMERCIAL_API_CONTRACT.billing.webhookEndpoint}</Text>
-      </View>
     </View>
   )
 }
 
 function PlanCard({
   plan,
+  authRegion,
   active,
   owned,
   onSelect
 }: {
   plan: BillingPlan
+  authRegion: RuntimeAuthConfig['region']
   active: boolean
   owned: boolean
   onSelect: (tier: SubscriptionTier) => void
@@ -1038,13 +1434,47 @@ function PlanCard({
     <View className={`plan-card ${active ? 'is-active' : ''}`}>
       <View className='plan-head'>
         <Text className='plan-name'>{plan.name}</Text>
-        <Text className='plan-price'>{plan.monthlyPrice === 0 ? '免费' : `¥${plan.monthlyPrice}/月`}</Text>
+        <Text className='plan-price'>{formatPlanPrice(plan, authRegion)}</Text>
       </View>
-      <Text className='plan-target'>{plan.target}</Text>
       <Text className='plan-feature'>{plan.features[0]}</Text>
       <Button className={`small-action plan-action ${owned ? 'is-owned' : ''}`} onClick={() => onSelect(plan.id)}>
-        {owned ? '已具备' : '模拟开通'}
+        {owned ? '已具备' : '开通'}
       </Button>
+    </View>
+  )
+}
+
+function InternalTestUnlockPanel({
+  enabled,
+  session,
+  message,
+  onUnlock
+}: {
+  enabled: boolean
+  session: AuthSession
+  message: string
+  onUnlock: () => void
+}) {
+  if (!enabled) {
+    return null
+  }
+
+  const isUnlocked = session.tier === 'team'
+
+  return (
+    <View className='internal-test-card'>
+      <View>
+        <Text className='internal-test-title'>内部测试</Text>
+        <Text className='internal-test-copy'>
+          {isUnlocked ? '权益：全部开放' : '权益：待开启'}
+        </Text>
+      </View>
+      <Button className='small-action internal-test-action' onClick={onUnlock}>
+        {isUnlocked ? '已解锁' : '解锁全部'}
+      </Button>
+      {message && (
+        <Text className='internal-test-message'>{message}</Text>
+      )}
     </View>
   )
 }
@@ -1497,7 +1927,7 @@ function KnowledgeMeasurementPanel({ measurement }: { measurement: KnowledgeMeas
           <Text className='metric-value'>{measurement.passed}/{measurement.total}</Text>
         </View>
         <View>
-          <Text className='metric-label'>Track</Text>
+          <Text className='metric-label'>层级</Text>
           <Text className='metric-value'>{track.level}</Text>
         </View>
       </View>
@@ -1554,7 +1984,7 @@ function ReviewNotebookPanel({ review }: { review: KnowledgeReviewNotebook }) {
       </View>
 
       {review.items.length === 0 ? (
-        <Text className='review-empty'>当前 Track 暂无错题，继续完成新题或切换更高层级。</Text>
+        <Text className='review-empty'>当前层级暂无错题，继续完成新题或切换更高层级。</Text>
       ) : (
         <View className='review-item-list'>
           {review.items.map((item) => (
@@ -1581,6 +2011,304 @@ function ReviewNotebookPanel({ review }: { review: KnowledgeReviewNotebook }) {
           <Text key={action} className='review-detail'>{action}</Text>
         ))}
       </View>
+    </View>
+  )
+}
+
+function QuestionBankLoginGate({ onLogin }: { onLogin: () => void }) {
+  return (
+    <View className='question-bank-gate'>
+      <View className='question-bank-gate-copy'>
+        <Text className='training-kicker'>题库需要登录</Text>
+        <Text className='question-bank-gate-title'>登录后管理题库</Text>
+        <Text className='question-bank-gate-desc'>
+          新建题库、管理题库和错题复训会绑定到账号，登录后可继续刷题。
+        </Text>
+      </View>
+      <View className='question-bank-gate-actions'>
+        <Button className='small-action question-bank-login-action' onClick={onLogin}>
+          登录进入题库
+        </Button>
+      </View>
+    </View>
+  )
+}
+
+function QuestionBankProgressHome({
+  session,
+  answers,
+  questionBanks,
+  syncStatus,
+  mode,
+  onModeChange,
+  onOpenTrack
+}: {
+  session: AuthSession
+  answers: Record<string, string>
+  questionBanks: SyncedQuestionBank[]
+  syncStatus: ProgressSyncStatus
+  mode: QuestionBankHomeMode
+  onModeChange: (mode: QuestionBankHomeMode) => void
+  onOpenTrack: (trackId: KnowledgeTrackId, mode?: QuestionBankPracticeMode) => void
+}) {
+  const knownBankTrackIds = new Set(questionBanks.map((bank) => bank.trackId))
+  const allRows = KNOWLEDGE_TRACKS.map((track) => {
+    const progress = buildKnowledgeTrackProgress(track.id, answers)
+    const wrong = buildKnowledgeReviewNotebook(answers, {
+      trackIds: [track.id],
+      includeUnanswered: false,
+      limit: 99
+    }).wrong
+
+    return { track, progress, wrong }
+  })
+  const bankRows = mode === 'manage'
+    ? allRows.filter(({ track, progress, wrong }) =>
+      knownBankTrackIds.has(track.id) || progress.answered > 0 || wrong > 0
+    )
+    : allRows
+  const listTitle = mode === 'create' ? '新建题库' : '管理已创建题库'
+  const listCopy = mode === 'create'
+    ? '选择课程后，直接进入刷题页。'
+    : questionBanks.length > 0
+      ? `已同步 ${questionBanks.length} 个题库，可继续刷题或复训错题。`
+      : '已有答题记录会出现在这里，可从新建题库开始刷题。'
+
+  return (
+    <View className='question-bank-home'>
+      <View className='question-bank-head'>
+        <View>
+          <Text className='training-kicker'>题库管理</Text>
+          <Text className='question-bank-title'>我的题库</Text>
+          <Text className='question-bank-copy'>
+            {session.displayName} · 可新建题库、管理题库和进入错题复训。
+          </Text>
+        </View>
+        <View className='question-bank-sync-badge compact'>
+          <Text>{progressSyncLabel(syncStatus)}</Text>
+          <Text>{questionBanks.length} 个</Text>
+        </View>
+      </View>
+
+      <View className='question-bank-admin-actions'>
+        <Button
+          className={`question-bank-admin-action ${mode === 'create' ? 'is-active' : ''}`}
+          onClick={() => onModeChange('create')}
+        >
+          <Text className='question-bank-admin-title'>新建题库</Text>
+          <Text className='question-bank-admin-copy'>创建新的刷题题库</Text>
+        </Button>
+        <Button
+          className={`question-bank-admin-action ${mode === 'manage' ? 'is-active' : ''}`}
+          onClick={() => onModeChange('manage')}
+        >
+          <Text className='question-bank-admin-title'>管理题库</Text>
+          <Text className='question-bank-admin-copy'>查看题库并进入错题复训</Text>
+        </Button>
+      </View>
+
+      <View className='question-bank-list-head'>
+        <View>
+          <Text className='course-progress-title'>{listTitle}</Text>
+          <Text className='course-progress-copy'>{listCopy}</Text>
+        </View>
+      </View>
+
+      {bankRows.length === 0 ? (
+        <View className='question-bank-empty'>
+          <Text className='question-bank-empty-title'>暂无已创建题库</Text>
+          <Text className='question-bank-empty-copy'>切到新建题库，选择一个课程即可开始同步刷题。</Text>
+        </View>
+      ) : (
+        <View className='course-progress-list'>
+          {bankRows.map(({ track, progress, wrong }) => (
+          <View key={track.id} className='course-progress-card' onClick={() => onOpenTrack(track.id, 'question-bank')}>
+            <View className='course-progress-main'>
+              <Text className='course-progress-level'>{track.level}</Text>
+              <Text className='course-progress-title'>{track.title}</Text>
+              <Text className='course-progress-copy'>{track.summary}</Text>
+              <View className='course-progress-tags'>
+                {track.requiredIdeas.slice(0, 3).map((idea) => (
+                  <Text key={idea}>{idea}</Text>
+                ))}
+              </View>
+            </View>
+            <View className='course-progress-side'>
+              <Text className='question-bank-card-meta'>{progress.total} 题</Text>
+              {mode === 'manage' && <Text className='question-bank-card-meta'>错题 {wrong}</Text>}
+              <Button
+                className='small-action course-progress-action'
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onOpenTrack(track.id, 'question-bank')
+                }}
+              >
+                {mode === 'create' ? '创建题库' : '进入题库'}
+              </Button>
+              {mode === 'manage' && wrong > 0 && (
+                <Button
+                  className='small-action course-progress-action'
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onOpenTrack(track.id, 'wrong')
+                  }}
+                >
+                  错题复训
+                </Button>
+              )}
+            </View>
+          </View>
+          ))}
+        </View>
+      )}
+    </View>
+  )
+}
+
+function QuestionBankPracticePage({
+  activeTrackId,
+  answers,
+  syncStatus,
+  mode,
+  onBack,
+  onModeChange,
+  onAnswer
+}: {
+  activeTrackId: KnowledgeTrackId
+  answers: Record<string, string>
+  syncStatus: ProgressSyncStatus
+  mode: QuestionBankPracticeMode
+  onBack: () => void
+  onModeChange: (mode: QuestionBankPracticeMode) => void
+  onAnswer: (questionId: string, answerId: string) => void
+}) {
+  const track = getKnowledgeTrack(activeTrackId)
+  const questions = getQuestionsForTrack(activeTrackId)
+  const progress = buildKnowledgeTrackProgress(activeTrackId, answers)
+  const wrongQuestions = questions.filter((question) => {
+    const selectedAnswerId = answers[question.id]
+    return selectedAnswerId ? !evaluateKnowledgeAnswer(question.id, selectedAnswerId).correct : false
+  })
+  const visibleQuestions = mode === 'wrong' ? wrongQuestions : questions
+
+  return (
+    <View className='question-bank-practice'>
+      <View className='question-bank-practice-head'>
+        <Button className='small-action question-bank-back' onClick={onBack}>返回题库</Button>
+        <View>
+          <Text className='training-kicker'>题库练习</Text>
+          <Text className='question-bank-title'>{track.title}</Text>
+          <Text className='question-bank-copy'>{track.target} · {progress.status}</Text>
+        </View>
+        <View className='question-bank-sync-badge compact'>
+          <Text>{progressSyncLabel(syncStatus)}</Text>
+          <Text>{progress.correct}/{progress.total}</Text>
+        </View>
+      </View>
+
+      <View className='question-bank-mode-tabs'>
+        <Button
+          className={`question-bank-mode-tab ${mode === 'question-bank' ? 'is-active' : ''}`}
+          onClick={() => onModeChange('question-bank')}
+        >
+          题库 {questions.length}
+        </Button>
+        <Button
+          className={`question-bank-mode-tab ${mode === 'wrong' ? 'is-active' : ''}`}
+          onClick={() => onModeChange('wrong')}
+        >
+          错题 {wrongQuestions.length}
+        </Button>
+      </View>
+
+      <View className='question-bank-practice-grid'>
+        <View className='question-bank-question-list'>
+          {visibleQuestions.length === 0 ? (
+            <View className='question-bank-empty'>
+              <Text className='question-bank-empty-title'>暂无错题</Text>
+              <Text className='question-bank-empty-copy'>当前课程错题已清空，可以切回题库继续刷题。</Text>
+            </View>
+          ) : (
+            visibleQuestions.map((question, index) => (
+              <QuestionBankQuestionCard
+                key={question.id}
+                question={question}
+                order={index + 1}
+                selectedAnswerId={answers[question.id]}
+                onAnswer={onAnswer}
+              />
+            ))
+          )}
+        </View>
+
+        <View className='question-bank-side'>
+          <View className='question-bank-side-card'>
+            <Text className='note-title'>刷题目标</Text>
+            {track.requiredIdeas.map((idea) => (
+              <Text key={idea} className='note-copy'>{idea}</Text>
+            ))}
+          </View>
+          <ReviewNotebookPanel
+            review={buildKnowledgeReviewNotebook(answers, {
+              trackIds: [activeTrackId],
+              includeUnanswered: mode === 'question-bank' && progress.answered > 0,
+              limit: 4
+            })}
+          />
+        </View>
+      </View>
+    </View>
+  )
+}
+
+function QuestionBankQuestionCard({
+  question,
+  order,
+  selectedAnswerId,
+  onAnswer
+}: {
+  question: KnowledgeQuestion
+  order: number
+  selectedAnswerId?: string
+  onAnswer: (questionId: string, answerId: string) => void
+}) {
+  const result = selectedAnswerId
+    ? evaluateKnowledgeAnswer(question.id, selectedAnswerId)
+    : undefined
+
+  return (
+    <View className='knowledge-question question-bank-question'>
+      <View className='question-head'>
+        <Text className='question-title'>{order}. {question.title}</Text>
+        {question.formula && <Text className='formula-chip'>{question.formula}</Text>}
+      </View>
+      <Text className='question-prompt'>{question.prompt}</Text>
+      <View className='choice-list'>
+        {question.choices.map((choice) => {
+          const selected = selectedAnswerId === choice.id
+          const correct = choice.id === question.answerId
+          const className = [
+            'choice-button',
+            selected ? 'is-selected' : '',
+            selected && correct ? 'is-correct' : '',
+            selected && !correct ? 'is-wrong' : ''
+          ]
+            .filter(Boolean)
+            .join(' ')
+
+          return (
+            <Button key={choice.id} className={className} onClick={() => onAnswer(question.id, choice.id)}>
+              {choice.label}
+            </Button>
+          )
+        })}
+      </View>
+      {result && (
+        <Text className={`answer-feedback ${result.correct ? 'is-correct' : 'is-wrong'}`}>
+          {result.correct ? '回答正确' : '需要复盘'}：{result.explanation}
+        </Text>
+      )}
+      <Text className='simulation-hint'>{question.simulationHint}</Text>
     </View>
   )
 }
@@ -2529,12 +3257,26 @@ export default function Index() {
       .filter((categoryId): categoryId is string => Boolean(categoryId))
   )
   const [authSession, setAuthSession] = useState<AuthSession>(DEFAULT_AUTH_SESSION)
+  const [authDialog, setAuthDialog] = useState<AuthDialogState>({
+    open: false,
+    mode: 'sign-in',
+    source: 'account'
+  })
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionTier>('pro')
+  const [billingMessage, setBillingMessage] = useState('')
   const [activeKnowledgeTrackId, setActiveKnowledgeTrackId] = useState<KnowledgeTrackId>('high-school')
   const [knowledgeAnswers, setKnowledgeAnswers] = useState<Record<string, string>>({})
+  const [questionBanks, setQuestionBanks] = useState<SyncedQuestionBank[]>([])
+  const [activeQuestionBankIdByTrack, setActiveQuestionBankIdByTrack] = useState<Partial<Record<KnowledgeTrackId, string>>>({})
+  const [progressSyncStatus, setProgressSyncStatus] = useState<ProgressSyncStatus>('idle')
   const [activeAssessmentId, setActiveAssessmentId] = useState<AssessmentBlueprintId>('high-school-foundation-check')
   const [assessmentAnswers, setAssessmentAnswers] = useState<Record<string, string>>({})
+  const [questionBankView, setQuestionBankView] = useState<QuestionBankView>('progress')
+  const [questionBankHomeMode, setQuestionBankHomeMode] = useState<QuestionBankHomeMode>('create')
+  const [questionBankPracticeMode, setQuestionBankPracticeMode] = useState<QuestionBankPracticeMode>('question-bank')
   const [materialQuery, setMaterialQuery] = useState('')
+  const [accountDeletionMessage, setAccountDeletionMessage] = useState('')
+  const [internalUnlockMessage, setInternalUnlockMessage] = useState('')
   const [activeModule, setActiveModule] = useState<AppModuleId>('simulate')
   const [draggingDeviceId, setDraggingDeviceId] = useState<string | null>(null)
   const [boardSize, setBoardSize] = useState({ width: DEFAULT_BOARD_WIDTH, height: 500 })
@@ -2553,6 +3295,7 @@ export default function Index() {
   const boardHeightRef = useRef(500)
   const boardScaleRef = useRef(1)
   const canvasZoomRef = useRef(1)
+  const authConfig = useMemo(() => getRuntimeAuthConfig(), [])
   const telemetry = useMemo(
     () =>
       createTelemetryClient({
@@ -2560,9 +3303,12 @@ export default function Index() {
           platform: getRuntimeTelemetryPlatform(),
           locale: getRuntimeLocale()
         },
-        transport: createGooglePlayTelemetryTransport()
+        transport: createCompositeTelemetryTransport([
+          createHttpTelemetryTransport({ apiBaseUrl: authConfig.apiBaseUrl }),
+          createGooglePlayTelemetryTransport()
+        ])
       }),
-    []
+    [authConfig.apiBaseUrl]
   )
   const simulation = useMemo(() => simulateCircuit(model), [model])
   const activeLesson = getLessonById(activeLessonId)
@@ -2665,6 +3411,77 @@ export default function Index() {
   }, [])
 
   const canShowAccountAd = authSession.tier === 'free'
+
+  useEffect(() => {
+    if (authSession.status !== 'authenticated') {
+      setQuestionBanks([])
+      setActiveQuestionBankIdByTrack({})
+      setProgressSyncStatus('idle')
+      return undefined
+    }
+
+    let isMounted = true
+    setProgressSyncStatus('syncing')
+
+    async function loadAccountProgress() {
+      const [progress, banksResult] = await Promise.all([
+        requestUserProgress(authConfig, authSession),
+        requestQuestionBanks(authConfig, authSession)
+      ])
+
+      if (!isMounted) return
+
+      if (progress?.questionBank.answers) {
+        setKnowledgeAnswers((current) => mergeKnowledgeAnswers(current, progress.questionBank.answers))
+      }
+
+      if (banksResult) {
+        setQuestionBanks(banksResult.banks)
+        setActiveQuestionBankIdByTrack((current) => {
+          const next = { ...current }
+          banksResult.banks.forEach((bank) => {
+            next[bank.trackId] = bank.id
+          })
+          return next
+        })
+      }
+
+      setProgressSyncStatus(progress || banksResult ? 'synced' : 'offline')
+    }
+
+    void loadAccountProgress()
+
+    return () => {
+      isMounted = false
+    }
+  }, [authSession.status, authSession.userId, authConfig])
+
+  useEffect(() => {
+    if (authSession.status !== 'authenticated') return undefined
+
+    setProgressSyncStatus('syncing')
+    const syncTimer = setTimeout(() => {
+      void syncUserProgress(authConfig, authSession, knowledgeAnswers, {
+        activeLessonId,
+        activeChallengeId,
+        activeKnowledgeTrackId
+      }).then((progress) => {
+        setProgressSyncStatus(progress ? 'synced' : 'offline')
+      })
+    }, 350)
+
+    return () => {
+      clearTimeout(syncTimer)
+    }
+  }, [
+    activeChallengeId,
+    activeKnowledgeTrackId,
+    activeLessonId,
+    authConfig,
+    authSession.status,
+    authSession.userId,
+    knowledgeAnswers
+  ])
 
   useEffect(() => {
     syncGooglePlayAdPlacement(getAdPlacementForModule(activeModule, canShowAccountAd))
@@ -2984,6 +3801,16 @@ export default function Index() {
     if (moduleId !== 'simulate') {
       cancelPaletteDrag()
       setDeviceActionId(null)
+    }
+    if (moduleId === 'bank' && authSession.status !== 'authenticated') {
+      setQuestionBankView('progress')
+      setActiveModule('bank')
+      trackTelemetryEvent('app_module_changed', {
+        module_id: moduleId,
+        source,
+        login_required: true
+      })
+      return
     }
     setActiveModule(moduleId)
     trackTelemetryEvent('app_module_changed', {
@@ -3332,36 +4159,235 @@ export default function Index() {
     openPlan(entry.tier, 'locked_component')
   }
 
-  function simulateSignIn(tier = selectedPlanId) {
-    trackTelemetryEvent('auth_changed', {
-      status: 'authenticated',
-      tier,
-      source: 'demo_sign_in'
+  function openAuthDialog(
+    mode: AuthDialogMode = 'sign-in',
+    source: AuthDialogSource = 'account',
+    targetTier?: SubscriptionTier
+  ) {
+    if (targetTier) {
+      setSelectedPlanId(targetTier)
+    }
+    setAuthDialog({
+      open: true,
+      mode,
+      source,
+      targetTier
     })
-    setSelectedPlanId(tier)
-    setAuthSession(createAuthenticatedSession(tier))
-    changeAppModule('account', 'auth_changed')
+  }
+
+  function closeAuthDialog() {
+    setAuthDialog((current) => ({
+      ...current,
+      open: false
+    }))
   }
 
   function simulateSignOut() {
     trackTelemetryEvent('auth_changed', {
       status: 'anonymous',
       tier: 'free',
-      source: 'demo_sign_out'
+      source: 'sign_out'
     })
     setAuthSession(DEFAULT_AUTH_SESSION)
+    setBillingMessage('')
+    setAccountDeletionMessage('')
+    setQuestionBankView('progress')
+    setQuestionBankHomeMode('create')
+    setQuestionBankPracticeMode('question-bank')
+    closeAuthDialog()
     changeAppModule('account', 'auth_changed')
   }
 
-  function selectPlan(tier: SubscriptionTier) {
+  async function deleteAccount() {
+    if (authSession.status !== 'authenticated') {
+      setAccountDeletionMessage('')
+      openAuthDialog('sign-in', 'account', selectedPlanId)
+      return
+    }
+
+    trackTelemetryEvent('auth_changed', {
+      status: authSession.status,
+      tier: authSession.tier,
+      source: 'account_delete_requested',
+      auth_region: authConfig.region
+    })
+    setAccountDeletionMessage('账号删除请求提交中。')
+    const result = await requestAccountDeletion(authConfig, authSession)
+
+    if (result.ok) {
+      setAccountDeletionMessage(`账号删除请求已提交，处理时限 ${result.slaDays ?? 15} 天。`)
+      return
+    }
+
+    setAccountDeletionMessage('账号删除请求暂未提交，请稍后再试。')
+  }
+
+  function openCompliancePage(pageId: PublicCompliancePageId, url: string) {
+    trackTelemetryEvent('compliance_link_opened', {
+      page_id: pageId,
+      auth_region: authConfig.region
+    })
+
+    if (typeof window !== 'undefined' && typeof window.open === 'function') {
+      window.open(url, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    void Taro.setClipboardData({ data: url })
+    void Taro.showToast({ title: '链接已复制', icon: 'none' })
+  }
+
+  async function selectPlan(tier: SubscriptionTier) {
     trackTelemetryEvent('purchase_intent', {
       target_tier: tier,
       current_tier: authSession.tier,
       source: 'plan_card'
     })
     setSelectedPlanId(tier)
-    setAuthSession(createAuthenticatedSession(tier))
+
+    if (authSession.status === 'anonymous') {
+      setBillingMessage('')
+      openAuthDialog('sign-in', 'paywall', tier)
+      return
+    }
+
+    if (hasTierAccess(authSession.tier, tier)) {
+      if (tier === 'free') {
+        setBillingMessage('已具备体验版权益。')
+        return
+      }
+
+      if (tier === authSession.tier) {
+        const portal = await requestBillingPortal(authConfig, authSession)
+        setBillingMessage(portal.ok ? '订阅管理已准备就绪。' : '暂时无法打开订阅管理，请稍后再试。')
+        return
+      }
+
+      setBillingMessage(`已具备${tierLabel(tier)}权益。`)
+      return
+    }
+
+    const checkout = await requestBillingCheckout(authConfig, authSession, tier)
+    setBillingMessage(checkout.ok ? '已进入开通流程，请按系统提示完成支付。' : '暂时无法开通，请稍后再试。')
     changeAppModule('account', 'purchase_intent')
+  }
+
+  async function unlockInternalTestEntitlements() {
+    if (!authConfig.internalTestUnlock) return
+
+    trackTelemetryEvent('auth_changed', {
+      status: 'authenticated',
+      tier: 'team',
+      source: 'internal_test_unlock',
+      auth_region: authConfig.region
+    })
+    const session = await requestInternalTestUnlock(authConfig, authSession)
+    setSelectedPlanId('team')
+    setAuthSession(session)
+    setInternalUnlockMessage('内部测试权益已解锁。')
+    changeAppModule('account', 'internal_test_unlock')
+  }
+
+  async function signInWithAuthProvider(provider: AuthProviderConfig, credential: AuthCredentialDraft) {
+    const dialogSource = authDialog.source
+    const targetTier = authDialog.targetTier
+    trackTelemetryEvent('auth_changed', {
+      status: 'authenticated',
+      tier: 'free',
+      source: `${dialogSource}_${provider.id}`,
+      auth_region: authConfig.region,
+      credential_mode: provider.credentialMode
+    })
+    setSelectedPlanId(targetTier ?? 'free')
+    const session = await requestAuthSignIn(authConfig, provider, credential)
+    setAuthSession(session)
+    setAccountDeletionMessage('')
+    closeAuthDialog()
+    if (dialogSource === 'question-bank') {
+      setQuestionBankView('progress')
+      setQuestionBankHomeMode('create')
+      setQuestionBankPracticeMode('question-bank')
+      setActiveModule('bank')
+      return
+    }
+
+    changeAppModule('account', 'auth_provider_sign_in')
+  }
+
+  async function bindAuthProvider(provider: AuthProviderConfig, credential: AuthCredentialDraft) {
+    trackTelemetryEvent('auth_changed', {
+      status: authSession.status,
+      tier: authSession.tier,
+      source: `bind_${provider.id}`,
+      auth_region: authConfig.region,
+      credential_mode: provider.credentialMode
+    })
+    const session = await requestAuthLink(authConfig, authSession, provider, credential)
+    setAuthSession(session)
+  }
+
+  async function sendAuthOtp(phone: string) {
+    const response = await requestAuthOtp(authConfig, phone)
+    if (response.ok) {
+      return '验证码已发送。'
+    }
+
+    return '验证码暂不可用，请稍后再试。'
+  }
+
+  function loginForQuestionBank() {
+    openAuthDialog('sign-in', 'question-bank', 'free')
+  }
+
+  function upsertQuestionBank(bank: SyncedQuestionBank) {
+    setQuestionBanks((current) => [
+      bank,
+      ...current.filter((item) => item.id !== bank.id)
+    ])
+    setActiveQuestionBankIdByTrack((current) => ({
+      ...current,
+      [bank.trackId]: bank.id
+    }))
+  }
+
+  async function ensureQuestionBank(trackId: KnowledgeTrackId, mode: QuestionBankPracticeMode) {
+    if (authSession.status !== 'authenticated') return undefined
+
+    const existingBankId =
+      activeQuestionBankIdByTrack[trackId] ??
+      questionBanks.find((bank) => bank.trackId === trackId)?.id
+
+    if (existingBankId) return existingBankId
+
+    setProgressSyncStatus('syncing')
+    const track = getKnowledgeTrack(trackId)
+    const bank = await createQuestionBank(authConfig, authSession, trackId, `${track.title}题库`, mode)
+    if (!bank) {
+      setProgressSyncStatus('offline')
+      return undefined
+    }
+
+    upsertQuestionBank(bank)
+    setProgressSyncStatus('synced')
+    return bank.id
+  }
+
+  async function openQuestionBankTrack(trackId: KnowledgeTrackId, mode: QuestionBankPracticeMode = 'question-bank') {
+    trackTelemetryEvent('knowledge_track_changed', {
+      track_id: trackId,
+      source: 'course_progress'
+    })
+    await ensureQuestionBank(trackId, mode)
+    setActiveKnowledgeTrackId(trackId)
+    setQuestionBankPracticeMode(mode)
+    setQuestionBankView('practice')
+    changeAppModule('bank', 'course_progress_clicked')
+  }
+
+  function backToQuestionBankProgress() {
+    setQuestionBankView('progress')
+    setQuestionBankPracticeMode('question-bank')
+    changeAppModule('bank', 'question_bank_back')
   }
 
   function answerKnowledgeQuestion(questionId: string, answerId: string) {
@@ -3376,6 +4402,25 @@ export default function Index() {
       ...current,
       [questionId]: answerId
     }))
+    const bankId = activeQuestionBankIdByTrack[activeKnowledgeTrackId]
+    if (bankId && authSession.status === 'authenticated') {
+      setProgressSyncStatus('syncing')
+      void recordQuestionBankAnswer(
+        authConfig,
+        authSession,
+        bankId,
+        questionId,
+        answerId,
+        result.correct
+      ).then((bank) => {
+        if (bank) {
+          upsertQuestionBank(bank)
+          setProgressSyncStatus('synced')
+          return
+        }
+        setProgressSyncStatus('offline')
+      })
+    }
     changeAppModule('bank', 'knowledge_answered')
   }
 
@@ -3461,24 +4506,29 @@ export default function Index() {
       </View>
 
       <View className='mobile-section mobile-section-bank'>
-        <KnowledgeValidationBoard
-          activeTrackId={activeKnowledgeTrackId}
-          answers={knowledgeAnswers}
-          simulationChecks={knowledgeSimulationChecks}
-          measurement={knowledgeMeasurement}
-          formulaVerification={formulaVerification}
-          onSelectTrack={changeKnowledgeTrack}
-          onAnswer={answerKnowledgeQuestion}
-        />
-
-        <AssessmentBoard
-          activeBlueprintId={activeAssessmentId}
-          answers={assessmentAnswers}
-          readiness={assessmentReadiness}
-          meter={virtualMeter}
-          onSelectBlueprint={changeAssessment}
-          onAnswer={answerAssessmentQuestion}
-        />
+        {authSession.status !== 'authenticated' ? (
+          <QuestionBankLoginGate onLogin={loginForQuestionBank} />
+        ) : questionBankView === 'practice' ? (
+          <QuestionBankPracticePage
+            activeTrackId={activeKnowledgeTrackId}
+            answers={knowledgeAnswers}
+            syncStatus={progressSyncStatus}
+            mode={questionBankPracticeMode}
+            onBack={backToQuestionBankProgress}
+            onModeChange={setQuestionBankPracticeMode}
+            onAnswer={answerKnowledgeQuestion}
+          />
+        ) : (
+          <QuestionBankProgressHome
+            session={authSession}
+            answers={knowledgeAnswers}
+            questionBanks={questionBanks}
+            syncStatus={progressSyncStatus}
+            mode={questionBankHomeMode}
+            onModeChange={setQuestionBankHomeMode}
+            onOpenTrack={openQuestionBankTrack}
+          />
+        )}
       </View>
 
       <View className='mobile-section mobile-section-workspace'>
@@ -3503,9 +4553,6 @@ export default function Index() {
             <View className='canvas-header'>
               <View>
                 <Text className='panel-title'>模拟连接画布</Text>
-                <Text className='panel-subtitle'>
-                  点击元件或导线查看状态，导线可独立接入或断开。当前训练：{activeChallenge.title}
-                </Text>
               </View>
               <View className='canvas-actions'>
                 <Button className='small-action landscape-action' onClick={toggleCanvasFocusMode}>
@@ -3571,160 +4618,6 @@ export default function Index() {
             </View>
 
             <CanvasStatusBar simulation={simulation} stateLabel={stateLabel} />
-
-            <View className='connection-strip'>
-              {model.wires.map((wire) => {
-                const status = simulation.wires[wire.id]
-                return (
-                  <View key={wire.id} className='wire-toggle'>
-                    <View className='wire-copy' onClick={() => setSelectedId(wire.id)}>
-                      <Text className='wire-name'>{wire.label}</Text>
-                      <Text className='wire-value'>
-                        {wire.connected
-                          ? status?.energized
-                            ? `${formatNumber(status.voltage ?? 0, 1)}V 有电`
-                            : '已连接'
-                          : '已断开'}
-                      </Text>
-                    </View>
-                    <Button
-                      className={`toggle-button ${wire.connected ? 'is-on' : ''}`}
-                      onClick={() => toggleWireConnection(wire.id)}
-                    >
-                      {wire.connected ? '断开' : '接入'}
-                    </Button>
-                  </View>
-                )
-              })}
-            </View>
-          </View>
-
-          <View className='inspector-panel'>
-            <Text className='panel-title'>属性与验证</Text>
-            {selectedDevice && (
-              <View className='inspector-card'>
-                <View className='inspector-head'>
-                  <View className={`palette-icon palette-${selectedDevice.kind}`}>
-                    <ComponentIllustration kind={selectedDevice.kind} compact />
-                  </View>
-                  <View>
-                    <Text className='inspector-title'>{selectedDevice.label}</Text>
-                    <Text className='inspector-type'>{getDeviceDefinition(selectedDevice.kind).name}</Text>
-                  </View>
-                </View>
-                <View className='metric-row'>
-                  <Text>状态</Text>
-                  <Text>{simulation.effects[selectedDevice.id]?.label ?? (selectedDevice.isClosed ? '闭合' : '就绪')}</Text>
-                </View>
-                {selectedDevice.kind === 'power-positive' && (
-                  <View className='control-stack'>
-                    <Text className='field-label'>输出电压</Text>
-                    <View className='voltage-control wide'>
-                      <Button className='step-button' onClick={() => setVoltage(voltage - 1)}>-</Button>
-                      <Text>{voltage}V</Text>
-                      <Button className='step-button' onClick={() => setVoltage(voltage + 1)}>+</Button>
-                    </View>
-                  </View>
-                )}
-                {isConductiveControlKind(selectedDevice.kind) && (
-                  <Button className='full-button' onClick={() => toggleSwitch(selectedDevice.id)}>
-                    {selectedDevice.isClosed ? '断开开关' : '闭合开关'}
-                  </Button>
-                )}
-                {isLoadKind(selectedDevice.kind) && (
-                  <View className='metric-grid'>
-                    <View>
-                      <Text className='metric-label'>端电压</Text>
-                      <Text className='metric-value'>
-                        {formatNumber(simulation.effects[selectedDevice.id]?.voltage ?? 0)}V
-                      </Text>
-                    </View>
-                    <View>
-                      <Text className='metric-label'>电流</Text>
-                      <Text className='metric-value'>
-                        {formatNumber(simulation.effects[selectedDevice.id]?.current ?? 0)}A
-                      </Text>
-                    </View>
-                    <View>
-                      <Text className='metric-label'>功率</Text>
-                      <Text className='metric-value'>
-                        {formatNumber(simulation.effects[selectedDevice.id]?.power ?? 0)}W
-                      </Text>
-                    </View>
-                    <View>
-                      <Text className='metric-label'>额定</Text>
-                      <Text className='metric-value'>{selectedDevice.ratedVoltage ?? 12}V</Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {selectedWire && (
-              <View className='inspector-card'>
-                <Text className='inspector-title'>{selectedWire.label}</Text>
-                <Text className='wire-detail'>
-                  {selectedWire.from.deviceId}.{selectedWire.from.terminalId} → {selectedWire.to.deviceId}.{selectedWire.to.terminalId}
-                </Text>
-                <View className='wire-style-control'>
-                  <Text className='field-label'>线型</Text>
-                  <View className='segmented-control'>
-                    {([
-                      ['orthogonal', '折线'],
-                      ['smooth', '平滑']
-                    ] as const).map(([mode, label]) => (
-                      <Button
-                        key={mode}
-                        className={[
-                          'style-button',
-                          selectedWire.pathMode === mode ? 'is-active' : ''
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        onClick={() => changeWirePathMode(selectedWire.id, mode)}
-                      >
-                        {label}
-                      </Button>
-                    ))}
-                  </View>
-                </View>
-                <Button
-                  className='full-button'
-                  onClick={() => toggleWireConnection(selectedWire.id)}
-                >
-                  {selectedWire.connected ? '断开这根导线' : '接入这根导线'}
-                </Button>
-              </View>
-            )}
-
-            <View className='summary-card'>
-              <Text className='summary-title'>仿真结果</Text>
-              <View className='metric-row'>
-                <Text>总电流</Text>
-                <Text>{formatNumber(simulation.totalCurrent)}A</Text>
-              </View>
-              <View className='metric-row'>
-                <Text>接入负载</Text>
-                <Text>{loadDevices.length} 个</Text>
-              </View>
-              <View className='metric-row'>
-                <Text>电源</Text>
-                <Text>{simulation.supplyVoltage}V DC</Text>
-              </View>
-            </View>
-
-            <VirtualMeterPanel worksheet={virtualMeter} />
-
-            <View className='issue-list'>
-              {simulation.issues.map((issue, index) => (
-                <View key={`${issue.message}-${index}`} className={`issue issue-${issue.severity}`}>
-                  <Text>{issue.message}</Text>
-                </View>
-              ))}
-            </View>
-
-            <TrainingScoreCard challenge={activeChallenge} evaluation={challengeEvaluation} />
-            <SafetyDiagnosticsCard diagnostics={safetyDiagnostics} />
           </View>
         </View>
       </View>
@@ -3755,7 +4648,6 @@ export default function Index() {
         <View className='library-workspace'>
           <View className='palette-panel'>
             <Text className='panel-title'>{activeDomainProfile.label}元件库</Text>
-            <Text className='panel-subtitle'>{activeDomainProfile.description}</Text>
             <CategoryFilter
               activeDomain={activeDomain}
               activeCategoryId={activeCategoryId}
@@ -3782,9 +4674,9 @@ export default function Index() {
                   </View>
                 ))}
               </View>
-              <Text className='note-title extension-title'>商业化扩展接口</Text>
+              <Text className='note-title extension-title'>功能扩展</Text>
               <Text className='note-copy'>
-                当前账号已解锁 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐门槛和分类已拆到商业配置层。
+                当前账号可使用 {commercialAccess.catalog.available}/{commercialAccess.catalog.total} 个行业元件，套餐权限会按当前账号实时生效。
               </Text>
             </View>
           </View>
@@ -3805,8 +4697,13 @@ export default function Index() {
             access={commercialAccess}
             session={authSession}
             selectedPlanId={selectedPlanId}
-            onSignIn={simulateSignIn}
+            billingMessage={billingMessage}
+            accountDeletionMessage={accountDeletionMessage}
+            authConfig={authConfig}
             onSignOut={simulateSignOut}
+            onDeleteAccount={deleteAccount}
+            onOpenCompliancePage={openCompliancePage}
+            onOpenAuthDialog={openAuthDialog}
             onSelectPlan={selectPlan}
           />
           <CommercialDashboard
@@ -3815,22 +4712,25 @@ export default function Index() {
             onChangeDomain={changeDomain}
             variant='account'
           />
+          <InternalTestUnlockPanel
+            enabled={authConfig.internalTestUnlock}
+            session={authSession}
+            message={internalUnlockMessage}
+            onUnlock={unlockInternalTestEntitlements}
+          />
         </View>
       </View>
 
-      <View className='mobile-section mobile-section-effects'>
-        <View className='effects-bar'>
-          {loadDevices.map((device) => {
-            const effect = simulation.effects[device.id]
-            return (
-              <View key={device.id} className={`effect-pill ${effect?.active ? 'is-active' : ''}`}>
-                <Text className='effect-name'>{device.label}</Text>
-                <Text className='effect-value'>{effect?.label ?? '未通电'}</Text>
-              </View>
-            )
-          })}
-        </View>
-      </View>
+      <AuthLoginDialog
+        isOpen={authDialog.open}
+        mode={authDialog.mode}
+        authConfig={authConfig}
+        session={authSession}
+        onProviderSignIn={signInWithAuthProvider}
+        onBindProvider={bindAuthProvider}
+        onClose={closeAuthDialog}
+        onSendOtp={sendAuthOtp}
+      />
 
       <MobileBottomNav activeModule={activeModule} onChange={changeAppModule} />
     </View>
