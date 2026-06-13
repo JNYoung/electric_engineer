@@ -760,9 +760,11 @@ function SimulationComponentPalette({
   activeDomain,
   activeCategoryId,
   expandedCategoryIds,
+  isCollapsed,
   session,
   onSelectCategory,
   onToggleCategory,
+  onToggleCollapsed,
   onAdd,
   onLocked,
   onDragStart,
@@ -772,9 +774,11 @@ function SimulationComponentPalette({
   activeDomain: WorkbenchDomain
   activeCategoryId: string
   expandedCategoryIds: string[]
+  isCollapsed: boolean
   session: AuthSession
   onSelectCategory: (categoryId: string) => void
   onToggleCategory: (categoryId: string) => void
+  onToggleCollapsed: () => void
   onAdd: (kind: DeviceKind) => void
   onLocked: (entry: ComponentCatalogEntry) => void
   onDragStart: (event: PointerLikeEvent, entry: ComponentCatalogEntry) => void
@@ -788,87 +792,100 @@ function SimulationComponentPalette({
   const allCount = getCatalogEntries(activeDomain).length
 
   return (
-    <View className='simulation-palette-panel'>
+    <View className={`simulation-palette-panel ${isCollapsed ? 'is-collapsed' : ''}`}>
       <View className='simulation-palette-head'>
-        <View>
+        <View className='simulation-palette-title'>
           <Text className='panel-title'>元器件</Text>
         </View>
+        <Button className='simulation-palette-collapse-button' onClick={onToggleCollapsed}>
+          <Text className='simulation-palette-collapse-icon'>‹</Text>
+        </Button>
       </View>
 
-      <View className='simulation-palette-mobile'>
-        <View className='simulation-category-options'>
-          <Button
-            className={`category-filter-button ${activeCategoryId === 'all' ? 'is-active' : ''}`}
-            onClick={() => onSelectCategory('all')}
-          >
-            全部 {allCount}
-          </Button>
+      <Button className='simulation-palette-collapsed-rail' onClick={onToggleCollapsed}>
+        <Text className='simulation-palette-collapse-icon'>›</Text>
+        <Text className='simulation-palette-collapsed-text'>元器件</Text>
+      </Button>
+
+      <View className='simulation-palette-content'>
+        <View className='simulation-palette-mobile'>
+          <View className='simulation-category-options'>
+            <Button
+              className={`category-filter-button ${activeCategoryId === 'all' ? 'is-active' : ''}`}
+              onClick={() => onSelectCategory('all')}
+            >
+              全部 {allCount}
+            </Button>
+            {profile.categories.map((category) => {
+              const count = getCatalogEntriesByCategory(activeDomain, category.id).length
+              return (
+                <Button
+                  key={category.id}
+                  className={`category-filter-button ${activeCategoryId === category.id ? 'is-active' : ''}`}
+                  onClick={() => onSelectCategory(category.id)}
+                >
+                  {category.label} {count}
+                </Button>
+              )
+            })}
+          </View>
+
+          <ScrollView scrollX className='simulation-component-strip'>
+            <View className='simulation-component-strip-inner'>
+              {selectedEntries.map((entry) => (
+                <ComponentPaletteCard
+                  key={`strip-${entry.domain}-${entry.categoryId}-${entry.kind}`}
+                  entry={entry}
+                  session={session}
+                  mode='strip'
+                  onAdd={onAdd}
+                  onLocked={onLocked}
+                  onDragStart={onDragStart}
+                  onDragMove={onDragMove}
+                  onDragEnd={onDragEnd}
+                />
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        <View className='simulation-palette-accordion'>
           {profile.categories.map((category) => {
-            const count = getCatalogEntriesByCategory(activeDomain, category.id).length
+            const entries = getCatalogEntriesByCategory(activeDomain, category.id)
+            const expanded = expandedCategoryIds.includes(category.id)
             return (
-              <Button
-                key={category.id}
-                className={`category-filter-button ${activeCategoryId === category.id ? 'is-active' : ''}`}
-                onClick={() => onSelectCategory(category.id)}
-              >
-                {category.label} {count}
-              </Button>
+              <View key={category.id} className={`simulation-category-section ${expanded ? 'is-expanded' : ''}`}>
+                <Button
+                  className='simulation-category-toggle'
+                  onClick={() => onToggleCategory(category.id)}
+                >
+                  <Text className='simulation-category-label'>{category.label}</Text>
+                  <View className='simulation-category-meta'>
+                    <Text>{entries.length}</Text>
+                    <Text className='simulation-category-chevron'>{expanded ? '⌃' : '⌄'}</Text>
+                  </View>
+                </Button>
+                {expanded && (
+                  <View className='simulation-category-list'>
+                    {entries.map((entry) => (
+                      <ComponentPaletteCard
+                        key={`list-${entry.domain}-${entry.categoryId}-${entry.kind}`}
+                        entry={entry}
+                        session={session}
+                        mode='list'
+                        onAdd={onAdd}
+                        onLocked={onLocked}
+                        onDragStart={onDragStart}
+                        onDragMove={onDragMove}
+                        onDragEnd={onDragEnd}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
             )
           })}
         </View>
-
-        <ScrollView scrollX className='simulation-component-strip'>
-          <View className='simulation-component-strip-inner'>
-            {selectedEntries.map((entry) => (
-              <ComponentPaletteCard
-                key={`strip-${entry.domain}-${entry.categoryId}-${entry.kind}`}
-                entry={entry}
-                session={session}
-                mode='strip'
-                onAdd={onAdd}
-                onLocked={onLocked}
-                onDragStart={onDragStart}
-                onDragMove={onDragMove}
-                onDragEnd={onDragEnd}
-              />
-            ))}
-          </View>
-        </ScrollView>
-      </View>
-
-      <View className='simulation-palette-accordion'>
-        {profile.categories.map((category) => {
-          const entries = getCatalogEntriesByCategory(activeDomain, category.id)
-          const expanded = expandedCategoryIds.includes(category.id)
-          return (
-            <View key={category.id} className={`simulation-category-section ${expanded ? 'is-expanded' : ''}`}>
-              <Button
-                className='simulation-category-toggle'
-                onClick={() => onToggleCategory(category.id)}
-              >
-                <Text>{category.label}</Text>
-                <Text>{entries.length}</Text>
-              </Button>
-              {expanded && (
-                <View className='simulation-category-list'>
-                  {entries.map((entry) => (
-                    <ComponentPaletteCard
-                      key={`list-${entry.domain}-${entry.categoryId}-${entry.kind}`}
-                      entry={entry}
-                      session={session}
-                      mode='list'
-                      onAdd={onAdd}
-                      onLocked={onLocked}
-                      onDragStart={onDragStart}
-                      onDragMove={onDragMove}
-                      onDragEnd={onDragEnd}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          )
-        })}
       </View>
     </View>
   )
@@ -2524,6 +2541,7 @@ export default function Index() {
   const [boardFrameWidth, setBoardFrameWidth] = useState(DEFAULT_BOARD_WIDTH)
   const [boardFrameHeight, setBoardFrameHeight] = useState(500)
   const [isCanvasFocusMode, setIsCanvasFocusMode] = useState(false)
+  const [isSimulationPaletteCollapsed, setIsSimulationPaletteCollapsed] = useState(false)
   const [deviceActionId, setDeviceActionId] = useState<string | null>(null)
   const [paletteDragPreview, setPaletteDragPreview] = useState<PaletteDragPreview | null>(null)
   const [canvasZoom, setCanvasZoom] = useState(1)
@@ -2706,7 +2724,7 @@ export default function Index() {
       window.removeEventListener('resize', queueMeasure)
       window.removeEventListener('orientationchange', queueMeasure)
     }
-  }, [activeModule, boardHeight, isCanvasFocusMode, model.devices.length])
+  }, [activeModule, boardHeight, isCanvasFocusMode, isSimulationPaletteCollapsed, model.devices.length])
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return undefined
@@ -3218,6 +3236,10 @@ export default function Index() {
     )
   }
 
+  function toggleSimulationPaletteCollapsed() {
+    setIsSimulationPaletteCollapsed((current) => !current)
+  }
+
   function startChallenge(challengeId: string) {
     const challenge = getChallengeById(challengeId)
     trackTelemetryEvent('training_started', {
@@ -3424,7 +3446,7 @@ export default function Index() {
   )
   const isNativeAndroidShell = getBuildTarget() === 'android-google-play'
   return (
-    <View className={`app-shell module-focus-${activeModule}${isNativeAndroidShell ? ' is-native-shell' : ''}${isCanvasFocusMode ? ' is-canvas-focus-mode' : ''}`}>
+    <View className={`app-shell module-focus-${activeModule}${isNativeAndroidShell ? ' is-native-shell' : ''}${isCanvasFocusMode ? ' is-canvas-focus-mode' : ''}${isSimulationPaletteCollapsed ? ' is-simulation-palette-collapsed' : ''}`}>
       <AppModuleNav activeModule={activeModule} onChange={changeAppModule} />
 
       <View className='mobile-section mobile-section-learn'>
@@ -3465,9 +3487,11 @@ export default function Index() {
             activeDomain={activeDomain}
             activeCategoryId={activeSimulationCategoryId}
             expandedCategoryIds={expandedSimulationCategoryIds}
+            isCollapsed={isSimulationPaletteCollapsed}
             session={authSession}
             onSelectCategory={selectSimulationCategory}
             onToggleCategory={toggleSimulationPaletteCategory}
+            onToggleCollapsed={toggleSimulationPaletteCollapsed}
             onAdd={(kind) => addDevice(kind, 'simulation_palette_tap')}
             onLocked={openLockedComponentPlan}
             onDragStart={startPaletteComponentDrag}

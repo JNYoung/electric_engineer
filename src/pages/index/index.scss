@@ -2447,6 +2447,59 @@ $ink: #1f2937;
   gap: 10px;
 }
 
+.simulation-palette-title {
+  min-width: 0;
+}
+
+.simulation-palette-collapse-button,
+.simulation-palette-collapsed-rail {
+  display: none;
+}
+
+.simulation-palette-collapse-button {
+  width: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  line-height: 30px;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.simulation-palette-collapse-icon {
+  display: block;
+  line-height: 1;
+}
+
+.simulation-palette-collapsed-rail {
+  width: 100%;
+  min-height: calc(100vh - 16px);
+  margin: 0;
+  padding: 12px 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: $text;
+  font-weight: 900;
+}
+
+.simulation-palette-collapsed-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0;
+}
+
 .simulation-palette-mobile {
   display: none;
 }
@@ -2485,9 +2538,32 @@ $ink: #1f2937;
 }
 
 .simulation-category-toggle::after,
+.simulation-palette-collapse-button::after,
+.simulation-palette-collapsed-rail::after,
 .simulation-component-action::after,
 .node-delete-button::after {
   border: none;
+}
+
+.simulation-category-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simulation-category-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.simulation-category-chevron {
+  width: 14px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1;
 }
 
 .simulation-category-section.is-expanded .simulation-category-toggle {
@@ -5855,6 +5931,24 @@ $ink: #1f2937;
   overflow: hidden;
 }
 
+.app-shell.is-canvas-focus-mode .simulation-palette-collapse-button {
+  display: flex;
+}
+
+.app-shell.is-canvas-focus-mode .simulation-palette-panel.is-collapsed {
+  width: 52px;
+  padding: 8px 6px;
+}
+
+.app-shell.is-canvas-focus-mode .simulation-palette-panel.is-collapsed .simulation-palette-head,
+.app-shell.is-canvas-focus-mode .simulation-palette-panel.is-collapsed .simulation-palette-content {
+  display: none;
+}
+
+.app-shell.is-canvas-focus-mode .simulation-palette-panel.is-collapsed .simulation-palette-collapsed-rail {
+  display: flex;
+}
+
 .app-shell.is-canvas-focus-mode .simulation-palette-mobile {
   display: none;
 }
@@ -5874,6 +5968,10 @@ $ink: #1f2937;
   border: none;
   border-radius: 0;
   overflow: hidden;
+}
+
+.app-shell.is-canvas-focus-mode.is-simulation-palette-collapsed .canvas-panel {
+  inset: 0 0 0 52px;
 }
 
 .app-shell.is-canvas-focus-mode .canvas-header {
@@ -6477,6 +6575,10 @@ $ink: #1f2937;
     gap: 10px;
   }
 
+  .app-shell.is-simulation-palette-collapsed .simulation-workspace {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
   .simulation-workspace .simulation-palette-panel,
   .simulation-workspace .canvas-panel,
   .simulation-workspace .inspector-panel {
@@ -6488,6 +6590,24 @@ $ink: #1f2937;
     max-height: calc(100vh - 92px);
     padding: 10px;
     overflow: hidden;
+  }
+
+  .simulation-palette-collapse-button {
+    display: flex;
+  }
+
+  .simulation-workspace .simulation-palette-panel.is-collapsed {
+    padding: 8px 6px;
+  }
+
+  .simulation-workspace .simulation-palette-panel.is-collapsed .simulation-palette-head,
+  .simulation-workspace .simulation-palette-panel.is-collapsed .simulation-palette-content {
+    display: none;
+  }
+
+  .simulation-workspace .simulation-palette-panel.is-collapsed .simulation-palette-collapsed-rail {
+    display: flex;
+    min-height: calc(100vh - 108px);
   }
 
   .simulation-workspace .canvas-panel {
@@ -6526,5 +6646,13 @@ $ink: #1f2937;
 
   .app-shell.is-canvas-focus-mode .canvas-panel {
     inset: 0 0 0 240px;
+  }
+
+  .app-shell.is-canvas-focus-mode.is-simulation-palette-collapsed .simulation-palette-panel {
+    width: 52px;
+  }
+
+  .app-shell.is-canvas-focus-mode.is-simulation-palette-collapsed .canvas-panel {
+    inset: 0 0 0 52px;
   }
 }
