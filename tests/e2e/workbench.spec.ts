@@ -320,7 +320,7 @@ test.describe('electric workbench e2e', () => {
     await expect(page.locator('.question-bank-home')).toContainText('管理题库')
 
     await page.locator('.course-progress-card').filter({ hasText: '欧姆定律与电功率' }).locator('.course-progress-action').click()
-    await expect(page.locator('.question-bank-practice')).toContainText('二级刷题页面')
+    await expect(page.locator('.question-bank-practice')).toContainText('题库练习')
     await expect(page.locator('.question-bank-practice')).toContainText('题库 3')
     await expect(page.locator('.question-bank-practice')).toContainText('错题 0')
 

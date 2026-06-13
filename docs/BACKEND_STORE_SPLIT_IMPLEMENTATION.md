@@ -9,7 +9,7 @@
 - 后台新增受 token 保护的运营/审核接口，可查看用户、进度、题库、删除队列、付费流水，并可创建审核账号或手动补发权益。
 - 后台新增国内/海外 telemetry 接收接口，按 flavor schema 入库，并在运营接口中支持按区域和事件名查询。
 - 前台登录入口改为弹窗，不再暴露 API 地址、端口、接口路径、测试码和原生插件说明。
-- Google Play 包与国内包继续使用 flavor-scoped 依赖。
+- Google Play 包与国内包继续使用 flavor-scoped 依赖：Google/Facebook/Firebase/Ads 只进 Google Play 变体，国内包只保留国内登录依赖占位。
 - Android 新增正式/内测包拆分：正式包不外显内部解锁入口，内测包在账号页底部显示内部测试解锁。
 
 ## 后台接口

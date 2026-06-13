@@ -100,9 +100,9 @@ API：
 Gradle 使用 flavor-scoped dependencies，避免国内包引入海外 SDK、海外包引入微信 SDK：
 
 - `domesticImplementation`: WeChat OpenSDK。
-- `googlePlayImplementation`: Google/Facebook 登录依赖。
+- `googlePlayImplementation` / `googlePlayInternalImplementation`: Google/Facebook 登录、Firebase Analytics、Google Mobile Ads。
 
-当前先落 flavor 级依赖和配置位，真实原生登录在 Capacitor Plugin 层继续补。
+当前原生广告/分析插件使用 `BuildConfig.GOOGLE_PLAY_SERVICES_ENABLED` 和反射做 flavor 可选加载；国内包不会编入 Google SDK。真实原生登录在 Capacitor Plugin 层继续补。
 
 ## 前端接入边界
 

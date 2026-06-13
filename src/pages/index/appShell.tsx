@@ -34,9 +34,9 @@ export const APP_MODULES: Array<{
   },
   {
     id: 'account',
-    label: '账号付费',
+    label: '账户中心',
     shortLabel: '账号',
-    description: '套餐、权限、账号'
+    description: '账号、权益、订阅'
   }
 ]
 

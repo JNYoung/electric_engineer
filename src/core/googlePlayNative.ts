@@ -31,7 +31,10 @@ const ElectricAds = registerPlugin<ElectricAdsPlugin>('ElectricAds')
 let activePlacement: GooglePlayAdPlacement = 'hidden'
 
 export function isGooglePlayAndroidRuntime() {
-  return Capacitor.getPlatform() === 'android' && readTelemetryChannel() === GOOGLE_PLAY_CHANNEL
+  const channel = readTelemetryChannel()
+  return Capacitor.getPlatform() === 'android' && (
+    channel === GOOGLE_PLAY_CHANNEL || channel === `${GOOGLE_PLAY_CHANNEL}-internal`
+  )
 }
 
 export function createGooglePlayTelemetryTransport(): TelemetryTransport {

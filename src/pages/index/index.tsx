@@ -2005,7 +2005,7 @@ function QuestionBankProgressHome({
     : allRows
   const listTitle = mode === 'create' ? '新建题库' : '管理已创建题库'
   const listCopy = mode === 'create'
-    ? '创建题库后，直接进入二级刷题页面。'
+    ? '选择课程后，直接进入刷题页。'
     : questionBanks.length > 0
       ? `已同步 ${questionBanks.length} 个题库，可继续刷题或复训错题。`
       : '已有答题记录会出现在这里，可从新建题库开始刷题。'
@@ -2132,7 +2132,7 @@ function QuestionBankPracticePage({
       <View className='question-bank-practice-head'>
         <Button className='small-action question-bank-back' onClick={onBack}>返回进度</Button>
         <View>
-          <Text className='training-kicker'>二级刷题页面</Text>
+          <Text className='training-kicker'>题库练习</Text>
           <Text className='question-bank-title'>{track.title}</Text>
           <Text className='question-bank-copy'>{track.target} · {progress.status}</Text>
         </View>
