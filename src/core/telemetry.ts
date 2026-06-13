@@ -17,6 +17,7 @@ export type TelemetryEventName =
   | 'wire_path_changed'
   | 'all_wires_changed'
   | 'canvas_device_dragged'
+  | 'component_removed'
   | 'circuit_reset'
   | 'training_started'
   | 'fault_scenario_started'

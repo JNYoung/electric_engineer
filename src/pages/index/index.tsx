@@ -154,6 +154,24 @@ interface DragState {
   deviceId: string
   pointerStart: Point
   deviceStart: Point
+  hasMoved?: boolean
+  longPressTimer?: number
+}
+
+interface PaletteDragState {
+  entry: ComponentCatalogEntry
+  pointerStart: Point
+  currentPoint: Point
+  active: boolean
+  longPressTimer?: number
+}
+
+interface PaletteDragPreview {
+  kind: DeviceKind
+  name: string
+  x: number
+  y: number
+  overBoard: boolean
 }
 
 interface PointerLikeEvent {
@@ -383,6 +401,24 @@ function moveDevice(model: CircuitModel, id: string, next: Point): CircuitModel 
   }
 }
 
+function removeDeviceFromModel(model: CircuitModel, id: string): CircuitModel {
+  return {
+    devices: model.devices.filter((device) => device.id !== id),
+    wires: model.wires.filter((wire) => wire.from.deviceId !== id && wire.to.deviceId !== id)
+  }
+}
+
+function canDeleteDevice(device: CircuitDevice) {
+  return device.kind !== 'power-positive' && device.kind !== 'power-negative'
+}
+
+function getNextDeviceIndex(devices: CircuitDevice[]) {
+  return devices.reduce((max, device) => {
+    const match = /^x(\d+)$/.exec(device.id)
+    return match ? Math.max(max, Number(match[1])) : max
+  }, 0) + 1
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
 }
@@ -393,6 +429,10 @@ function eventPoint(event: PointerLikeEvent): Point | null {
   const y = touch?.clientY ?? touch?.pageY ?? event.clientY ?? event.pageY
   if (typeof x !== 'number' || typeof y !== 'number') return null
   return { x, y }
+}
+
+function pointDistance(a: Point, b: Point) {
+  return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
 function statusLabel(status: ChallengeEvaluation['status']) {
@@ -610,6 +650,198 @@ function CatalogEntryRow({
       >
         {accessible ? '添加' : '套餐'}
       </Button>
+    </View>
+  )
+}
+
+function ComponentPaletteCard({
+  entry,
+  session,
+  mode,
+  onAdd,
+  onLocked,
+  onDragStart,
+  onDragMove,
+  onDragEnd
+}: {
+  entry: ComponentCatalogEntry
+  session: AuthSession
+  mode: 'strip' | 'list'
+  onAdd: (kind: DeviceKind) => void
+  onLocked: (entry: ComponentCatalogEntry) => void
+  onDragStart: (event: PointerLikeEvent, entry: ComponentCatalogEntry) => void
+  onDragMove: (event: PointerLikeEvent) => void
+  onDragEnd: (event: PointerLikeEvent) => void
+}) {
+  const definition = getDeviceDefinition(entry.kind)
+  const accessible = canUseCatalogEntry(session, entry)
+
+  function handleDragStart(event: PointerLikeEvent) {
+    if (accessible) {
+      onDragStart(event, entry)
+    }
+  }
+
+  return (
+    <View
+      className={[
+        'simulation-component-card',
+        `is-${mode}`,
+        accessible ? '' : 'is-locked'
+      ].filter(Boolean).join(' ')}
+      onTouchStart={(event) => handleDragStart(event)}
+      onTouchMove={onDragMove}
+      onTouchEnd={onDragEnd}
+      onTouchCancel={onDragEnd}
+    >
+      <View className={`palette-icon palette-${entry.kind}`}>
+        <ComponentIllustration kind={entry.kind} compact />
+      </View>
+      <View className='simulation-component-copy'>
+        <View className='catalog-title-row'>
+          <Text className='palette-name'>{definition.name}</Text>
+          <Text className={`tier-badge tier-${entry.tier}`}>{tierLabel(entry.tier)}</Text>
+        </View>
+        <Text className='palette-desc'>{entry.useCase}</Text>
+        <View className='catalog-tags'>
+          <Text>{entry.complexity}</Text>
+          {entry.tags.slice(0, mode === 'strip' ? 2 : 3).map((tag) => (
+            <Text key={tag}>{tag}</Text>
+          ))}
+        </View>
+      </View>
+      <Button
+        className='small-action simulation-component-action'
+        onTouchStart={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation()
+          if (accessible) {
+            onAdd(entry.kind)
+          } else {
+            onLocked(entry)
+          }
+        }}
+      >
+        {accessible ? '添加' : '套餐'}
+      </Button>
+    </View>
+  )
+}
+
+function SimulationComponentPalette({
+  activeDomain,
+  activeCategoryId,
+  expandedCategoryIds,
+  session,
+  onSelectCategory,
+  onToggleCategory,
+  onAdd,
+  onLocked,
+  onDragStart,
+  onDragMove,
+  onDragEnd
+}: {
+  activeDomain: WorkbenchDomain
+  activeCategoryId: string
+  expandedCategoryIds: string[]
+  session: AuthSession
+  onSelectCategory: (categoryId: string) => void
+  onToggleCategory: (categoryId: string) => void
+  onAdd: (kind: DeviceKind) => void
+  onLocked: (entry: ComponentCatalogEntry) => void
+  onDragStart: (event: PointerLikeEvent, entry: ComponentCatalogEntry) => void
+  onDragMove: (event: PointerLikeEvent) => void
+  onDragEnd: (event: PointerLikeEvent) => void
+}) {
+  const profile = getDomainProfile(activeDomain)
+  const selectedEntries = activeCategoryId === 'all'
+    ? getCatalogEntries(activeDomain)
+    : getCatalogEntriesByCategory(activeDomain, activeCategoryId)
+  const allCount = getCatalogEntries(activeDomain).length
+
+  return (
+    <View className='simulation-palette-panel'>
+      <View className='simulation-palette-head'>
+        <View>
+          <Text className='panel-title'>元器件</Text>
+        </View>
+      </View>
+
+      <View className='simulation-palette-mobile'>
+        <View className='simulation-category-options'>
+          <Button
+            className={`category-filter-button ${activeCategoryId === 'all' ? 'is-active' : ''}`}
+            onClick={() => onSelectCategory('all')}
+          >
+            全部 {allCount}
+          </Button>
+          {profile.categories.map((category) => {
+            const count = getCatalogEntriesByCategory(activeDomain, category.id).length
+            return (
+              <Button
+                key={category.id}
+                className={`category-filter-button ${activeCategoryId === category.id ? 'is-active' : ''}`}
+                onClick={() => onSelectCategory(category.id)}
+              >
+                {category.label} {count}
+              </Button>
+            )
+          })}
+        </View>
+
+        <ScrollView scrollX className='simulation-component-strip'>
+          <View className='simulation-component-strip-inner'>
+            {selectedEntries.map((entry) => (
+              <ComponentPaletteCard
+                key={`strip-${entry.domain}-${entry.categoryId}-${entry.kind}`}
+                entry={entry}
+                session={session}
+                mode='strip'
+                onAdd={onAdd}
+                onLocked={onLocked}
+                onDragStart={onDragStart}
+                onDragMove={onDragMove}
+                onDragEnd={onDragEnd}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      <View className='simulation-palette-accordion'>
+        {profile.categories.map((category) => {
+          const entries = getCatalogEntriesByCategory(activeDomain, category.id)
+          const expanded = expandedCategoryIds.includes(category.id)
+          return (
+            <View key={category.id} className={`simulation-category-section ${expanded ? 'is-expanded' : ''}`}>
+              <Button
+                className='simulation-category-toggle'
+                onClick={() => onToggleCategory(category.id)}
+              >
+                <Text>{category.label}</Text>
+                <Text>{entries.length}</Text>
+              </Button>
+              {expanded && (
+                <View className='simulation-category-list'>
+                  {entries.map((entry) => (
+                    <ComponentPaletteCard
+                      key={`list-${entry.domain}-${entry.categoryId}-${entry.kind}`}
+                      entry={entry}
+                      session={session}
+                      mode='list'
+                      onAdd={onAdd}
+                      onLocked={onLocked}
+                      onDragStart={onDragStart}
+                      onDragMove={onDragMove}
+                      onDragEnd={onDragEnd}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )
+        })}
+      </View>
     </View>
   )
 }
@@ -2064,31 +2296,37 @@ function BoardDevice({
   device,
   selected,
   dragging,
+  showDeleteAction,
   effect,
   voltage,
   onSelect,
   onDragStart,
+  onDelete,
   onSetVoltage,
   onToggleSwitch
 }: {
   device: CircuitDevice
   selected: boolean
   dragging: boolean
+  showDeleteAction: boolean
   effect?: SimulationResult['effects'][string]
   voltage: number
   onSelect: (id: string) => void
   onDragStart: (event: PointerLikeEvent, id: string) => void
+  onDelete: (id: string) => void
   onSetVoltage: (nextVoltage: number, source?: string) => void
   onToggleSwitch: (id: string) => void
 }) {
   const definition = getDeviceDefinition(device.kind)
   const active = Boolean(effect?.active)
   const isPowerSource = device.kind === 'power-positive'
+  const deletable = canDeleteDevice(device)
   const className = [
     'device-node',
     `device-${device.kind}`,
     selected ? 'is-selected' : '',
     dragging ? 'is-dragging' : '',
+    showDeleteAction && deletable ? 'has-delete-action' : '',
     active ? 'is-active' : '',
     isConductiveControlKind(device.kind) && device.isClosed ? 'is-closed' : ''
   ]
@@ -2139,6 +2377,18 @@ function BoardDevice({
           }}
         >
           {device.isClosed ? '断开' : '接通'}
+        </Button>
+      )}
+      {showDeleteAction && deletable && (
+        <Button
+          className='node-delete-button'
+          onTouchStart={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete(device.id)
+          }}
+        >
+          删除
         </Button>
       )}
     </View>
@@ -2227,6 +2477,12 @@ export default function Index() {
   const [activeChallengeId, setActiveChallengeId] = useState(TRAINING_CHALLENGES[0].id)
   const [activeDomain, setActiveDomain] = useState<WorkbenchDomain>('engineering-control')
   const [activeCategoryId, setActiveCategoryId] = useState('all')
+  const [activeSimulationCategoryId, setActiveSimulationCategoryId] = useState('all')
+  const [expandedSimulationCategoryIds, setExpandedSimulationCategoryIds] = useState<string[]>(() =>
+    DOMAIN_PROFILES
+      .map((profile) => profile.categories[0]?.id)
+      .filter((categoryId): categoryId is string => Boolean(categoryId))
+  )
   const [authSession, setAuthSession] = useState<AuthSession>(DEFAULT_AUTH_SESSION)
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionTier>('pro')
   const [activeKnowledgeTrackId, setActiveKnowledgeTrackId] = useState<KnowledgeTrackId>('high-school')
@@ -2240,7 +2496,10 @@ export default function Index() {
   const [boardFrameWidth, setBoardFrameWidth] = useState(DEFAULT_BOARD_WIDTH)
   const [boardFrameHeight, setBoardFrameHeight] = useState(500)
   const [isCanvasFocusMode, setIsCanvasFocusMode] = useState(false)
+  const [deviceActionId, setDeviceActionId] = useState<string | null>(null)
+  const [paletteDragPreview, setPaletteDragPreview] = useState<PaletteDragPreview | null>(null)
   const dragRef = useRef<DragState | null>(null)
+  const paletteDragRef = useRef<PaletteDragState | null>(null)
   const modelRef = useRef(model)
   const boardSizeRef = useRef(boardSize)
   const boardHeightRef = useRef(500)
@@ -2465,8 +2724,62 @@ export default function Index() {
     }
   }, [])
 
+  useEffect(() => () => {
+    clearDeviceLongPressTimer()
+    clearPaletteDragTimer()
+  }, [])
+
   function trackTelemetryEvent(name: TelemetryEventName, properties?: TelemetryProperties) {
     telemetry.track(name, properties)
+  }
+
+  function clearDeviceLongPressTimer(state = dragRef.current) {
+    if (state?.longPressTimer && typeof window !== 'undefined') {
+      window.clearTimeout(state.longPressTimer)
+      state.longPressTimer = undefined
+    }
+  }
+
+  function clearPaletteDragTimer(state = paletteDragRef.current) {
+    if (state?.longPressTimer && typeof window !== 'undefined') {
+      window.clearTimeout(state.longPressTimer)
+      state.longPressTimer = undefined
+    }
+  }
+
+  function cancelPaletteDrag() {
+    clearPaletteDragTimer()
+    paletteDragRef.current = null
+    setPaletteDragPreview(null)
+  }
+
+  function getBoardDropPosition(point: Point) {
+    if (typeof document === 'undefined') return null
+    const board = document.querySelector<HTMLElement>('.circuit-board')
+    if (!board) return null
+
+    const rect = board.getBoundingClientRect()
+    if (
+      point.x < rect.left ||
+      point.x > rect.right ||
+      point.y < rect.top ||
+      point.y > rect.bottom
+    ) {
+      return null
+    }
+
+    const currentScale = Math.max(0.1, boardScaleRef.current)
+    const currentBoardSize = boardSizeRef.current
+    const currentBoardHeight = boardHeightRef.current
+    const boardX = (point.x - rect.left) / currentScale
+    const boardY = (point.y - rect.top) / currentScale
+    const maxX = Math.max(0, currentBoardSize.width - NODE_WIDTH - BOARD_DRAG_INSET * 2)
+    const maxY = Math.max(0, Math.max(currentBoardSize.height, currentBoardHeight) - NODE_HEIGHT - BOARD_DRAG_INSET * 2)
+
+    return {
+      x: clamp(boardX - NODE_WIDTH / 2, 0, maxX),
+      y: clamp(boardY - NODE_HEIGHT / 2, 0, maxY)
+    }
   }
 
   async function enterCanvasFocusMode() {
@@ -2527,6 +2840,10 @@ export default function Index() {
     if (isCanvasFocusMode && moduleId !== 'simulate') {
       void exitCanvasFocusMode()
     }
+    if (moduleId !== 'simulate') {
+      cancelPaletteDrag()
+      setDeviceActionId(null)
+    }
     setActiveModule(moduleId)
     trackTelemetryEvent('app_module_changed', {
       module_id: moduleId,
@@ -2560,27 +2877,59 @@ export default function Index() {
     })
   }
 
-  function addDevice(kind: DeviceKind) {
+  function addDevice(kind: DeviceKind, source = 'component_added', position?: Point) {
     const currentModel = modelRef.current
-    const nextIndex = currentModel.devices.filter((device) => device.id.startsWith('x')).length + 1
+    const nextIndex = getNextDeviceIndex(currentModel.devices)
     const sameKindIndex = currentModel.devices.filter((device) => device.kind === kind).length + 1
-    const device = createDevice(kind, nextIndex, sameKindIndex)
+    const baseDevice = createDevice(kind, nextIndex, sameKindIndex)
+    const device = position
+      ? { ...baseDevice, x: Math.round(position.x), y: Math.round(position.y) }
+      : baseDevice
     const wires = canAutoConnect(kind)
       ? createBranchWires(device.id, nextIndex, device.label)
       : []
+    const nextModel = {
+      devices: [...currentModel.devices, device],
+      wires: [...currentModel.wires, ...wires]
+    }
 
     trackTelemetryEvent('component_added', {
       kind,
       device_id: device.id,
       domain: activeDomain,
-      auto_connected: wires.length > 0
+      auto_connected: wires.length > 0,
+      source
     })
-    setModel((current) => ({
-      devices: [...current.devices, device],
-      wires: [...current.wires, ...wires]
-    }))
+    modelRef.current = nextModel
+    setModel(nextModel)
     setSelectedId(device.id)
-    changeAppModule('simulate', 'component_added')
+    setDeviceActionId(null)
+    changeAppModule('simulate', source)
+  }
+
+  function removeDevice(deviceId: string) {
+    const currentModel = modelRef.current
+    const device = currentModel.devices.find((item) => item.id === deviceId)
+    if (!device || !canDeleteDevice(device)) return
+
+    const nextModel = removeDeviceFromModel(currentModel, deviceId)
+    const nextSelectedId =
+      nextModel.devices.find((item) => item.id !== deviceId)?.id ??
+      nextModel.wires[0]?.id ??
+      ''
+
+    trackTelemetryEvent('component_removed', {
+      kind: device.kind,
+      device_id: device.id,
+      source: 'node_long_press'
+    })
+    clearDeviceLongPressTimer()
+    dragRef.current = null
+    modelRef.current = nextModel
+    setDraggingDeviceId(null)
+    setDeviceActionId(null)
+    setModel(nextModel)
+    setSelectedId(nextSelectedId)
   }
 
   function startDeviceDrag(event: PointerLikeEvent, deviceId: string) {
@@ -2591,10 +2940,22 @@ export default function Index() {
     event.stopPropagation?.()
     event.preventDefault?.()
     setSelectedId(deviceId)
+    if (deviceActionId !== deviceId) {
+      setDeviceActionId(null)
+    }
+    const longPressTimer = typeof window === 'undefined' || !canDeleteDevice(device)
+      ? undefined
+      : window.setTimeout(() => {
+          const activeDrag = dragRef.current
+          if (activeDrag?.deviceId === deviceId && !activeDrag.hasMoved) {
+            setDeviceActionId(deviceId)
+          }
+        }, 520)
     dragRef.current = {
       deviceId,
       pointerStart: point,
-      deviceStart: { x: device.x, y: device.y }
+      deviceStart: { x: device.x, y: device.y },
+      longPressTimer
     }
     setDraggingDeviceId(deviceId)
   }
@@ -2612,6 +2973,11 @@ export default function Index() {
     const currentBoardScale = Math.max(0.1, boardScaleRef.current)
     const deltaX = (point.x - activeDrag.pointerStart.x) / currentBoardScale
     const deltaY = (point.y - activeDrag.pointerStart.y) / currentBoardScale
+    if (!activeDrag.hasMoved && Math.hypot(deltaX, deltaY) > 6) {
+      activeDrag.hasMoved = true
+      clearDeviceLongPressTimer(activeDrag)
+      setDeviceActionId(null)
+    }
     const maxX = Math.max(0, currentBoardSize.width - NODE_WIDTH - BOARD_DRAG_INSET * 2)
     const maxY = Math.max(0, Math.max(currentBoardSize.height, currentBoardHeight) - NODE_HEIGHT - BOARD_DRAG_INSET * 2)
     const next = {
@@ -2625,8 +2991,9 @@ export default function Index() {
   function stopDeviceDrag() {
     const activeDrag = dragRef.current
     if (!activeDrag) return
+    clearDeviceLongPressTimer(activeDrag)
     const device = modelRef.current.devices.find((item) => item.id === activeDrag.deviceId)
-    if (device) {
+    if (device && activeDrag.hasMoved) {
       trackTelemetryEvent('canvas_device_dragged', {
         device_id: activeDrag.deviceId,
         from_x: activeDrag.deviceStart.x,
@@ -2637,6 +3004,95 @@ export default function Index() {
     }
     dragRef.current = null
     setDraggingDeviceId(null)
+  }
+
+  function startPaletteComponentDrag(event: PointerLikeEvent, entry: ComponentCatalogEntry) {
+    const point = eventPoint(event)
+    if (!point || !canUseCatalogEntry(authSession, entry)) return
+
+    const definition = getDeviceDefinition(entry.kind)
+    const dragState: PaletteDragState = {
+      entry,
+      pointerStart: point,
+      currentPoint: point,
+      active: false
+    }
+
+    clearPaletteDragTimer()
+    paletteDragRef.current = dragState
+    dragState.longPressTimer = typeof window === 'undefined'
+      ? undefined
+      : window.setTimeout(() => {
+          const activeDrag = paletteDragRef.current
+          if (activeDrag !== dragState) return
+          activeDrag.active = true
+          setPaletteDragPreview({
+            kind: entry.kind,
+            name: definition.name,
+            x: point.x,
+            y: point.y,
+            overBoard: Boolean(getBoardDropPosition(point))
+          })
+        }, 320)
+  }
+
+  function movePaletteComponentDrag(event: PointerLikeEvent) {
+    const activeDrag = paletteDragRef.current
+    if (!activeDrag) return
+
+    const point = eventPoint(event)
+    if (!point) return
+
+    activeDrag.currentPoint = point
+
+    if (!activeDrag.active) {
+      if (pointDistance(point, activeDrag.pointerStart) > 14) {
+        cancelPaletteDrag()
+      }
+      return
+    }
+
+    event.preventDefault?.()
+    const definition = getDeviceDefinition(activeDrag.entry.kind)
+    setPaletteDragPreview({
+      kind: activeDrag.entry.kind,
+      name: definition.name,
+      x: point.x,
+      y: point.y,
+      overBoard: Boolean(getBoardDropPosition(point))
+    })
+  }
+
+  function finishPaletteComponentDrag(event: PointerLikeEvent) {
+    const activeDrag = paletteDragRef.current
+    if (!activeDrag) return
+
+    clearPaletteDragTimer(activeDrag)
+    const point = eventPoint(event) ?? activeDrag.currentPoint
+    const dropPosition = activeDrag.active ? getBoardDropPosition(point) : null
+    const entry = activeDrag.entry
+    cancelPaletteDrag()
+
+    if (dropPosition) {
+      addDevice(entry.kind, 'palette_drag', dropPosition)
+    }
+  }
+
+  function selectSimulationCategory(categoryId: string) {
+    trackTelemetryEvent('category_changed', {
+      domain: activeDomain,
+      category_id: categoryId,
+      source: 'simulation_palette'
+    })
+    setActiveSimulationCategoryId(categoryId)
+  }
+
+  function toggleSimulationPaletteCategory(categoryId: string) {
+    setExpandedSimulationCategoryIds((current) =>
+      current.includes(categoryId)
+        ? current.filter((item) => item !== categoryId)
+        : [...current, categoryId]
+    )
   }
 
   function startChallenge(challengeId: string) {
@@ -2680,6 +3136,12 @@ export default function Index() {
     })
     setActiveDomain(domain)
     setActiveCategoryId('all')
+    setActiveSimulationCategoryId('all')
+    setExpandedSimulationCategoryIds((current) => {
+      const firstCategoryId = profile.categories[0]?.id
+      if (!firstCategoryId || current.includes(firstCategoryId)) return current
+      return [...current, firstCategoryId]
+    })
     setVoltage(profile.recommendedVoltage, 'domain_changed')
   }
 
@@ -2876,219 +3338,249 @@ export default function Index() {
 
       <View className='mobile-section mobile-section-workspace'>
         <View className='workspace simulation-workspace'>
+          <SimulationComponentPalette
+            activeDomain={activeDomain}
+            activeCategoryId={activeSimulationCategoryId}
+            expandedCategoryIds={expandedSimulationCategoryIds}
+            session={authSession}
+            onSelectCategory={selectSimulationCategory}
+            onToggleCategory={toggleSimulationPaletteCategory}
+            onAdd={(kind) => addDevice(kind, 'simulation_palette_tap')}
+            onLocked={openLockedComponentPlan}
+            onDragStart={startPaletteComponentDrag}
+            onDragMove={movePaletteComponentDrag}
+            onDragEnd={finishPaletteComponentDrag}
+          />
 
-        <View className='canvas-panel'>
-          <View className='canvas-header'>
-            <View>
-              <Text className='panel-title'>模拟连接画布</Text>
-              <Text className='panel-subtitle'>
-                点击元件或导线查看状态，导线可独立接入或断开。当前训练：{activeChallenge.title}
-              </Text>
+          <View className='canvas-panel'>
+            <View className='canvas-header'>
+              <View>
+                <Text className='panel-title'>模拟连接画布</Text>
+                <Text className='panel-subtitle'>
+                  点击元件或导线查看状态，导线可独立接入或断开。当前训练：{activeChallenge.title}
+                </Text>
+              </View>
+              <View className='canvas-actions'>
+                <Button className='small-action landscape-action' onClick={toggleCanvasFocusMode}>
+                  {isCanvasFocusMode ? '退出全屏' : '横屏检查'}
+                </Button>
+              </View>
             </View>
-            <View className='canvas-actions'>
-              <Button className='small-action landscape-action' onClick={toggleCanvasFocusMode}>
-                {isCanvasFocusMode ? '退出全屏' : '横屏检查'}
-              </Button>
-            </View>
-          </View>
 
-          <View className='canvas-board-viewport' style={{ height: `${boardViewportHeight}px` }}>
-            <View
-              className='circuit-board'
-              style={{
-                width: `${boardLogicalWidth}px`,
-                height: `${boardHeight}px`,
-                transform: boardScale < 1 ? `scale(${boardScale})` : 'none'
-              }}
-              onTouchMove={dragDevice}
-              onTouchEnd={stopDeviceDrag}
-              onTouchCancel={stopDeviceDrag}
-            >
-              <View className='grid-bg' />
-              <WireLayer
-                wires={model.wires}
-                devices={model.devices}
-                simulation={simulation}
-                selectedWireId={selectedWire?.id}
-                onSelectWire={setSelectedId}
-              />
-              {model.devices.map((device) => (
-                <BoardDevice
-                  key={device.id}
-                  device={device}
-                  selected={selectedId === device.id}
-                  dragging={draggingDeviceId === device.id}
-                  effect={simulation.effects[device.id]}
-                  voltage={voltage}
-                  onSelect={setSelectedId}
-                  onDragStart={startDeviceDrag}
-                  onSetVoltage={setVoltage}
-                  onToggleSwitch={toggleSwitch}
+            <View className='canvas-board-viewport' style={{ height: `${boardViewportHeight}px` }}>
+              <View
+                className='circuit-board'
+                style={{
+                  width: `${boardLogicalWidth}px`,
+                  height: `${boardHeight}px`,
+                  transform: boardScale < 1 ? `scale(${boardScale})` : 'none'
+                }}
+                onTouchMove={dragDevice}
+                onTouchEnd={stopDeviceDrag}
+                onTouchCancel={stopDeviceDrag}
+              >
+                <View className='grid-bg' />
+                <WireLayer
+                  wires={model.wires}
+                  devices={model.devices}
+                  simulation={simulation}
+                  selectedWireId={selectedWire?.id}
+                  onSelectWire={setSelectedId}
                 />
-              ))}
-              <View className='board-legend positive'>正极母线</View>
-              <View className='board-legend negative'>负极回线</View>
+                {model.devices.map((device) => (
+                  <BoardDevice
+                    key={device.id}
+                    device={device}
+                    selected={selectedId === device.id}
+                    dragging={draggingDeviceId === device.id}
+                    showDeleteAction={deviceActionId === device.id}
+                    effect={simulation.effects[device.id]}
+                    voltage={voltage}
+                    onSelect={setSelectedId}
+                    onDragStart={startDeviceDrag}
+                    onDelete={removeDevice}
+                    onSetVoltage={setVoltage}
+                    onToggleSwitch={toggleSwitch}
+                  />
+                ))}
+                <View className='board-legend positive'>正极母线</View>
+                <View className='board-legend negative'>负极回线</View>
+              </View>
+            </View>
+
+            <CanvasStatusBar simulation={simulation} stateLabel={stateLabel} />
+
+            <View className='connection-strip'>
+              {model.wires.map((wire) => {
+                const status = simulation.wires[wire.id]
+                return (
+                  <View key={wire.id} className='wire-toggle'>
+                    <View className='wire-copy' onClick={() => setSelectedId(wire.id)}>
+                      <Text className='wire-name'>{wire.label}</Text>
+                      <Text className='wire-value'>
+                        {wire.connected
+                          ? status?.energized
+                            ? `${formatNumber(status.voltage ?? 0, 1)}V 有电`
+                            : '已连接'
+                          : '已断开'}
+                      </Text>
+                    </View>
+                    <Button
+                      className={`toggle-button ${wire.connected ? 'is-on' : ''}`}
+                      onClick={() => toggleWireConnection(wire.id)}
+                    >
+                      {wire.connected ? '断开' : '接入'}
+                    </Button>
+                  </View>
+                )
+              })}
             </View>
           </View>
 
-          <CanvasStatusBar simulation={simulation} stateLabel={stateLabel} />
-
-          <View className='connection-strip'>
-            {model.wires.map((wire) => {
-              const status = simulation.wires[wire.id]
-              return (
-                <View key={wire.id} className='wire-toggle'>
-                  <View className='wire-copy' onClick={() => setSelectedId(wire.id)}>
-                    <Text className='wire-name'>{wire.label}</Text>
-                    <Text className='wire-value'>
-                      {wire.connected
-                        ? status?.energized
-                          ? `${formatNumber(status.voltage ?? 0, 1)}V 有电`
-                          : '已连接'
-                        : '已断开'}
-                    </Text>
+          <View className='inspector-panel'>
+            <Text className='panel-title'>属性与验证</Text>
+            {selectedDevice && (
+              <View className='inspector-card'>
+                <View className='inspector-head'>
+                  <View className={`palette-icon palette-${selectedDevice.kind}`}>
+                    <ComponentIllustration kind={selectedDevice.kind} compact />
                   </View>
-                  <Button
-                    className={`toggle-button ${wire.connected ? 'is-on' : ''}`}
-                    onClick={() => toggleWireConnection(wire.id)}
-                  >
-                    {wire.connected ? '断开' : '接入'}
+                  <View>
+                    <Text className='inspector-title'>{selectedDevice.label}</Text>
+                    <Text className='inspector-type'>{getDeviceDefinition(selectedDevice.kind).name}</Text>
+                  </View>
+                </View>
+                <View className='metric-row'>
+                  <Text>状态</Text>
+                  <Text>{simulation.effects[selectedDevice.id]?.label ?? (selectedDevice.isClosed ? '闭合' : '就绪')}</Text>
+                </View>
+                {selectedDevice.kind === 'power-positive' && (
+                  <View className='control-stack'>
+                    <Text className='field-label'>输出电压</Text>
+                    <View className='voltage-control wide'>
+                      <Button className='step-button' onClick={() => setVoltage(voltage - 1)}>-</Button>
+                      <Text>{voltage}V</Text>
+                      <Button className='step-button' onClick={() => setVoltage(voltage + 1)}>+</Button>
+                    </View>
+                  </View>
+                )}
+                {isConductiveControlKind(selectedDevice.kind) && (
+                  <Button className='full-button' onClick={() => toggleSwitch(selectedDevice.id)}>
+                    {selectedDevice.isClosed ? '断开开关' : '闭合开关'}
                   </Button>
-                </View>
-              )
-            })}
-          </View>
-        </View>
+                )}
+                {isLoadKind(selectedDevice.kind) && (
+                  <View className='metric-grid'>
+                    <View>
+                      <Text className='metric-label'>端电压</Text>
+                      <Text className='metric-value'>
+                        {formatNumber(simulation.effects[selectedDevice.id]?.voltage ?? 0)}V
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className='metric-label'>电流</Text>
+                      <Text className='metric-value'>
+                        {formatNumber(simulation.effects[selectedDevice.id]?.current ?? 0)}A
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className='metric-label'>功率</Text>
+                      <Text className='metric-value'>
+                        {formatNumber(simulation.effects[selectedDevice.id]?.power ?? 0)}W
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className='metric-label'>额定</Text>
+                      <Text className='metric-value'>{selectedDevice.ratedVoltage ?? 12}V</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
 
-        <View className='inspector-panel'>
-          <Text className='panel-title'>属性与验证</Text>
-          {selectedDevice && (
-            <View className='inspector-card'>
-              <View className='inspector-head'>
-                <View className={`palette-icon palette-${selectedDevice.kind}`}>
-                  <ComponentIllustration kind={selectedDevice.kind} compact />
+            {selectedWire && (
+              <View className='inspector-card'>
+                <Text className='inspector-title'>{selectedWire.label}</Text>
+                <Text className='wire-detail'>
+                  {selectedWire.from.deviceId}.{selectedWire.from.terminalId} → {selectedWire.to.deviceId}.{selectedWire.to.terminalId}
+                </Text>
+                <View className='wire-style-control'>
+                  <Text className='field-label'>线型</Text>
+                  <View className='segmented-control'>
+                    {([
+                      ['orthogonal', '折线'],
+                      ['smooth', '平滑']
+                    ] as const).map(([mode, label]) => (
+                      <Button
+                        key={mode}
+                        className={[
+                          'style-button',
+                          selectedWire.pathMode === mode ? 'is-active' : ''
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => changeWirePathMode(selectedWire.id, mode)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </View>
                 </View>
-                <View>
-                  <Text className='inspector-title'>{selectedDevice.label}</Text>
-                  <Text className='inspector-type'>{getDeviceDefinition(selectedDevice.kind).name}</Text>
-                </View>
+                <Button
+                  className='full-button'
+                  onClick={() => toggleWireConnection(selectedWire.id)}
+                >
+                  {selectedWire.connected ? '断开这根导线' : '接入这根导线'}
+                </Button>
+              </View>
+            )}
+
+            <View className='summary-card'>
+              <Text className='summary-title'>仿真结果</Text>
+              <View className='metric-row'>
+                <Text>总电流</Text>
+                <Text>{formatNumber(simulation.totalCurrent)}A</Text>
               </View>
               <View className='metric-row'>
-                <Text>状态</Text>
-                <Text>{simulation.effects[selectedDevice.id]?.label ?? (selectedDevice.isClosed ? '闭合' : '就绪')}</Text>
+                <Text>接入负载</Text>
+                <Text>{loadDevices.length} 个</Text>
               </View>
-              {selectedDevice.kind === 'power-positive' && (
-                <View className='control-stack'>
-                  <Text className='field-label'>输出电压</Text>
-                  <View className='voltage-control wide'>
-                    <Button className='step-button' onClick={() => setVoltage(voltage - 1)}>-</Button>
-                    <Text>{voltage}V</Text>
-                    <Button className='step-button' onClick={() => setVoltage(voltage + 1)}>+</Button>
-                  </View>
-                </View>
-              )}
-              {isConductiveControlKind(selectedDevice.kind) && (
-                <Button className='full-button' onClick={() => toggleSwitch(selectedDevice.id)}>
-                  {selectedDevice.isClosed ? '断开开关' : '闭合开关'}
-                </Button>
-              )}
-              {isLoadKind(selectedDevice.kind) && (
-                <View className='metric-grid'>
-                  <View>
-                    <Text className='metric-label'>端电压</Text>
-                    <Text className='metric-value'>
-                      {formatNumber(simulation.effects[selectedDevice.id]?.voltage ?? 0)}V
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className='metric-label'>电流</Text>
-                    <Text className='metric-value'>
-                      {formatNumber(simulation.effects[selectedDevice.id]?.current ?? 0)}A
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className='metric-label'>功率</Text>
-                    <Text className='metric-value'>
-                      {formatNumber(simulation.effects[selectedDevice.id]?.power ?? 0)}W
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className='metric-label'>额定</Text>
-                    <Text className='metric-value'>{selectedDevice.ratedVoltage ?? 12}V</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-
-          {selectedWire && (
-            <View className='inspector-card'>
-              <Text className='inspector-title'>{selectedWire.label}</Text>
-              <Text className='wire-detail'>
-                {selectedWire.from.deviceId}.{selectedWire.from.terminalId} → {selectedWire.to.deviceId}.{selectedWire.to.terminalId}
-              </Text>
-              <View className='wire-style-control'>
-                <Text className='field-label'>线型</Text>
-                <View className='segmented-control'>
-                  {([
-                    ['orthogonal', '折线'],
-                    ['smooth', '平滑']
-                  ] as const).map(([mode, label]) => (
-                    <Button
-                      key={mode}
-                      className={[
-                        'style-button',
-                        selectedWire.pathMode === mode ? 'is-active' : ''
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      onClick={() => changeWirePathMode(selectedWire.id, mode)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </View>
+              <View className='metric-row'>
+                <Text>电源</Text>
+                <Text>{simulation.supplyVoltage}V DC</Text>
               </View>
-              <Button
-                className='full-button'
-                onClick={() => toggleWireConnection(selectedWire.id)}
-              >
-                {selectedWire.connected ? '断开这根导线' : '接入这根导线'}
-              </Button>
             </View>
-          )}
 
-          <View className='summary-card'>
-            <Text className='summary-title'>仿真结果</Text>
-            <View className='metric-row'>
-              <Text>总电流</Text>
-              <Text>{formatNumber(simulation.totalCurrent)}A</Text>
+            <VirtualMeterPanel worksheet={virtualMeter} />
+
+            <View className='issue-list'>
+              {simulation.issues.map((issue, index) => (
+                <View key={`${issue.message}-${index}`} className={`issue issue-${issue.severity}`}>
+                  <Text>{issue.message}</Text>
+                </View>
+              ))}
             </View>
-            <View className='metric-row'>
-              <Text>接入负载</Text>
-              <Text>{loadDevices.length} 个</Text>
-            </View>
-            <View className='metric-row'>
-              <Text>电源</Text>
-              <Text>{simulation.supplyVoltage}V DC</Text>
-            </View>
+
+            <TrainingScoreCard challenge={activeChallenge} evaluation={challengeEvaluation} />
+            <SafetyDiagnosticsCard diagnostics={safetyDiagnostics} />
           </View>
-
-          <VirtualMeterPanel worksheet={virtualMeter} />
-
-          <View className='issue-list'>
-            {simulation.issues.map((issue, index) => (
-              <View key={`${issue.message}-${index}`} className={`issue issue-${issue.severity}`}>
-                <Text>{issue.message}</Text>
-              </View>
-            ))}
-          </View>
-
-          <TrainingScoreCard challenge={activeChallenge} evaluation={challengeEvaluation} />
-          <SafetyDiagnosticsCard diagnostics={safetyDiagnostics} />
         </View>
       </View>
-      </View>
+
+      {paletteDragPreview && (
+        <View
+          className={`palette-drag-preview ${paletteDragPreview.overBoard ? 'is-over-board' : ''}`}
+          style={{
+            left: `${paletteDragPreview.x}px`,
+            top: `${paletteDragPreview.y}px`
+          }}
+        >
+          <View className={`palette-icon palette-${paletteDragPreview.kind}`}>
+            <ComponentIllustration kind={paletteDragPreview.kind} compact />
+          </View>
+          <Text>{paletteDragPreview.name}</Text>
+        </View>
+      )}
 
       <View className='mobile-section mobile-section-library'>
         <CommercialDashboard
