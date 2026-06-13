@@ -1,4 +1,5 @@
 import { getDeviceDefinition } from './registry'
+import type { AuthProviderId, AuthRegion } from './auth'
 import type { DeviceKind } from './types'
 
 export type WorkbenchDomain = 'engineering-control' | 'renovation-control'
@@ -53,6 +54,9 @@ export interface AuthSession {
   userId?: string
   displayName: string
   tier: SubscriptionTier
+  authRegion?: AuthRegion
+  provider?: AuthProviderId
+  linkedProviders?: AuthProviderId[]
 }
 
 export interface FeatureGate {
@@ -683,7 +687,8 @@ export function createAuthenticatedSession(tier: SubscriptionTier): AuthSession 
     status: 'authenticated',
     userId: `demo-${tier}-user`,
     displayName: `${plan.name}演示账号`,
-    tier
+    tier,
+    linkedProviders: []
   }
 }
 

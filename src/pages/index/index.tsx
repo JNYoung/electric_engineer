@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, ScrollView, Text, View } from '@tarojs/components'
+import { Button, Input, ScrollView, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
 import { createBranchWires, createDevice, createInitialCircuit } from '@/core/circuitFactory'
@@ -71,6 +71,12 @@ import { createTelemetryClient } from '@/core/telemetry'
 import { createGooglePlayTelemetryTransport, syncGooglePlayAdPlacement } from '@/core/googlePlayNative'
 import { enterNativeLandscapeCheck, exitNativeLandscapeCheck } from '@/core/nativeDisplay'
 import {
+  getRuntimeAuthConfig,
+  requestAuthLink,
+  requestAuthOtp,
+  requestAuthSignIn
+} from '@/core/auth'
+import {
   AppModuleNav,
   MobileBottomNav,
   getAdPlacementForModule,
@@ -105,6 +111,7 @@ import type {
 import type { MaterialFamily, MaterialFinderResult, MaterialTrainingKitPlan } from '@/core/materials'
 import type { VirtualMeterWorksheet } from '@/core/instruments'
 import type { TelemetryEventName, TelemetryProperties } from '@/core/telemetry'
+import type { AuthCredentialDraft, AuthProviderConfig, RuntimeAuthConfig } from '@/core/auth'
 import type {
   AuthSession,
   BillingPlan,
@@ -896,19 +903,219 @@ function SimulationComponentPalette({
   )
 }
 
+function AccountLoginPanel({
+  authConfig,
+  session,
+  onProviderSignIn,
+  onBindProvider,
+  onSendOtp
+}: {
+  authConfig: RuntimeAuthConfig
+  session: AuthSession
+  onProviderSignIn: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
+  onBindProvider: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
+  onSendOtp: (phone: string) => Promise<string>
+}) {
+  const [activeProviderId, setActiveProviderId] = useState(authConfig.providers[0]?.id ?? 'phone-otp')
+  const [credential, setCredential] = useState<AuthCredentialDraft>({
+    phone: '',
+    otp: '',
+    email: '',
+    password: ''
+  })
+  const [pendingAction, setPendingAction] = useState<'sign-in' | 'bind' | 'otp' | null>(null)
+  const [operationMessage, setOperationMessage] = useState('')
+  const activeProvider =
+    authConfig.providers.find((provider) => provider.id === activeProviderId) ?? authConfig.providers[0] ?? null
+  const linkedProviders = session.linkedProviders ?? []
+
+  function updateCredential(key: keyof AuthCredentialDraft, value: string) {
+    setCredential((current) => ({
+      ...current,
+      [key]: value
+    }))
+  }
+
+  async function runSignIn() {
+    if (!activeProvider || pendingAction) return
+    setPendingAction('sign-in')
+    setOperationMessage('')
+    try {
+      await onProviderSignIn(activeProvider, credential)
+      setOperationMessage('登录已完成，账号状态已同步。')
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function runBind() {
+    if (!activeProvider || pendingAction) return
+    setPendingAction('bind')
+    setOperationMessage('')
+    try {
+      await onBindProvider(activeProvider, credential)
+      setOperationMessage(`${activeProvider.label}绑定状态已更新。`)
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  async function runSendOtp() {
+    if (pendingAction) return
+    setPendingAction('otp')
+    setOperationMessage('')
+    try {
+      const message = await onSendOtp(credential.phone ?? '')
+      setOperationMessage(message)
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  function renderCredentialFields(provider: AuthProviderConfig) {
+    if (provider.credentialMode === 'phone-otp') {
+      return (
+        <View className='auth-field-grid'>
+          <Input
+            className='auth-input'
+            placeholder='手机号'
+            value={credential.phone}
+            onInput={(event) => updateCredential('phone', event.detail.value)}
+          />
+          <Input
+            className='auth-input'
+            placeholder='验证码'
+            value={credential.otp}
+            onInput={(event) => updateCredential('otp', event.detail.value)}
+          />
+          <Button
+            className='small-action auth-inline-action'
+            onClick={runSendOtp}
+          >
+            {pendingAction === 'otp' ? '发送中' : '发送验证码'}
+          </Button>
+        </View>
+      )
+    }
+
+    if (provider.credentialMode === 'email-password') {
+      return (
+        <View className='auth-field-grid'>
+          <Input
+            className='auth-input'
+            placeholder='邮箱'
+            value={credential.email}
+            onInput={(event) => updateCredential('email', event.detail.value)}
+          />
+          <Input
+            className='auth-input'
+            placeholder={authConfig.region === 'overseas' ? '密码或邮箱验证码' : '密码'}
+            password
+            value={credential.password}
+            onInput={(event) => updateCredential('password', event.detail.value)}
+          />
+        </View>
+      )
+    }
+
+    return (
+      <Text className='auth-provider-detail'>
+        {provider.description}，当前先接入服务端契约，原生授权插件按 flavor 继续补齐。
+      </Text>
+    )
+  }
+
+  return (
+    <View className='auth-login-panel'>
+      <View className='auth-login-head'>
+        <View>
+          <Text className='account-section-title'>账号登录</Text>
+          <Text className='auth-region-copy'>
+            {authConfig.region === 'domestic' ? '国内登录' : '海外登录'} · API {authConfig.apiBaseUrl}
+          </Text>
+        </View>
+        <Text className='auth-port-badge'>:{authConfig.serverPort}</Text>
+      </View>
+
+      <View className='auth-provider-grid'>
+        {authConfig.providers.map((provider) => (
+          <Button
+            key={provider.id}
+            className={`auth-provider-button ${provider.id === activeProvider?.id ? 'is-active' : ''}`}
+            onClick={() => setActiveProviderId(provider.id)}
+          >
+            <Text>{provider.label}</Text>
+            <Text>{provider.description}</Text>
+          </Button>
+        ))}
+      </View>
+
+      {activeProvider && (
+        <View className='auth-provider-card'>
+          <Text className='auth-provider-title'>{activeProvider.label}</Text>
+          {renderCredentialFields(activeProvider)}
+          <View className='auth-action-row'>
+            <Button
+              className='small-action commerce-primary-action'
+              onClick={runSignIn}
+            >
+              {pendingAction === 'sign-in' ? '登录中' : '登录'}
+            </Button>
+            {session.status === 'authenticated' && activeProvider.bindable && (
+              <Button
+                className='small-action'
+                onClick={runBind}
+              >
+                {pendingAction === 'bind' ? '绑定中' : '绑定账户'}
+              </Button>
+            )}
+          </View>
+          {operationMessage && (
+            <Text className='auth-operation-message'>{operationMessage}</Text>
+          )}
+        </View>
+      )}
+
+      {session.status === 'authenticated' && (
+        <View className='linked-account-list'>
+          <Text className='note-title'>已绑定</Text>
+          <View className='linked-provider-chips'>
+            {authConfig.providers.map((provider) => (
+              <Text
+                key={provider.id}
+                className={`linked-provider-chip ${linkedProviders.includes(provider.id) ? 'is-linked' : ''}`}
+              >
+                {provider.label}{linkedProviders.includes(provider.id) ? ' 已绑定' : ' 待绑定'}
+              </Text>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  )
+}
+
 function CommercePanel({
   access,
   session,
   selectedPlanId,
+  authConfig,
   onSignIn,
   onSignOut,
+  onProviderSignIn,
+  onBindProvider,
+  onSendOtp,
   onSelectPlan
 }: {
   access: CommercialAccessSnapshot
   session: AuthSession
   selectedPlanId: SubscriptionTier
+  authConfig: RuntimeAuthConfig
   onSignIn: (tier?: SubscriptionTier) => void
   onSignOut: () => void
+  onProviderSignIn: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
+  onBindProvider: (provider: AuthProviderConfig, credential: AuthCredentialDraft) => Promise<void>
+  onSendOtp: (phone: string) => Promise<string>
   onSelectPlan: (tier: SubscriptionTier) => void
 }) {
   const accountTitle = session.status === 'authenticated'
@@ -969,6 +1176,14 @@ function CommercePanel({
         </Text>
       </View>
       <Text className='commerce-status'>{access.primaryAction.detail}</Text>
+
+      <AccountLoginPanel
+        authConfig={authConfig}
+        session={session}
+        onProviderSignIn={onProviderSignIn}
+        onBindProvider={onBindProvider}
+        onSendOtp={onSendOtp}
+      />
 
       <Text className='account-section-title'>权益用量</Text>
       <View className='access-summary'>
@@ -2845,6 +3060,7 @@ export default function Index() {
       }),
     []
   )
+  const authConfig = useMemo(() => getRuntimeAuthConfig(), [])
   const simulation = useMemo(() => simulateCircuit(model), [model])
   const activeLesson = getLessonById(activeLessonId)
   const activeChallenge = getChallengeById(activeChallengeId)
@@ -3658,6 +3874,41 @@ export default function Index() {
     changeAppModule('account', 'purchase_intent')
   }
 
+  async function signInWithAuthProvider(provider: AuthProviderConfig, credential: AuthCredentialDraft) {
+    trackTelemetryEvent('auth_changed', {
+      status: 'authenticated',
+      tier: 'free',
+      source: provider.id,
+      auth_region: authConfig.region,
+      credential_mode: provider.credentialMode
+    })
+    setSelectedPlanId('free')
+    const session = await requestAuthSignIn(authConfig, provider, credential)
+    setAuthSession(session)
+    changeAppModule('account', 'auth_provider_sign_in')
+  }
+
+  async function bindAuthProvider(provider: AuthProviderConfig, credential: AuthCredentialDraft) {
+    trackTelemetryEvent('auth_changed', {
+      status: authSession.status,
+      tier: authSession.tier,
+      source: `bind_${provider.id}`,
+      auth_region: authConfig.region,
+      credential_mode: provider.credentialMode
+    })
+    const session = await requestAuthLink(authConfig, authSession, provider, credential)
+    setAuthSession(session)
+  }
+
+  async function sendAuthOtp(phone: string) {
+    const response = await requestAuthOtp(authConfig, phone)
+    if (response.ok) {
+      return response.devCode ? `验证码已发送，测试码 ${response.devCode}` : '验证码已发送。'
+    }
+
+    return '验证码服务未连接，当前保留本地演示登录。'
+  }
+
   function loginForQuestionBank() {
     trackTelemetryEvent('auth_changed', {
       status: 'authenticated',
@@ -3978,8 +4229,12 @@ export default function Index() {
             access={commercialAccess}
             session={authSession}
             selectedPlanId={selectedPlanId}
+            authConfig={authConfig}
             onSignIn={simulateSignIn}
             onSignOut={simulateSignOut}
+            onProviderSignIn={signInWithAuthProvider}
+            onBindProvider={bindAuthProvider}
+            onSendOtp={sendAuthOtp}
             onSelectPlan={selectPlan}
           />
           <CommercialDashboard

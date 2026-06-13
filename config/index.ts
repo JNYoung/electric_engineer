@@ -4,6 +4,11 @@ import path from 'path'
 const outputRoot = process.env.TARO_ENV === 'weapp' ? 'dist/weapp' : 'dist/h5'
 const buildTarget = process.env.BUILD_TARGET ?? process.env.TARO_ENV ?? 'h5'
 const telemetryRegion = process.env.TELEMETRY_REGION === 'overseas' ? 'overseas' : 'domestic'
+const authRegion = process.env.AUTH_REGION === 'overseas' || buildTarget === 'android-google-play'
+  ? 'overseas'
+  : 'domestic'
+const authDefaultPort = authRegion === 'overseas' ? 4318 : 4317
+const authApiBaseUrl = process.env.AUTH_API_BASE_URL ?? `http://127.0.0.1:${authDefaultPort}`
 const telemetryEndpoint =
   process.env.TELEMETRY_ENDPOINT ??
   (telemetryRegion === 'overseas' ? '/api/telemetry/global/events' : '/api/telemetry/cn/events')
@@ -45,7 +50,9 @@ const config: UserConfigExport = {
     __TELEMETRY_REGION__: JSON.stringify(telemetryRegion),
     __TELEMETRY_CHANNEL__: JSON.stringify(telemetryChannel),
     __TELEMETRY_ENDPOINT__: JSON.stringify(telemetryEndpoint),
-    __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled)
+    __TELEMETRY_ENABLED__: JSON.stringify(telemetryEnabled),
+    __AUTH_REGION__: JSON.stringify(authRegion),
+    __AUTH_API_BASE_URL__: JSON.stringify(authApiBaseUrl)
   },
   terser: {
     config: {

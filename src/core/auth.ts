@@ -1,0 +1,269 @@
+import type { AuthSession, SubscriptionTier } from './commercial'
+
+export type AuthRegion = 'domestic' | 'overseas'
+export type AuthProviderId =
+  | 'wechat'
+  | 'facebook'
+  | 'google'
+  | 'phone-otp'
+  | 'email-password'
+
+export interface AuthProviderConfig {
+  id: AuthProviderId
+  label: string
+  description: string
+  credentialMode: 'oauth' | 'phone-otp' | 'email-password'
+  bindable: boolean
+}
+
+export interface RuntimeAuthConfig {
+  region: AuthRegion
+  apiBaseUrl: string
+  serverPort: number
+  providers: AuthProviderConfig[]
+  signInEndpoint: string
+  linkEndpoint: string
+  otpEndpoint: string
+  profileEndpoint: string
+}
+
+export interface AuthCredentialDraft {
+  phone?: string
+  otp?: string
+  email?: string
+  password?: string
+}
+
+export interface AuthOtpResponse {
+  ok: boolean
+  devCode?: string
+}
+
+interface AuthSignInResponse {
+  session?: AuthSession
+  token?: string
+}
+
+interface AuthLinkResponse {
+  ok?: boolean
+  linkedProvider?: AuthProviderId
+  linkedProviders?: AuthProviderId[]
+}
+
+declare const __AUTH_REGION__: string | undefined
+declare const __AUTH_API_BASE_URL__: string | undefined
+
+const domesticProviders: AuthProviderConfig[] = [
+  {
+    id: 'wechat',
+    label: '微信登录',
+    description: '接入微信开放平台移动应用授权',
+    credentialMode: 'oauth',
+    bindable: true
+  },
+  {
+    id: 'phone-otp',
+    label: '手机号+验证码',
+    description: '短信验证码登录或绑定手机号',
+    credentialMode: 'phone-otp',
+    bindable: true
+  },
+  {
+    id: 'email-password',
+    label: '邮箱+密码',
+    description: '邮箱密码登录，支持绑定邮箱',
+    credentialMode: 'email-password',
+    bindable: true
+  }
+]
+
+const overseasProviders: AuthProviderConfig[] = [
+  {
+    id: 'facebook',
+    label: 'Facebook',
+    description: '接入 Facebook Login',
+    credentialMode: 'oauth',
+    bindable: true
+  },
+  {
+    id: 'google',
+    label: 'Google',
+    description: '接入 Google Identity Services',
+    credentialMode: 'oauth',
+    bindable: true
+  },
+  {
+    id: 'phone-otp',
+    label: '手机号+验证码',
+    description: '短信验证码登录或绑定手机号',
+    credentialMode: 'phone-otp',
+    bindable: true
+  },
+  {
+    id: 'email-password',
+    label: '邮箱登录',
+    description: '邮箱登录，服务端可配置密码或邮件验证码',
+    credentialMode: 'email-password',
+    bindable: true
+  }
+]
+
+export function normalizeAuthRegion(value?: string): AuthRegion {
+  return value === 'overseas' ? 'overseas' : 'domestic'
+}
+
+export function getAuthProviders(region: AuthRegion) {
+  return region === 'overseas' ? overseasProviders : domesticProviders
+}
+
+export function getDefaultAuthServerPort(region: AuthRegion) {
+  return region === 'overseas' ? 4318 : 4317
+}
+
+export function getDefaultAuthApiBaseUrl(region: AuthRegion) {
+  return `http://127.0.0.1:${getDefaultAuthServerPort(region)}`
+}
+
+export function getRuntimeAuthConfig(): RuntimeAuthConfig {
+  const region = normalizeAuthRegion(typeof __AUTH_REGION__ === 'undefined' ? undefined : __AUTH_REGION__)
+  const apiBaseUrl = typeof __AUTH_API_BASE_URL__ === 'undefined' || !__AUTH_API_BASE_URL__
+    ? getDefaultAuthApiBaseUrl(region)
+    : __AUTH_API_BASE_URL__
+
+  return {
+    region,
+    apiBaseUrl,
+    serverPort: getDefaultAuthServerPort(region),
+    providers: getAuthProviders(region),
+    signInEndpoint: `${apiBaseUrl}/api/auth/sign-in`,
+    linkEndpoint: `${apiBaseUrl}/api/auth/link`,
+    otpEndpoint: `${apiBaseUrl}/api/auth/otp/send`,
+    profileEndpoint: `${apiBaseUrl}/api/auth/profile`
+  }
+}
+
+export function buildProviderSession(
+  provider: AuthProviderConfig,
+  region: AuthRegion,
+  tier: SubscriptionTier = 'free'
+): AuthSession {
+  return {
+    status: 'authenticated',
+    userId: `${region}-${provider.id}-demo-user`,
+    displayName: `${provider.label}用户`,
+    tier,
+    authRegion: region,
+    provider: provider.id,
+    linkedProviders: [provider.id]
+  }
+}
+
+export function linkProviderToSession(session: AuthSession, providerId: AuthProviderId): AuthSession {
+  const linkedProviders = session.linkedProviders ?? []
+
+  return {
+    ...session,
+    linkedProviders: linkedProviders.includes(providerId)
+      ? linkedProviders
+      : [...linkedProviders, providerId]
+  }
+}
+
+export async function requestAuthOtp(config: RuntimeAuthConfig, phone = ''): Promise<AuthOtpResponse> {
+  try {
+    return await postJson<AuthOtpResponse>(config.otpEndpoint, {
+      region: config.region,
+      phone
+    })
+  } catch {
+    return { ok: false }
+  }
+}
+
+export async function requestAuthSignIn(
+  config: RuntimeAuthConfig,
+  provider: AuthProviderConfig,
+  credential: AuthCredentialDraft
+): Promise<AuthSession> {
+  const fallback = buildProviderSession(provider, config.region, 'free')
+
+  try {
+    const response = await postJson<AuthSignInResponse>(config.signInEndpoint, {
+      region: config.region,
+      provider: provider.id,
+      credential
+    })
+
+    return normalizeServerSession(response.session, fallback)
+  } catch {
+    return fallback
+  }
+}
+
+export async function requestAuthLink(
+  config: RuntimeAuthConfig,
+  session: AuthSession,
+  provider: AuthProviderConfig,
+  credential: AuthCredentialDraft
+): Promise<AuthSession> {
+  const fallback = linkProviderToSession(session, provider.id)
+
+  try {
+    const response = await postJson<AuthLinkResponse>(config.linkEndpoint, {
+      region: config.region,
+      provider: provider.id,
+      credential,
+      linkedProviders: session.linkedProviders ?? []
+    })
+    const linkedProviders = response.linkedProviders?.filter(isAuthProviderId)
+
+    return {
+      ...session,
+      linkedProviders: linkedProviders && linkedProviders.length > 0
+        ? linkedProviders
+        : fallback.linkedProviders
+    }
+  } catch {
+    return fallback
+  }
+}
+
+async function postJson<T>(url: string, body: Record<string, unknown>): Promise<T> {
+  if (typeof fetch === 'undefined') {
+    throw new Error('fetch_unavailable')
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+
+  if (!response.ok) {
+    throw new Error(`auth_request_failed:${response.status}`)
+  }
+
+  return await response.json() as T
+}
+
+function normalizeServerSession(session: AuthSession | undefined, fallback: AuthSession): AuthSession {
+  if (!session || session.status !== 'authenticated') {
+    return fallback
+  }
+
+  return {
+    ...fallback,
+    ...session,
+    linkedProviders: session.linkedProviders?.filter(isAuthProviderId) ?? fallback.linkedProviders
+  }
+}
+
+function isAuthProviderId(value: unknown): value is AuthProviderId {
+  return value === 'wechat' ||
+    value === 'facebook' ||
+    value === 'google' ||
+    value === 'phone-otp' ||
+    value === 'email-password'
+}
