@@ -57,6 +57,7 @@ $ink: #1f2937;
 .assessment-head,
 .assessment-panel-head,
 .question-head,
+.canvas-actions,
 .simulation-check,
 .assessment-tab-list,
 .assessment-metrics,
@@ -151,6 +152,7 @@ $ink: #1f2937;
 .commercial-desc,
 .commercial-plan,
 .commerce-status,
+.account-desc,
 .locked-preview,
 .plan-target,
 .plan-feature,
@@ -187,6 +189,7 @@ $ink: #1f2937;
 .catalog-title-row,
 .catalog-tags,
 .commerce-actions-row,
+.account-hero,
 .plan-head,
 .feature-gate-row {
   display: flex;
@@ -390,11 +393,24 @@ $ink: #1f2937;
 .challenge-card {
   min-width: 0;
   min-height: 154px;
+  width: 100%;
+  margin: 0;
   padding: 11px;
   border: 1px solid #e3e9f2;
   border-radius: 8px;
   background: #f8fbff;
+  color: $text;
+  text-align: left;
   box-sizing: border-box;
+}
+
+.lesson-card {
+  display: block;
+  cursor: pointer;
+}
+
+.lesson-card::after {
+  border: none;
 }
 
 .lesson-card.is-active,
@@ -402,6 +418,48 @@ $ink: #1f2937;
   border-color: #9fc3ff;
   background: #eef6ff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.lesson-detail-panel {
+  grid-column: 1 / -1;
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.lesson-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.lesson-detail-card {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #edf1f6;
+  background: #f8fbff;
+}
+
+.detail-card-title,
+.detail-card-item {
+  display: block;
+}
+
+.detail-card-title {
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
+.detail-card-item {
+  margin-top: 6px;
+  color: $muted;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .lesson-stage,
@@ -2129,7 +2187,7 @@ $ink: #1f2937;
 
 .account-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+  grid-template-columns: minmax(420px, 1.08fr) minmax(0, 0.92fr);
   gap: 16px;
   margin-top: 16px;
   align-items: start;
@@ -2139,11 +2197,16 @@ $ink: #1f2937;
 .canvas-panel,
 .inspector-panel,
 .account-workspace .commerce-panel {
-  min-height: 650px;
   background: $surface;
   border: 1px solid $line;
   border-radius: 8px;
   box-sizing: border-box;
+}
+
+.palette-panel,
+.canvas-panel,
+.inspector-panel {
+  min-height: 650px;
 }
 
 .palette-panel,
@@ -2168,6 +2231,14 @@ $ink: #1f2937;
 
 .account-workspace .commerce-panel {
   margin-top: 0;
+  min-height: auto;
+  padding: 14px;
+  background: $surface;
+}
+
+.account-domain-overview {
+  align-items: stretch;
+  grid-template-columns: 1fr;
 }
 
 .panel-title {
@@ -2442,6 +2513,19 @@ $ink: #1f2937;
   min-height: 50px;
 }
 
+.canvas-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.landscape-action {
+  border-color: #132238;
+  background: #132238;
+  color: #ffffff;
+  font-weight: 900;
+}
+
 .run-state {
   flex: 0 0 auto;
   padding: 7px 10px;
@@ -2457,14 +2541,23 @@ $ink: #1f2937;
   color: #087c67;
 }
 
+.canvas-board-viewport {
+  position: relative;
+  width: 100%;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
 .circuit-board {
   position: relative;
   height: 500px;
-  margin-top: 12px;
   border: 1px solid #cfd8e6;
   border-radius: 8px;
   overflow: hidden;
   background: #f9fbfe;
+  box-sizing: border-box;
+  transform-origin: left top;
 }
 
 .grid-bg {
@@ -4753,6 +4846,90 @@ $ink: #1f2937;
   font-weight: 900;
 }
 
+.account-hero {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #132238;
+  color: #ffffff;
+}
+
+.account-avatar {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #132238;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 900;
+}
+
+.account-hero-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.account-kicker,
+.account-title,
+.account-section-title {
+  display: block;
+}
+
+.account-kicker {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 900;
+}
+
+.account-title {
+  margin-top: 3px;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 900;
+}
+
+.account-desc {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.account-hero .tier-badge {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.account-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.account-summary-grid > view,
+.account-summary-grid > div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.account-section-title {
+  margin-top: 14px;
+  color: $text;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 900;
+}
+
 .commerce-actions-row {
   flex-wrap: wrap;
   gap: 8px;
@@ -4908,6 +5085,68 @@ $ink: #1f2937;
   border: 1px solid $line;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.app-shell.is-canvas-focus-mode {
+  height: 100vh;
+  padding: 0;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.app-shell.is-canvas-focus-mode .topbar,
+.app-shell.is-canvas-focus-mode .app-module-nav,
+.app-shell.is-canvas-focus-mode .mobile-status-strip,
+.app-shell.is-canvas-focus-mode .mobile-bottom-nav,
+.app-shell.is-canvas-focus-mode .mobile-section-learn,
+.app-shell.is-canvas-focus-mode .mobile-section-bank,
+.app-shell.is-canvas-focus-mode .mobile-section-library,
+.app-shell.is-canvas-focus-mode .mobile-section-account,
+.app-shell.is-canvas-focus-mode .mobile-section-effects,
+.app-shell.is-canvas-focus-mode .inspector-panel,
+.app-shell.is-canvas-focus-mode .connection-strip {
+  display: none;
+}
+
+.app-shell.is-canvas-focus-mode .mobile-section-workspace {
+  display: block;
+}
+
+.app-shell.is-canvas-focus-mode .workspace {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  margin: 0;
+  display: block;
+}
+
+.app-shell.is-canvas-focus-mode .canvas-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  min-height: 100vh;
+  padding: 10px;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.app-shell.is-canvas-focus-mode .canvas-header {
+  min-height: 56px;
+  padding: 8px;
+  border: 1px solid $line;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.app-shell.is-canvas-focus-mode .canvas-board-viewport {
+  height: calc(100vh - 82px) !important;
+  margin-top: 8px;
+}
+
+.app-shell.is-canvas-focus-mode .circuit-board {
+  margin: 0 auto;
+  transform-origin: top center;
 }
 
 .effect-pill.is-active {
@@ -5222,6 +5461,15 @@ $ink: #1f2937;
   .app-shell {
     padding: 10px 10px 78px;
     background: #f4f7fb;
+    overflow-x: hidden;
+  }
+
+  .app-shell.is-native-shell {
+    padding-top: calc(10px + max(44px, env(safe-area-inset-top, 0px)));
+  }
+
+  .app-shell.is-native-shell.module-focus-library {
+    padding-bottom: 148px;
   }
 
   .topbar {
@@ -5377,6 +5625,8 @@ $ink: #1f2937;
   }
 
   .commercial-metrics,
+  .account-summary-grid,
+  .access-summary,
   .assessment-metrics,
   .fault-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5387,8 +5637,6 @@ $ink: #1f2937;
     grid-template-columns: 1fr;
   }
 
-  .lesson-list,
-  .challenge-list,
   .fault-scenario-grid,
   .knowledge-track-tabs,
   .assessment-tab-list,
@@ -5401,8 +5649,6 @@ $ink: #1f2937;
     scrollbar-width: none;
   }
 
-  .lesson-list::-webkit-scrollbar,
-  .challenge-list::-webkit-scrollbar,
   .fault-scenario-grid::-webkit-scrollbar,
   .knowledge-track-tabs::-webkit-scrollbar,
   .assessment-tab-list::-webkit-scrollbar,
@@ -5412,10 +5658,18 @@ $ink: #1f2937;
   }
 
   .lesson-card,
-  .challenge-card,
+  .challenge-card {
+    width: 100%;
+    min-width: 0;
+  }
+
   .fault-scenario-card {
     width: 238px;
     min-width: 238px;
+  }
+
+  .lesson-detail-grid {
+    grid-template-columns: 1fr;
   }
 
   .knowledge-question {
@@ -5469,16 +5723,20 @@ $ink: #1f2937;
   }
 
   .canvas-panel {
-    overflow-x: auto;
-  }
-
-  .circuit-board,
-  .connection-strip {
-    min-width: 720px;
+    overflow: hidden;
   }
 
   .connection-strip {
     grid-template-columns: 1fr;
+  }
+
+  .canvas-header {
+    align-items: flex-start;
+  }
+
+  .canvas-actions {
+    flex-direction: column;
+    align-items: flex-end;
   }
 
   .effect-pill {
