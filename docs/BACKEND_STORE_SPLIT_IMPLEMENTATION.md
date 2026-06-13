@@ -102,6 +102,7 @@ Telemetry 接收按 flavor 分流：
 - 合规输出：隐私政策、Data safety 对应数据类型、账号删除入口。
 - 埋点：`global-edu-v1`，自建 `product_analytics` 接收，Google Play 包仍可并行接原生分析 adapter。
 - 付费：`google_play` 商品目录、恢复购买和 webhook 幂等处理。
+- 套餐展示：Google Play/海外包显示美元月费，国内包显示人民币月费。
 - 广告：仅账号页 banner，正式包通过真实 AdMob 环境变量开启；付费权益账号隐藏，内测包可使用测试广告位。
 
 ## 内部测试解锁

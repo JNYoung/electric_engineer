@@ -558,6 +558,21 @@ function tierLabel(tier: SubscriptionTier) {
   return '免费'
 }
 
+function formatPlanPrice(plan: BillingPlan, region: RuntimeAuthConfig['region']) {
+  if (plan.id === 'free' || plan.monthlyPrice === 0) {
+    return region === 'overseas' ? 'Free' : '免费'
+  }
+
+  if (region === 'overseas') {
+    return {
+      pro: 'US$5.99/月',
+      team: 'US$29.99/月'
+    }[plan.id] ?? `US$${plan.monthlyPrice}/月`
+  }
+
+  return `¥${plan.monthlyPrice}/月`
+}
+
 function domainMaterialFamily(domain: WorkbenchDomain): MaterialFamily {
   return domain === 'engineering-control' ? '工程工控' : '装修工控'
 }
@@ -1354,6 +1369,7 @@ function CommercePanel({
           <PlanCard
             key={plan.id}
             plan={plan}
+            authRegion={authConfig.region}
             active={plan.id === selectedPlanId}
             owned={hasTierAccess(session.tier, plan.id)}
             onSelect={onSelectPlan}
@@ -1367,11 +1383,13 @@ function CommercePanel({
 
 function PlanCard({
   plan,
+  authRegion,
   active,
   owned,
   onSelect
 }: {
   plan: BillingPlan
+  authRegion: RuntimeAuthConfig['region']
   active: boolean
   owned: boolean
   onSelect: (tier: SubscriptionTier) => void
@@ -1380,7 +1398,7 @@ function PlanCard({
     <View className={`plan-card ${active ? 'is-active' : ''}`}>
       <View className='plan-head'>
         <Text className='plan-name'>{plan.name}</Text>
-        <Text className='plan-price'>{plan.monthlyPrice === 0 ? '免费' : `¥${plan.monthlyPrice}/月`}</Text>
+        <Text className='plan-price'>{formatPlanPrice(plan, authRegion)}</Text>
       </View>
       <Text className='plan-target'>{plan.target}</Text>
       <Text className='plan-feature'>{plan.features[0]}</Text>
