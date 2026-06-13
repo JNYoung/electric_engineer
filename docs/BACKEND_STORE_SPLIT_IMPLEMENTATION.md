@@ -7,6 +7,7 @@
 - 后台接口覆盖账号、绑定、账号删除、进度同步、题库、权益、付费订阅和合规 manifest。
 - 后台支持可选文件持久化，便于本地内测、审核账号和真机验证跨重启保留数据。
 - 后台新增受 token 保护的运营/审核接口，可查看用户、进度、题库、删除队列、付费流水，并可创建审核账号或手动补发权益。
+- 后台新增国内/海外 telemetry 接收接口，按 flavor schema 入库，并在运营接口中支持按区域和事件名查询。
 - 前台登录入口改为弹窗，不再暴露 API 地址、端口、接口路径、测试码和原生插件说明。
 - Google Play 包与国内包继续使用 flavor-scoped 依赖。
 - Android 新增正式/内测包拆分：正式包不外显内部解锁入口，内测包在账号页底部显示内部测试解锁。
@@ -35,6 +36,8 @@
 - `GET /api/question-banks`
 - `POST /api/question-banks`
 - `POST /api/question-banks/:id/answer`
+- `POST /api/telemetry/cn/events`
+- `POST /api/telemetry/global/events`
 
 ## 后台持久化与运营接口
 
@@ -52,6 +55,7 @@ APP_BACKEND_STORE_PATH=.data/electric-master-backend/overseas.json npm run dev:b
 - `GET /api/admin/question-banks?userId=...`
 - `GET /api/admin/deletion-requests`
 - `GET /api/admin/billing-transactions?userId=...`
+- `GET /api/admin/telemetry-events?region=...&eventName=...&limit=...`
 - `POST /api/admin/review-accounts`
 - `POST /api/admin/entitlements/grant`
 
@@ -70,12 +74,20 @@ curl -X POST http://127.0.0.1:4318/api/admin/review-accounts \
 
 该接口会返回可用于 App 登录联调的 provider、credential、token，并把对应账号权益写入持久化文件。正式部署时应把同一契约迁移到数据库和真正的管理台权限系统。
 
+Telemetry 接收按 flavor 分流：
+
+- 国内包使用 `cn-edu-v1` 包络，投递到 `POST /api/telemetry/cn/events`。
+- Google Play/海外包使用 `global-edu-v1` 包络，投递到 `POST /api/telemetry/global/events`。
+- 服务端只保存短 hash 后的 anonymous/session 标识，运营接口不返回原始客户端 ID。
+- 本地 JSON 持久化会保留最近 1000 条事件，正式环境需替换为可查询的数据仓库或埋点平台。
+
 ## 中国包
 
 - 登录：微信、手机号验证码、邮箱密码。
 - 后台默认端口：`4317`。
 - 数据区域：`CN`。
 - 合规输出：隐私政策、SDK 清单、权限清单、账号注销入口。
+- 埋点：`cn-edu-v1`，自建 `product_analytics` 接收。
 - 付费：`domestic_channel` 商品目录，预留国内渠道支付/微信支付/支付宝回调。
 - 内部测试解锁：只允许服务端 `ENABLE_TEST_UNLOCK=true` 时启用。
 
@@ -85,6 +97,7 @@ curl -X POST http://127.0.0.1:4318/api/admin/review-accounts \
 - 后台默认端口：`4318`。
 - 数据区域：`US`。
 - 合规输出：隐私政策、Data safety 对应数据类型、账号删除入口。
+- 埋点：`global-edu-v1`，自建 `product_analytics` 接收，Google Play 包仍可并行接原生分析 adapter。
 - 付费：`google_play` 商品目录、恢复购买和 webhook 幂等处理。
 - 广告：仅免费账号的账号页 banner，付费权益账号隐藏。
 
@@ -125,6 +138,7 @@ npm run android:aab:googleplay:release
 - 短信服务：替换 `/api/auth/otp/send`。
 - OAuth：微信、Google、Facebook token 校验替换 `/api/auth/sign-in`。
 - 持久化：当前已支持 JSON 文件落盘；正式服务需替换为数据库表、迁移脚本、备份和审计日志。
+- 埋点：当前已支持自建接收和运营查询；正式服务需接入同意管理、采样、数据保留策略和区域化数据仓库。
 - 支付：当前已落地 checkout、restore、portal、webhook 和 entitlement 写入骨架；后续替换为 Google Play Billing purchase token 校验、RTDN、国内渠道支付/微信支付/支付宝回调验签。
 - 账号删除：当前已进入持久化删除队列；正式服务需接入邮件通知、后台处理状态流转和数据擦除任务。
 

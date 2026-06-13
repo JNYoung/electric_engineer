@@ -233,6 +233,79 @@ describe('app backend contract', () => {
     expect(revoked.entitlement.tier).toBe('free')
   })
 
+  it('ingests regional telemetry and exposes protected admin analytics', async () => {
+    const adminToken = 'admin-secret'
+    const server = await startBackend({ region: 'domestic', adminToken })
+    servers.push(server)
+
+    const domestic = await postJson<{
+      received: number
+      events: Array<{ region: string; eventName: string; actorHash: string; properties: Record<string, unknown> }>
+    }>(
+      `${server.url}/api/telemetry/cn/events`,
+      {
+        schema: 'cn-edu-v1',
+        event: 'cn_app_open',
+        distinctId: 'anon-cn',
+        time: 1000,
+        common: {
+          appVersion: '0.1.0',
+          region: 'domestic',
+          channel: 'weapp',
+          buildTarget: 'weapp',
+          platform: 'weapp',
+          locale: 'zh-CN',
+          sessionId: 'session-cn'
+        },
+        properties: {
+          module_id: 'simulate',
+          nested: { ignored: true }
+        }
+      }
+    )
+    const overseas = await postJson<{ events: Array<{ region: string; eventName: string }> }>(
+      `${server.url}/api/telemetry/global/events`,
+      {
+        schema: 'global-edu-v1',
+        eventName: 'purchase_intent',
+        clientId: 'anon-global',
+        timestampMicros: 2000000,
+        app: {
+          version: '0.1.0',
+          region: 'overseas',
+          channel: 'android-google-play',
+          buildTarget: 'android-google-play',
+          platform: 'android',
+          locale: 'en-US',
+          sessionId: 'session-global'
+        },
+        params: {
+          target_tier: 'pro'
+        }
+      }
+    )
+    const mismatch = await fetch(`${server.url}/api/telemetry/cn/events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ schema: 'global-edu-v1', eventName: 'app_open' })
+    })
+    const admin = await fetch(`${server.url}/api/admin/telemetry-events?region=overseas&eventName=purchase_intent`, {
+      headers: { authorization: `Bearer ${adminToken}` }
+    }).then((response) => response.json())
+
+    expect(domestic.received).toBe(1)
+    expect(domestic.events[0].region).toBe('domestic')
+    expect(domestic.events[0].eventName).toBe('app_open')
+    expect(domestic.events[0].actorHash).not.toBe('anon-cn')
+    expect(domestic.events[0].properties.nested).toBe('[object Object]')
+    expect(overseas.events[0].region).toBe('overseas')
+    expect(overseas.events[0].eventName).toBe('purchase_intent')
+    expect(mismatch.status).toBe(400)
+    expect(admin.total).toBe(1)
+    expect(admin.events[0].eventName).toBe('purchase_intent')
+    expect(JSON.stringify(admin.events[0])).not.toContain('anon-global')
+  })
+
   it('persists backend state and protects admin review operations', async () => {
     const storageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'electric-master-backend-'))
     const storagePath = path.join(storageDir, 'state.json')
@@ -258,11 +331,30 @@ describe('app backend contract', () => {
       { progress: { questionBank: { answered: 4, correct: 3, wrong: 1 } } },
       reviewAccount.token
     )
+    const telemetry = await postJson<{ received: number }>(
+      `${firstServer.url}/api/telemetry/global/events`,
+      {
+        schema: 'global-edu-v1',
+        eventName: 'app_open',
+        clientId: 'persisted-anon',
+        timestampMicros: 3000000,
+        app: {
+          version: '0.1.0',
+          channel: 'android-google-play',
+          buildTarget: 'android-google-play',
+          platform: 'android',
+          locale: 'en-US',
+          sessionId: 'persisted-session'
+        },
+        params: {}
+      }
+    )
 
     expect(unauthorized.status).toBe(401)
     expect(reviewAccount.session.provider).toBe('google')
     expect(reviewAccount.entitlement.tier).toBe('team')
     expect(progress.questionBank.answered).toBe(4)
+    expect(telemetry.received).toBe(1)
     expect(fs.existsSync(storagePath)).toBe(true)
 
     await firstServer.close()
@@ -279,10 +371,14 @@ describe('app backend contract', () => {
     const entitlements = await fetch(`${secondServer.url}/api/entitlements`, {
       headers: { authorization: `Bearer ${reviewAccount.token}` }
     }).then((response) => response.json())
+    const restoredTelemetry = await fetch(`${secondServer.url}/api/admin/telemetry-events?region=overseas&eventName=app_open`, {
+      headers: { authorization: `Bearer ${adminToken}` }
+    }).then((response) => response.json())
 
     expect(users.users.map((user: { userId: string }) => user.userId)).toContain(reviewAccount.session.userId)
     expect(restoredProgress.questionBank.answered).toBe(4)
     expect(entitlements.tier).toBe('team')
+    expect(restoredTelemetry.total).toBe(1)
 
     fs.rmSync(storageDir, { recursive: true, force: true })
   })

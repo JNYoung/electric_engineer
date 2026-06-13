@@ -53,6 +53,8 @@ const tierRank = {
   team: 2
 }
 
+const maxTelemetryEvents = 1000
+
 export function createAppBackendState(options = {}) {
   const storagePath = options.storagePath ?? process.env.APP_BACKEND_STORE_PATH ?? ''
   const state = {
@@ -63,6 +65,7 @@ export function createAppBackendState(options = {}) {
     entitlements: new Map(),
     billingTransactions: new Map(),
     billingEvents: new Map(),
+    telemetryEvents: new Map(),
     deletionRequests: new Map(),
     storagePath
   }
@@ -107,6 +110,7 @@ export function createAppBackendServer(options = {}) {
           billing: true,
           purchaseRestore: true,
           accountDeletion: true,
+          telemetry: true,
           internalTestUnlock
         }
       })
@@ -119,7 +123,7 @@ export function createAppBackendServer(options = {}) {
         region,
         store: storeProfiles[region],
         sdkDisclosures: buildSdkDisclosures(region),
-        dataCategories: ['account', 'course_progress', 'question_bank', 'purchase_status', 'billing_event'],
+        dataCategories: ['account', 'course_progress', 'question_bank', 'purchase_status', 'billing_event', 'product_analytics'],
         accountDeletion: {
           endpoint: '/api/auth/account/delete',
           slaDays: storeProfiles[region].accountDeletionSlaDays
@@ -144,6 +148,21 @@ export function createAppBackendServer(options = {}) {
       if (!handled) {
         json(res, 404, { error: 'admin_not_found' })
       }
+      return
+    }
+
+    const telemetryRegion = getTelemetryRegionForPath(url.pathname)
+    if (req.method === 'POST' && telemetryRegion) {
+      const body = await readBody(req)
+      const result = ingestTelemetryEvents(state, telemetryRegion, body)
+
+      if (result.error) {
+        json(res, 400, result)
+        return
+      }
+
+      persistState(state)
+      json(res, 200, result)
       return
     }
 
@@ -486,7 +505,7 @@ function json(res, status, payload) {
   res.writeHead(status, {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
-    'access-control-allow-headers': 'content-type,authorization',
+    'access-control-allow-headers': 'content-type,authorization,x-admin-token',
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(body)
   })
@@ -549,6 +568,21 @@ async function handleAdminRequest(req, res, url, state, defaultRegion) {
       .filter((transaction) => !userId || transaction.userId === userId)
       .sort(sortByUpdatedAtDesc)
     json(res, 200, { transactions })
+    return true
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/telemetry-events') {
+    const region = url.searchParams.get('region')
+    const eventName = url.searchParams.get('eventName')
+    const limit = clampNumber(Number(url.searchParams.get('limit') ?? 100), 1, 500)
+    const events = Array.from(state.telemetryEvents.values())
+      .filter((event) => !region || event.region === normalizeRegion(region))
+      .filter((event) => !eventName || event.eventName === eventName)
+      .sort(sortByReceivedAtDesc)
+    json(res, 200, {
+      total: events.length,
+      events: events.slice(0, limit)
+    })
     return true
   }
 
@@ -644,6 +678,7 @@ function hydrateState(state, storagePath) {
   restoreMap(state.entitlements, snapshot.entitlements)
   restoreMap(state.billingTransactions, snapshot.billingTransactions)
   restoreMap(state.billingEvents, snapshot.billingEvents)
+  restoreMap(state.telemetryEvents, snapshot.telemetryEvents)
   restoreMap(state.deletionRequests, snapshot.deletionRequests)
 }
 
@@ -660,6 +695,7 @@ function persistState(state) {
     entitlements: Array.from(state.entitlements.entries()),
     billingTransactions: Array.from(state.billingTransactions.entries()),
     billingEvents: Array.from(state.billingEvents.entries()),
+    telemetryEvents: Array.from(state.telemetryEvents.entries()),
     deletionRequests: Array.from(state.deletionRequests.entries())
   }
   const directory = path.dirname(state.storagePath)
@@ -685,6 +721,165 @@ function sortByUpdatedAtDesc(left, right) {
 
 function sortByRequestedAtDesc(left, right) {
   return String(right.requestedAt ?? '').localeCompare(String(left.requestedAt ?? ''))
+}
+
+function sortByReceivedAtDesc(left, right) {
+  return String(right.receivedAt ?? '').localeCompare(String(left.receivedAt ?? ''))
+}
+
+function getTelemetryRegionForPath(pathname) {
+  if (pathname === '/api/telemetry/cn/events') return 'domestic'
+  if (pathname === '/api/telemetry/global/events') return 'overseas'
+  return null
+}
+
+function ingestTelemetryEvents(state, region, body) {
+  const envelopes = Array.isArray(body.events) ? body.events : [body]
+  const receivedAt = new Date().toISOString()
+  const events = []
+
+  if (envelopes.length === 0) {
+    return { error: 'telemetry_events_required' }
+  }
+
+  for (const envelope of envelopes) {
+    const event = buildTelemetryEvent(region, envelope, receivedAt)
+    if (!event) {
+      return { error: 'telemetry_schema_mismatch', region }
+    }
+
+    state.telemetryEvents.set(event.id, event)
+    events.push(event)
+  }
+
+  trimTelemetryEvents(state)
+
+  return {
+    ok: true,
+    region,
+    received: events.length,
+    events
+  }
+}
+
+function buildTelemetryEvent(region, envelope, receivedAt) {
+  if (!envelope || typeof envelope !== 'object') return null
+
+  if (region === 'domestic' && envelope.schema === 'cn-edu-v1') {
+    const common = envelope.common ?? {}
+    return createStoredTelemetryEvent({
+      region,
+      schema: envelope.schema,
+      eventName: String(envelope.event ?? '').replace(/^cn_/, '') || 'unknown',
+      actorId: envelope.distinctId,
+      timestamp: envelope.time,
+      appVersion: common.appVersion,
+      buildTarget: common.buildTarget,
+      channel: common.channel,
+      platform: common.platform,
+      locale: common.locale,
+      sessionId: common.sessionId,
+      properties: envelope.properties,
+      receivedAt
+    })
+  }
+
+  if (region === 'overseas' && envelope.schema === 'global-edu-v1') {
+    const app = envelope.app ?? {}
+    return createStoredTelemetryEvent({
+      region,
+      schema: envelope.schema,
+      eventName: String(envelope.eventName ?? '') || 'unknown',
+      actorId: envelope.clientId,
+      timestamp: Number(envelope.timestampMicros) / 1000,
+      appVersion: app.version,
+      buildTarget: app.buildTarget,
+      channel: app.channel,
+      platform: app.platform,
+      locale: app.locale,
+      sessionId: app.sessionId,
+      properties: envelope.params,
+      receivedAt
+    })
+  }
+
+  return null
+}
+
+function createStoredTelemetryEvent({
+  region,
+  schema,
+  eventName,
+  actorId,
+  timestamp,
+  appVersion,
+  buildTarget,
+  channel,
+  platform,
+  locale,
+  sessionId,
+  properties,
+  receivedAt
+}) {
+  return {
+    id: `tel_${crypto.randomUUID()}`,
+    region,
+    schema,
+    eventName,
+    actorHash: hashSecret(actorId ?? 'anonymous').slice(0, 24),
+    sessionHash: hashSecret(sessionId ?? 'session').slice(0, 24),
+    appVersion: String(appVersion ?? ''),
+    buildTarget: String(buildTarget ?? ''),
+    channel: String(channel ?? ''),
+    platform: String(platform ?? ''),
+    locale: String(locale ?? ''),
+    properties: sanitizeTelemetryProperties(properties),
+    occurredAt: toIsoTime(timestamp),
+    receivedAt
+  }
+}
+
+function sanitizeTelemetryProperties(properties = {}) {
+  if (!properties || typeof properties !== 'object') return {}
+
+  return Object.entries(properties).reduce((result, [key, value]) => {
+    if (typeof key !== 'string' || !key) return result
+    if (value === undefined) return result
+    if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      result[key.slice(0, 80)] = value
+      return result
+    }
+    result[key.slice(0, 80)] = String(value)
+    return result
+  }, {})
+}
+
+function toIsoTime(value) {
+  const timestamp = Number(value)
+  const time = Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now()
+  return new Date(time).toISOString()
+}
+
+function trimTelemetryEvents(state) {
+  if (state.telemetryEvents.size <= maxTelemetryEvents) return
+
+  const keepIds = new Set(
+    Array.from(state.telemetryEvents.values())
+      .sort(sortByReceivedAtDesc)
+      .slice(0, maxTelemetryEvents)
+      .map((event) => event.id)
+  )
+
+  for (const id of state.telemetryEvents.keys()) {
+    if (!keepIds.has(id)) {
+      state.telemetryEvents.delete(id)
+    }
+  }
+}
+
+function clampNumber(value, min, max) {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(max, Math.round(value)))
 }
 
 function normalizeRegion(value) {
@@ -721,14 +916,16 @@ function buildSdkDisclosures(region) {
   if (region === 'domestic') {
     return [
       { id: 'wechat', purpose: 'social_login', enabled: true },
-      { id: 'sms', purpose: 'phone_otp', enabled: true }
+      { id: 'sms', purpose: 'phone_otp', enabled: true },
+      { id: 'self_hosted_telemetry', purpose: 'product_analytics', enabled: true }
     ]
   }
 
   return [
     { id: 'google_identity', purpose: 'social_login', enabled: true },
     { id: 'facebook_login', purpose: 'social_login', enabled: true },
-    { id: 'admob', purpose: 'account_page_banner', enabled: true }
+    { id: 'admob', purpose: 'account_page_banner', enabled: true },
+    { id: 'self_hosted_telemetry', purpose: 'product_analytics', enabled: true }
   ]
 }
 
